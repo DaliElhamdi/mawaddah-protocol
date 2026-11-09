@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Git commit-msg hook: validates Conventional Commits for ANY commit.
+# Enable once per clone:  git config core.hooksPath .githooks
+msg="$(grep -v '^#' "$1")"
+exec "$(git rev-parse --show-toplevel)/scripts/check-commit-msg.sh" "$msg"

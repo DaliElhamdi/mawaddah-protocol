@@ -1,0 +1,26 @@
+name: Bug
+description: Something does not work as specified
+labels: ["type:bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what was expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce (say which phone does what)
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: App version, Android version, device
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria (including the regression test)
+    validations:
+      required: true

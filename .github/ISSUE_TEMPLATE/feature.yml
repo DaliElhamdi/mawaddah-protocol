@@ -1,0 +1,24 @@
+name: Feature
+description: New functionality (one issue = at most one day of work)
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should the user be able to do? Link the spec section.
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: how-to-test
+    attributes:
+      label: How to test
+    validations:
+      required: true

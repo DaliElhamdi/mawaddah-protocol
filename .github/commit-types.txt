@@ -1,0 +1,26 @@
+# Allowed commit types and scopes (one per line). Used by .githooks/commit-msg,
+# scripts/check-commit-msg.sh and the pr-title CI job.
+[types]
+feat
+fix
+docs
+style
+refactor
+perf
+test
+build
+ci
+chore
+revert
+[scopes]
+protocol
+relay
+crypto
+sync
+pairing
+backup
+docs
+deps
+ci
+tooling
+release

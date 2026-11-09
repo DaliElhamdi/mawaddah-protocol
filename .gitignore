@@ -1,0 +1,32 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.iml
+
+# Secrets — never commit
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+*.pem
+*.mobileprovision
+google-services.json
+service-account*.json
+.dev.vars
+
+# Dart
+.dart_tool/
+build/
+coverage/
+# pubspec.lock is kept for applications, not for the package
+
+# Node / Cloudflare Workers
+node_modules/
+.wrangler/
+
+# Claude Code personal overrides
+.claude/settings.local.json

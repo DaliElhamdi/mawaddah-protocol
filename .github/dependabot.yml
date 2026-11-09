@@ -1,0 +1,9 @@
+# Pub and npm entries are added when packages/mawaddah_protocol and relay/ exist (Phase 0/1).
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps)"

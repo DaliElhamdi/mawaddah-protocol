@@ -1,0 +1,23 @@
+name: Task
+description: Chore, tooling, docs or CI work
+labels: ["type:chore"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: how-to-test
+    attributes:
+      label: How to test
+    validations:
+      required: true
