@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: protocol-release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   WRANGLER_SEND_METRICS: "false"
 
@@ -21,6 +25,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Tag must point at a commit on main
         run: |
@@ -65,6 +70,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Create the GitHub Release
         env:

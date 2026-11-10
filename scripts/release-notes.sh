@@ -9,8 +9,8 @@ case "$tag" in
   *) echo "not a release tag: $tag" >&2; exit 1 ;;
 esac
 version="${tag#v}"
-notes=$(awk -v v="$version" '
-  /^## \[/ { if (on) exit; on = (index($0, "## [" v "]") == 1); next }
+notes=$(RN_VERSION="$version" awk '
+  /^## \[/ { if (on) exit; on = (index($0, "## [" ENVIRON["RN_VERSION"] "]") == 1); next }
   on { print }
 ' "$file" | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}' | sed '/./,$!d')
 if [ -z "$notes" ]; then
