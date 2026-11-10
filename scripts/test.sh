@@ -18,7 +18,7 @@ if [ -f packages/mawaddah_protocol/pubspec.yaml ]; then
 fi
 if [ -f relay/package.json ]; then
   echo "== npm test (relay)"
-  if need npm; then (cd relay && npm ci --silent && npm test --if-present) || fail=1; fi
+  if need npm; then (cd relay && npm ci --silent && npm test) || fail=1; fi
 fi
 
 if [ "$fail" -eq 0 ]; then echo "tests OK"; else echo "tests FAILED"; exit 1; fi
