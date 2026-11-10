@@ -28,6 +28,10 @@ if [ -f packages/mawaddah_protocol/pubspec.yaml ]; then
     dart format --output=none --set-exit-if-changed packages/mawaddah_protocol || bad "dart format"
     (cd packages/mawaddah_protocol && dart analyze) || bad "dart analyze"
   fi
+  step "no DateTime.now() in lib/ (time is injected, spec 14b.3)"
+  if grep -rnF 'DateTime.now' packages/mawaddah_protocol/lib; then
+    bad "DateTime.now() found in lib/; use the injected Clock"
+  fi
 fi
 if [ -f relay/package.json ]; then
   step "relay lint"
