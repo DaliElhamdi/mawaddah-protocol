@@ -25,5 +25,8 @@ The real `Clock`, `RandomSource`, `Storage` and `RelayClient` are supplied by th
 ## Toolchain and checks
 Pinned versions: Dart in `.dart-version`, Node in `.node-version` (CI reads these files). `scripts/check.sh` = format, analyze, lint, typecheck, secret-file and fork-safety guards; `scripts/test.sh` = `dart test` and the relay's Vitest. CI runs both plus gitleaks. Workflows use `pull_request` only, never `pull_request_target`, and no secrets, so fork PRs cannot reach any.
 
+## Releases
+Releases are tags `vX.Y.Z` on `main`. The `protocol-release` workflow runs the checks and tests, then publishes a GitHub Release with the matching CHANGELOG section (add `## [X.Y.Z] - date` first; `scripts/release-notes.sh vX.Y.Z` shows what will be published). The private app depends on the package by tag (`ref: vX.Y.Z`), never by branch.
+
 ## Contributing
 Conventional Commits (`type(scope): subject`, see `.github/commit-types.txt`), PRs into `main`, CI green. Enable the git hook once per clone: `git config core.hooksPath .githooks`. Report security issues privately (see `SECURITY.md`).
