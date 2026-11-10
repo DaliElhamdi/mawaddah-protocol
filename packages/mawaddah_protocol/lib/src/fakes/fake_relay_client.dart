@@ -6,6 +6,9 @@ import 'dart:typed_data';
 import '../relay_client.dart';
 
 /// In-memory relay for tests: keeps envelopes per inbox, in deposit order.
+///
+/// Cursors come from one counter shared by all inboxes (increasing, not per
+/// inbox). [wakesFor] is a history of deposits and is not cleared by [ack].
 class FakeRelayClient implements RelayClient {
   final Map<String, List<RelayEnvelope>> _inboxes = {};
   final Map<String, List<bool>> _wakes = {};

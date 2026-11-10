@@ -23,6 +23,7 @@ service-account*.json
 build/
 coverage/
 # pubspec.lock is kept for applications, not for the package
+pubspec.lock
 
 # Node / Cloudflare Workers
 node_modules/
