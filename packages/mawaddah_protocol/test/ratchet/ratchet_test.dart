@@ -76,11 +76,13 @@ void main() {
       final alice = RatchetSession.fromPairing(
         crypto: crypto,
         random: SeededRandom(3),
+        clock: FakeClock(),
         pairing: p.joiner,
       );
       final bob = RatchetSession.fromPairing(
         crypto: crypto,
         random: SeededRandom(4),
+        clock: FakeClock(),
         pairing: p.initiator,
       );
       expect(p.joiner.rootKey.isDisposed, isTrue);
@@ -101,6 +103,7 @@ void main() {
         () => RatchetSession.initAlice(
           crypto: crypto,
           random: SeededRandom(1),
+          clock: FakeClock(),
           rootKey: crypto.importSecret(Uint8List(32)),
           associatedData: Uint8List(127),
           remoteRatchetKey: crypto.generateX25519KeyPair().publicKey,
@@ -302,7 +305,7 @@ void main() {
     });
   });
 
-  group('order (skipped keys come with #14)', () {
+  group('order', () {
     test('a repeated message is refused and the session goes on', () {
       final s = sessions(crypto);
       final m = s.alice.encrypt(text('once'), envelopePrefix: prefix(1));
@@ -312,54 +315,6 @@ void main() {
         fails(RatchetFailure.oldMessage),
       );
       expect(roundTrip(s.alice, s.bob, 'next', 2), 'next');
-    });
-
-    test('a message after a missing one is refused, state unchanged', () {
-      final s = sessions(crypto);
-      final m1 = s.alice.encrypt(text('1'), envelopePrefix: prefix(1));
-      final m2 = s.alice.encrypt(text('2'), envelopePrefix: prefix(2));
-      expect(
-        () =>
-            s.bob.decrypt(m2.header, m2.ciphertext, envelopePrefix: prefix(2)),
-        fails(RatchetFailure.skippedMessage),
-      );
-      s.bob.decrypt(m1.header, m1.ciphertext, envelopePrefix: prefix(1));
-      s.bob.decrypt(m2.header, m2.ciphertext, envelopePrefix: prefix(2));
-    });
-
-    test(
-      'a new chain whose previous chain has missing messages is refused',
-      () {
-        final s = sessions(crypto);
-        roundTrip(s.alice, s.bob, 'a1', 1);
-        final b1 = s.bob.encrypt(text('b1'), envelopePrefix: prefix(1));
-        final b2 = s.bob.encrypt(text('b2'), envelopePrefix: prefix(2));
-        s.alice.decrypt(b1.header, b1.ciphertext, envelopePrefix: prefix(1));
-        roundTrip(s.alice, s.bob, 'a2', 2);
-        final b3 = s.bob.encrypt(text('b3'), envelopePrefix: prefix(3));
-        expect(b3.header.pn, 2);
-        expect(
-          () => s.alice.decrypt(
-            b3.header,
-            b3.ciphertext,
-            envelopePrefix: prefix(3),
-          ),
-          fails(RatchetFailure.skippedMessage),
-        );
-        s.alice.decrypt(b2.header, b2.ciphertext, envelopePrefix: prefix(2));
-        s.alice.decrypt(b3.header, b3.ciphertext, envelopePrefix: prefix(3));
-      },
-    );
-
-    test('the initiator refuses a first message that is not n = 0', () {
-      final s = sessions(crypto);
-      s.alice.encrypt(text('lost'), envelopePrefix: prefix(1));
-      final m = s.alice.encrypt(text('2'), envelopePrefix: prefix(2));
-      expect(
-        () => s.bob.decrypt(m.header, m.ciphertext, envelopePrefix: prefix(2)),
-        fails(RatchetFailure.skippedMessage),
-      );
-      expect(s.bob.canSend, isFalse);
     });
   });
 

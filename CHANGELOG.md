@@ -15,9 +15,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - Generated vectors `test/vectors/pairing.json` (13 cases); `.gitleaks.toml` allowlists it and `rfc4231_hmac.json` by exact path.
 - Double Ratchet chains (PROTOCOL.md section 6): `RatchetSession.fromPairing` (joiner = Alice, sends first; initiator = Bob, `canSend` only after the joiner's first message), `initAlice` / `initBob`, `encrypt` / `decrypt` with `RatchetHeader` (`dh_pub || pn || n`, 40 bytes) and the 50 envelope bytes before it, so the AEAD authenticates `AD || envelope bytes[0..90]`. A DH ratchet step happens on every turn change; a failed decrypt (`RatchetException`) leaves the session unchanged. In-order delivery per direction only: a message that needs a skipped key is refused (`skippedMessage`) until #14.
 - Generated vectors `test/vectors/ratchet.json` (a 16-step conversation with turn changes and crossing messages; every key and ciphertext derived twice in the generator); `.gitleaks.toml` allowlists it by exact path.
+- Skipped message keys for the Double Ratchet (PROTOCOL.md section 6, Signal 3.5): messages may arrive out of order or late, also across turns. One message may create at most 1,000 skipped keys (`maxSkip`, both chains of a turn together; more is refused with `tooManySkipped`). At most 1,000 are stored, oldest deleted first. A key older than 30 days (injected `Clock`) is ignored and then deleted, at the next success or by `deleteExpiredSkippedKeys()`. A failed decrypt still changes nothing, including the stored keys.
+- Saving a ratchet session: `RatchetSession.toStorageBytes` / `fromStorageBytes` (versioned local format, input zeroed, damaged bytes refused with `FormatException`) and `save` / `load` through `Storage`. `ratchet.json` gains an out-of-order case (28 steps).
 
 ### Changed
 - `package:crypto` moved from dev to normal dependencies: the device ID and relay body hashes need SHA-256, which the `sodium` Dart API does not offer (ADR 0006 point 3).
+- `RatchetSession.fromPairing`, `initAlice` and `initBob` now take a `Clock`. `RatchetFailure.skippedMessage` is replaced by `tooManySkipped`, because out-of-order messages are now accepted.
+- `Storage.write` must not keep a reference to the value it is given (callers zero secrets once it completes).
 - `mawaddah_protocol` now needs Dart 3.13 or later (required by `sodium` 4.x) and a C compiler the first time it is built or tested.
 
 ## [0.0.1] - 2026-11-10

@@ -33,6 +33,7 @@ void main() {
         'alice': RatchetSession.initAlice(
           crypto: crypto,
           random: draws('alice_random'),
+          clock: FakeClock(),
           rootKey: crypto.importSecret(hex(input['root_key'])),
           associatedData: hex(input['associated_data']),
           remoteRatchetKey: bobPair.publicKey,
@@ -40,6 +41,7 @@ void main() {
         'bob': RatchetSession.initBob(
           crypto: crypto,
           random: draws('bob_random'),
+          clock: FakeClock(),
           rootKey: crypto.importSecret(hex(input['root_key'])),
           associatedData: hex(input['associated_data']),
           ratchetKeyPair: bobPair,
@@ -70,6 +72,9 @@ void main() {
             envelopePrefix: hex(sent['envelope_prefix']),
           );
           expect(_hex(plaintext), step['plaintext'], reason: id);
+          if (step['skipped_key_count'] case final int count) {
+            expect(s.skippedKeyCount, count, reason: id);
+          }
           if (step['dh_ratchet'] case final Json dh) {
             expect(
               _hex(s.ratchetPublicKey.bytes),
@@ -95,6 +100,7 @@ void main() {
     );
     final bob = RatchetSession.initBob(
       crypto: crypto,
+      clock: FakeClock(),
       random: ReplayRandom([
         for (final d in c.input['bob_random']! as List<Object?>) hex(d),
       ]),

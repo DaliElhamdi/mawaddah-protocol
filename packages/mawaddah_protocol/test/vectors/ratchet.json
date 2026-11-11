@@ -311,6 +311,569 @@
           }
         ]
       }
+    },
+    {
+      "name": "conversation out of order with skipped message keys",
+      "input": {
+        "root_key": "bc98e5ad71467b8a03bc6278aa0d3de284370bf2fd4ae1636035ba654fcfe316",
+        "associated_data": "d09df9df26e6246171c685f55aef7be0da31f71516407fa28cbfc1650ed84ba218bca23fc11a0a9b71bb90081b3f65cdab729b48ac5b9170620eaa3f32fd2c1038a70c8c6746bea04a7a41dfe7760e2f4f7326277cc7184b747defc99b63564513affc5d9141629bf55b0fe9e09fada9c9fd890cfe03c4097b06d13ab2262443",
+        "bob_ratchet_secret": "b7e50512deee904e6115a33335af53f273c723df311919b88bf9d8f52814d2b7",
+        "alice_random": [
+          "bb7664d41479c59c2f31ac5445d446307bd7dcb7cd00fc3c103778cd00281649",
+          "1638764b652ef550320c27eb503255146d390bd00aed561814628af1af493fbb",
+          "648844418408ada9f4d7864d79da78ea37045064e46cdd482949b9422f6b295b",
+          "cbb6d7c101f6583a2e00c2a041f2248a8367d1fcf561af5fdb1eba6b5823173b",
+          "be1b1fd56a64bfecef77c19adb55505b1edbe814d11d9a6a2590454d6203a92c"
+        ],
+        "bob_random": [
+          "2173a6a1c49e0cd7d90759e64c2d1e4f1e4a78a382b868c7ff6f3f97256e74b3",
+          "7fa21ffd71f826255c75eebc38b05c4655d0128f1bb0f8b911015f4fefbdfeb3",
+          "d2895c42e6766a209028df09bfc928e81fd4e4fa3e0a8614a9ec9b668eee6467",
+          "accc7392a92b4e1682aaee3bc540045d591dba099bf3a0e991b16069fc72fcdf"
+        ],
+        "script": [
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a0"
+          },
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a1"
+          },
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a2"
+          },
+          {
+            "op": "recv",
+            "side": "bob",
+            "message": "a2"
+          },
+          {
+            "op": "recv",
+            "side": "bob",
+            "message": "a0"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b0"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b1"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b2"
+          },
+          {
+            "op": "recv",
+            "side": "alice",
+            "message": "b1"
+          },
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a3"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b3"
+          },
+          {
+            "op": "recv",
+            "side": "bob",
+            "message": "a3"
+          },
+          {
+            "op": "recv",
+            "side": "alice",
+            "message": "b3"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b4"
+          },
+          {
+            "op": "recv",
+            "side": "alice",
+            "message": "b4"
+          },
+          {
+            "op": "recv",
+            "side": "alice",
+            "message": "b2"
+          },
+          {
+            "op": "recv",
+            "side": "alice",
+            "message": "b0"
+          },
+          {
+            "op": "recv",
+            "side": "bob",
+            "message": "a1"
+          },
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a4"
+          },
+          {
+            "op": "recv",
+            "side": "bob",
+            "message": "a4"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b5"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b6"
+          },
+          {
+            "op": "recv",
+            "side": "alice",
+            "message": "b5"
+          },
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a5"
+          },
+          {
+            "op": "recv",
+            "side": "bob",
+            "message": "a5"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b7"
+          },
+          {
+            "op": "recv",
+            "side": "alice",
+            "message": "b7"
+          },
+          {
+            "op": "recv",
+            "side": "alice",
+            "message": "b6"
+          }
+        ]
+      },
+      "output": {
+        "bob_ratchet_pub": "a182280edf1f8610f08f5fb0021a366dc9c962bceb86f61edaa2578c349d495a",
+        "alice_initial_ratchet_pub": "64e7d3195980f3a854c2537ddca32f035a6537e2935943af52897898019b9913",
+        "steps": [
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a0",
+            "plaintext": "6d657373616765206130",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000003e8",
+            "header": "64e7d3195980f3a854c2537ddca32f035a6537e2935943af52897898019b99130000000000000000",
+            "chain_key": "95b4392f206b94a0a0c4214ef437ab1af6e41a707cce0fec541c797b0be67702",
+            "message_key": "c74e2646a768d6c5a47e994f8da2e9ce2b395e15f9dcd02f3d1bc2765f27c2fb",
+            "aead_key": "35ff1bd2c0ddda88925036a4f5eb29dac58ecf34c115aa2e2484f5508cf4008f",
+            "aead_nonce": "db4c21489bbe80ed544ba2004782969742260635f2980325",
+            "ciphertext": "e100eb0367377326b1fa2713d0697538722d1e59bf5b912ba82a"
+          },
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a1",
+            "plaintext": "6d657373616765206131",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000003e9",
+            "header": "64e7d3195980f3a854c2537ddca32f035a6537e2935943af52897898019b99130000000000000001",
+            "chain_key": "a891e0938495f60a07924f135d41fdb9aed2336ac5a504d1c50b9df20164ea6c",
+            "message_key": "6ae1a1191900fa03a49f477decd14edeea8548bef0fba9142dcedc0526714fb4",
+            "aead_key": "42f7f3fc1ec8d668df99987ffa8c2ab36291ab54612c3e3aca57f65f522eca00",
+            "aead_nonce": "0f0d0198d0251d526c05e66704b99a8e460ec69cfc3fb2fe",
+            "ciphertext": "d3642933a5b7eaacea73abb5ea7b4a0d8967522420f571bfaa9a"
+          },
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a2",
+            "plaintext": "6d657373616765206132",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000003ea",
+            "header": "64e7d3195980f3a854c2537ddca32f035a6537e2935943af52897898019b99130000000000000002",
+            "chain_key": "99f2496e6017310811e832f0697547632bd561ec140dc31a82e2103cf1c0f065",
+            "message_key": "50350547963007f3f25e9520e1b3b7a2daf07643949d122a57365465b62a504b",
+            "aead_key": "d4053f79d305f7309fb645c5b6de67e334e5c9b7da748b9995aa1e3092dffcad",
+            "aead_nonce": "e3cbd1458a6179de32e54e62ad6e51d2326fbf1f80339602",
+            "ciphertext": "14c7856b43a62f7b756384c6943c7e3495401d5b9414fe01206d"
+          },
+          {
+            "op": "receive",
+            "side": "bob",
+            "message": "a2",
+            "dh_ratchet": {
+              "new_ratchet_secret": "2173a6a1c49e0cd7d90759e64c2d1e4f1e4a78a382b868c7ff6f3f97256e74b3",
+              "new_ratchet_pub": "a709b65c796ad9580e7115126b2f8c82e92b189fcd3541ad3afbf4cd2221772f",
+              "root_key": "51783da3f815fe297134496ada86f7aea1a70b692a82a276a17e254ed31fee81",
+              "receiving_chain_key": "ce57e2c5f15c22bdf1221d8184f549d73d74c0cb7d0f73628a87f56a3c7bfb5c",
+              "sending_chain_key": "6278c48f7437cffc47013bc6eabad29e5c8cae0eaa01fb996b2e0fe7e32f1cb9"
+            },
+            "skipped_keys": [
+              {
+                "dh_pub": "64e7d3195980f3a854c2537ddca32f035a6537e2935943af52897898019b9913",
+                "n": 0,
+                "message_key": "c74e2646a768d6c5a47e994f8da2e9ce2b395e15f9dcd02f3d1bc2765f27c2fb"
+              },
+              {
+                "dh_pub": "64e7d3195980f3a854c2537ddca32f035a6537e2935943af52897898019b9913",
+                "n": 1,
+                "message_key": "6ae1a1191900fa03a49f477decd14edeea8548bef0fba9142dcedc0526714fb4"
+              }
+            ],
+            "chain_key": "99f2496e6017310811e832f0697547632bd561ec140dc31a82e2103cf1c0f065",
+            "message_key": "50350547963007f3f25e9520e1b3b7a2daf07643949d122a57365465b62a504b",
+            "plaintext": "6d657373616765206132",
+            "skipped_key_count": 2
+          },
+          {
+            "op": "receive",
+            "side": "bob",
+            "message": "a0",
+            "from_skipped_key": true,
+            "message_key": "c74e2646a768d6c5a47e994f8da2e9ce2b395e15f9dcd02f3d1bc2765f27c2fb",
+            "plaintext": "6d657373616765206130",
+            "skipped_key_count": 1
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b0",
+            "plaintext": "6d657373616765206230",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000003ed",
+            "header": "a709b65c796ad9580e7115126b2f8c82e92b189fcd3541ad3afbf4cd2221772f0000000000000000",
+            "chain_key": "86d87acf7677f8541b635e59f920eefd976908b34745d9f3ec76d5e137c06b78",
+            "message_key": "c3a6e2c7e34bf94629e23d9d48a4ee804a092507c02f7c5c41097f3bf3b10185",
+            "aead_key": "5acdc804e7230f65a0268563c2cd365129998a3754c22b82cb325091f8daaa86",
+            "aead_nonce": "3083eca2b27b7a2e51bcf2684b4017b4d99b46d48f9df004",
+            "ciphertext": "031e161dcb3762ba0da56ff5b8dd8369de7b78a0d784da008b29"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b1",
+            "plaintext": "6d657373616765206231",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000003ee",
+            "header": "a709b65c796ad9580e7115126b2f8c82e92b189fcd3541ad3afbf4cd2221772f0000000000000001",
+            "chain_key": "3054f6b310b892a0f52b6757759ba117b10066e7a86ab9cc40e7b091f6c6bd02",
+            "message_key": "c44d1d10bd6df1e7bb33d0edc09ab4ae399150d63e3750e261b302108e470923",
+            "aead_key": "7cf45c376dab23ef4cf62298df66aabf41f3bc1f0f7a2521848c081fed78da2c",
+            "aead_nonce": "6689e0c3f132ced5d2d824fc38997b38359819594869fe1f",
+            "ciphertext": "a0577135492b17f78ce82859164fff1097d9a91b6fc614b90d8b"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b2",
+            "plaintext": "6d657373616765206232",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000003ef",
+            "header": "a709b65c796ad9580e7115126b2f8c82e92b189fcd3541ad3afbf4cd2221772f0000000000000002",
+            "chain_key": "fd1ce903401ecfd99777010e2d4fac8d8e989b68637034c2f242b4021cdd38d7",
+            "message_key": "97f9e4eb8e4ac45420f2937ff0f668f41e0a410085bf9e531473df1079c2cbfc",
+            "aead_key": "7af981f6ddfee5f7cae8976e231c76af4ca6ad611528704f481d1835fd20c4db",
+            "aead_nonce": "dc325bf103c1d290d188bc99adec23676ca1bb75eabd85a9",
+            "ciphertext": "f8d0996c336dc795ce28b7c83c3271f8c0a104afdfe881e4e482"
+          },
+          {
+            "op": "receive",
+            "side": "alice",
+            "message": "b1",
+            "dh_ratchet": {
+              "new_ratchet_secret": "1638764b652ef550320c27eb503255146d390bd00aed561814628af1af493fbb",
+              "new_ratchet_pub": "8909fd9c48b4d1e7bc02c2822f16abc238bc0c8b6dd97bdccbbe6ae1c626a649",
+              "root_key": "3ff387307a65d2716da656fff57a85fdb08e34fbd4d61e544977b1481622a0fd",
+              "receiving_chain_key": "6278c48f7437cffc47013bc6eabad29e5c8cae0eaa01fb996b2e0fe7e32f1cb9",
+              "sending_chain_key": "3b3a629b8411cc4800e3dc51787c4b42490c28897ab85bebd16ceb3d7baef943"
+            },
+            "skipped_keys": [
+              {
+                "dh_pub": "a709b65c796ad9580e7115126b2f8c82e92b189fcd3541ad3afbf4cd2221772f",
+                "n": 0,
+                "message_key": "c3a6e2c7e34bf94629e23d9d48a4ee804a092507c02f7c5c41097f3bf3b10185"
+              }
+            ],
+            "chain_key": "3054f6b310b892a0f52b6757759ba117b10066e7a86ab9cc40e7b091f6c6bd02",
+            "message_key": "c44d1d10bd6df1e7bb33d0edc09ab4ae399150d63e3750e261b302108e470923",
+            "plaintext": "6d657373616765206231",
+            "skipped_key_count": 1
+          },
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a3",
+            "plaintext": "6d657373616765206133",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000003f1",
+            "header": "8909fd9c48b4d1e7bc02c2822f16abc238bc0c8b6dd97bdccbbe6ae1c626a6490000000300000000",
+            "chain_key": "44cd16537efe0fab051ca9c031e114b56eccee5e479d49222c717c3206db9c7d",
+            "message_key": "8afb63f35290b11c028df2a7e359a84ec8eb654cbf6ebf2bfca36533d87e0d92",
+            "aead_key": "2e15b3434dd131dc0edf8556199743dfe9ffc38349af7559952ea8ed5e41565a",
+            "aead_nonce": "9c6d3a4b9ec6813e4597a77748c98b20f7ec58611e8a04be",
+            "ciphertext": "ca9d80511e8412ca358c72e9fa2aa2a7c70f1eb5f49ae61d4053"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b3",
+            "plaintext": "6d657373616765206233",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000003f2",
+            "header": "a709b65c796ad9580e7115126b2f8c82e92b189fcd3541ad3afbf4cd2221772f0000000000000003",
+            "chain_key": "a71f82569d8726f33a425e86047d362d4e181517f3bded1a23092f89ef25881c",
+            "message_key": "d2b9d9105dfcb98db1e8473429fa43fe855b94103184149065d3b9f8acf9af79",
+            "aead_key": "ce4979a88782a5b1b2f5d6b6ecadea0f7d2a3066f7ee4fafc9b314d1784e94d4",
+            "aead_nonce": "8c44010002077237310dd5b39b0d50311f56ff4b1c4d0687",
+            "ciphertext": "a4deaf9b18fc2f7c14492b37416c670416e0c500ea892dbae235"
+          },
+          {
+            "op": "receive",
+            "side": "bob",
+            "message": "a3",
+            "dh_ratchet": {
+              "new_ratchet_secret": "7fa21ffd71f826255c75eebc38b05c4655d0128f1bb0f8b911015f4fefbdfeb3",
+              "new_ratchet_pub": "892e7b170c9182670288774e08aa098f5c27733dbe6783de296e061742c55520",
+              "root_key": "d39f9ca8a20487af70259f06ca87f8a41fcf3de5b457655987cd07c90c8af69b",
+              "receiving_chain_key": "3b3a629b8411cc4800e3dc51787c4b42490c28897ab85bebd16ceb3d7baef943",
+              "sending_chain_key": "cabd0478d73ff2ce3085d589b9256b8fff16bdaf1d1d45d3fe3900fce68c20f5"
+            },
+            "chain_key": "44cd16537efe0fab051ca9c031e114b56eccee5e479d49222c717c3206db9c7d",
+            "message_key": "8afb63f35290b11c028df2a7e359a84ec8eb654cbf6ebf2bfca36533d87e0d92",
+            "plaintext": "6d657373616765206133",
+            "skipped_key_count": 1
+          },
+          {
+            "op": "receive",
+            "side": "alice",
+            "message": "b3",
+            "skipped_keys": [
+              {
+                "dh_pub": "a709b65c796ad9580e7115126b2f8c82e92b189fcd3541ad3afbf4cd2221772f",
+                "n": 2,
+                "message_key": "97f9e4eb8e4ac45420f2937ff0f668f41e0a410085bf9e531473df1079c2cbfc"
+              }
+            ],
+            "chain_key": "a71f82569d8726f33a425e86047d362d4e181517f3bded1a23092f89ef25881c",
+            "message_key": "d2b9d9105dfcb98db1e8473429fa43fe855b94103184149065d3b9f8acf9af79",
+            "plaintext": "6d657373616765206233",
+            "skipped_key_count": 2
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b4",
+            "plaintext": "6d657373616765206234",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000003f5",
+            "header": "892e7b170c9182670288774e08aa098f5c27733dbe6783de296e061742c555200000000400000000",
+            "chain_key": "92b5f7cf644eeb1392503c1efc4d79a2897c8e66eb7dd67e0bd6c3aec23be5ab",
+            "message_key": "20801c38729b4f98f803e77cd19a829b7323e9a696e7fa2a6f5277dff076c2f5",
+            "aead_key": "7937296c74b3814bd613c59f22f49ed7bb880b2b9724ada170db37f143ce02c5",
+            "aead_nonce": "eaa2ad6a47067585a6905832ae9f21bf898be97eb7ea6a65",
+            "ciphertext": "dc2be5f1c5d1578d7aa36b55bdaeb703ce6012e756c5cb37e9e9"
+          },
+          {
+            "op": "receive",
+            "side": "alice",
+            "message": "b4",
+            "dh_ratchet": {
+              "new_ratchet_secret": "648844418408ada9f4d7864d79da78ea37045064e46cdd482949b9422f6b295b",
+              "new_ratchet_pub": "967ca2a70e5645a2da47e718ca745a9949d452d42de652435cd40034a7382c68",
+              "root_key": "fa21920828b7168e61bd88b5d92c3737a632ad387ad83054e26beed23d2db222",
+              "receiving_chain_key": "cabd0478d73ff2ce3085d589b9256b8fff16bdaf1d1d45d3fe3900fce68c20f5",
+              "sending_chain_key": "01cd87f6a34cca9a343a5bff8d975211d76bb87ff501ff2e5ed9604a5cad1086"
+            },
+            "chain_key": "92b5f7cf644eeb1392503c1efc4d79a2897c8e66eb7dd67e0bd6c3aec23be5ab",
+            "message_key": "20801c38729b4f98f803e77cd19a829b7323e9a696e7fa2a6f5277dff076c2f5",
+            "plaintext": "6d657373616765206234",
+            "skipped_key_count": 2
+          },
+          {
+            "op": "receive",
+            "side": "alice",
+            "message": "b2",
+            "from_skipped_key": true,
+            "message_key": "97f9e4eb8e4ac45420f2937ff0f668f41e0a410085bf9e531473df1079c2cbfc",
+            "plaintext": "6d657373616765206232",
+            "skipped_key_count": 1
+          },
+          {
+            "op": "receive",
+            "side": "alice",
+            "message": "b0",
+            "from_skipped_key": true,
+            "message_key": "c3a6e2c7e34bf94629e23d9d48a4ee804a092507c02f7c5c41097f3bf3b10185",
+            "plaintext": "6d657373616765206230",
+            "skipped_key_count": 0
+          },
+          {
+            "op": "receive",
+            "side": "bob",
+            "message": "a1",
+            "from_skipped_key": true,
+            "message_key": "6ae1a1191900fa03a49f477decd14edeea8548bef0fba9142dcedc0526714fb4",
+            "plaintext": "6d657373616765206131",
+            "skipped_key_count": 0
+          },
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a4",
+            "plaintext": "6d657373616765206134",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000003fa",
+            "header": "967ca2a70e5645a2da47e718ca745a9949d452d42de652435cd40034a7382c680000000100000000",
+            "chain_key": "e43a50e23335bbcf2a40d8e0c215f11a3329feb2daf2b080c315d36e7f370dc1",
+            "message_key": "eaa77e81c85c2dadd3224de263b974a65e64f95b781e483a5f3b963316218559",
+            "aead_key": "18961f977a8e6c797ae75aa045115dc97f4cf3fcab940734741103bc92b4dbf7",
+            "aead_nonce": "b395dbd8c0376436c1ec2eca37cf16506e757f1858589ba7",
+            "ciphertext": "be3a527033224e62624e6f5b8f60d1c0c1589bcfa44b152a0590"
+          },
+          {
+            "op": "receive",
+            "side": "bob",
+            "message": "a4",
+            "dh_ratchet": {
+              "new_ratchet_secret": "d2895c42e6766a209028df09bfc928e81fd4e4fa3e0a8614a9ec9b668eee6467",
+              "new_ratchet_pub": "062f0d81e65423fdaef6639dc79eb01c7e3f01ffebde941095f387ee977ceb51",
+              "root_key": "2106aaa9a55553ba67297947f17ac9851775b2b105ef3bc2af35c65a1dab889f",
+              "receiving_chain_key": "01cd87f6a34cca9a343a5bff8d975211d76bb87ff501ff2e5ed9604a5cad1086",
+              "sending_chain_key": "57350b27e12f8375fb10522ea9175949b1789d6213034a7463d9378ddaafe397"
+            },
+            "chain_key": "e43a50e23335bbcf2a40d8e0c215f11a3329feb2daf2b080c315d36e7f370dc1",
+            "message_key": "eaa77e81c85c2dadd3224de263b974a65e64f95b781e483a5f3b963316218559",
+            "plaintext": "6d657373616765206134"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b5",
+            "plaintext": "6d657373616765206235",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000003fc",
+            "header": "062f0d81e65423fdaef6639dc79eb01c7e3f01ffebde941095f387ee977ceb510000000100000000",
+            "chain_key": "c1927cd3b4928e324633b03295032d2c0b8c8811355748453929cdf5b1c2d3df",
+            "message_key": "6090f80a7b15094975abe9c5585ce6507d7cb6efd1ec2b13a3dfdb909fbbbf04",
+            "aead_key": "10f5a7ca01a7f5214af15af293106cf55b301973f2f2d4d2518183bb84ea9b0d",
+            "aead_nonce": "8973f1ae53a7bdecbd245a90ffdf21ff6122de3419bde54b",
+            "ciphertext": "aaf2bbdf4c5957ee555ed6607d0ccd8976c4e5bc2e739b53c61a"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b6",
+            "plaintext": "6d657373616765206236",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000700000000000003fd",
+            "header": "062f0d81e65423fdaef6639dc79eb01c7e3f01ffebde941095f387ee977ceb510000000100000001",
+            "chain_key": "43a5b705f2096200f30e676999589cd3b7129f1077abcd0e6c4b07c77d301e20",
+            "message_key": "e5a24ea9a4c7b371f76015bed34fc0f3db1ca8355b923e7bd6d4ec4c6f5715f2",
+            "aead_key": "d8a0f3a6f7f16dbfcf24293d8292e9abe6b54b989578c1cedf49593f014e9365",
+            "aead_nonce": "9048acc60f49d0c338283a0e859fe4e93ef9b9640c15bc81",
+            "ciphertext": "8832fe335cce4145cfa8dd6a3e3c074863148b4b3a24a754fc7d"
+          },
+          {
+            "op": "receive",
+            "side": "alice",
+            "message": "b5",
+            "dh_ratchet": {
+              "new_ratchet_secret": "cbb6d7c101f6583a2e00c2a041f2248a8367d1fcf561af5fdb1eba6b5823173b",
+              "new_ratchet_pub": "cdfa6f77b969eacf95bc87bab1090fd1daa8b8a651ed3ee75fcf92ad81c73a45",
+              "root_key": "c7e1be1c4b6d9a61e38dff2f68be4065b6f454ac2a420d88d27a32598942c527",
+              "receiving_chain_key": "57350b27e12f8375fb10522ea9175949b1789d6213034a7463d9378ddaafe397",
+              "sending_chain_key": "cd71158071514ffd91f2ebb127e12f677d77fd566e55014c1fe292626bcde38f"
+            },
+            "chain_key": "c1927cd3b4928e324633b03295032d2c0b8c8811355748453929cdf5b1c2d3df",
+            "message_key": "6090f80a7b15094975abe9c5585ce6507d7cb6efd1ec2b13a3dfdb909fbbbf04",
+            "plaintext": "6d657373616765206235"
+          },
+          {
+            "op": "send",
+            "side": "alice",
+            "message": "a5",
+            "plaintext": "6d657373616765206135",
+            "envelope_prefix": "01010000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000003ff",
+            "header": "cdfa6f77b969eacf95bc87bab1090fd1daa8b8a651ed3ee75fcf92ad81c73a450000000100000000",
+            "chain_key": "a6b5b2bd7b525e1855fc2afa62a31ee48fc82e340c2787137b34653ed94d4361",
+            "message_key": "3ffa82e10a6f6929da5954c5f280f11fc1f2344d74f0da85f5fd1c08862c5915",
+            "aead_key": "7af502ebc9f4585a1e5f9766d31e4a2ecaf930cb6fbe5de5392f814ca05c0b30",
+            "aead_nonce": "bac51cdf7ca6eb167142bb8088d60d152525162369ad6a69",
+            "ciphertext": "3c55fb0ba2d480841c907a22179d1ef62f40c017ca79e4e25fa3"
+          },
+          {
+            "op": "receive",
+            "side": "bob",
+            "message": "a5",
+            "dh_ratchet": {
+              "new_ratchet_secret": "accc7392a92b4e1682aaee3bc540045d591dba099bf3a0e991b16069fc72fcdf",
+              "new_ratchet_pub": "575f9526f1c7b341e393669d41c326fddd4ee35faec6b7a3a8e5b4f415fe1226",
+              "root_key": "a9221f5dcb88a6da094eb06ca5f29013b3aaf5b922fc93c151a91423729e8d7a",
+              "receiving_chain_key": "cd71158071514ffd91f2ebb127e12f677d77fd566e55014c1fe292626bcde38f",
+              "sending_chain_key": "e52dde68c0f5d8382acefe9e07ebf5e8509d50dd3efb51da7f1ca9d46c7d23a0"
+            },
+            "chain_key": "a6b5b2bd7b525e1855fc2afa62a31ee48fc82e340c2787137b34653ed94d4361",
+            "message_key": "3ffa82e10a6f6929da5954c5f280f11fc1f2344d74f0da85f5fd1c08862c5915",
+            "plaintext": "6d657373616765206135"
+          },
+          {
+            "op": "send",
+            "side": "bob",
+            "message": "b7",
+            "plaintext": "6d657373616765206237",
+            "envelope_prefix": "0101000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000401",
+            "header": "575f9526f1c7b341e393669d41c326fddd4ee35faec6b7a3a8e5b4f415fe12260000000200000000",
+            "chain_key": "f6d18482cb363be5ef1d75429ac10814e4cfd20cf98e12dc6f7dae04789fbf0f",
+            "message_key": "024e9584681b31f9a53b1b466b9ae030e3ee428d5555dd2583e93efbee800af4",
+            "aead_key": "ab9023b3cec5cf0a6fe7dc7ebd9c182733b9675022c4dca1d66eb570202ccc6c",
+            "aead_nonce": "f3f403b5f777797c9bb14245d52513a88745ec9265c85da7",
+            "ciphertext": "3e7cefe1dcca0a876a1965f2f9f49fc90b100600fac711835484"
+          },
+          {
+            "op": "receive",
+            "side": "alice",
+            "message": "b7",
+            "dh_ratchet": {
+              "new_ratchet_secret": "be1b1fd56a64bfecef77c19adb55505b1edbe814d11d9a6a2590454d6203a92c",
+              "new_ratchet_pub": "5b9564d85f542136b3b99a69b422c2d2591e80853d8f29ed78b933b63c1b7025",
+              "root_key": "8703955c5cb4c04d5af5b3da83c741fd49d5383faf71bed3593f5099d1a33858",
+              "receiving_chain_key": "e52dde68c0f5d8382acefe9e07ebf5e8509d50dd3efb51da7f1ca9d46c7d23a0",
+              "sending_chain_key": "4fdbb41092daee9e08092223cbe4268a93b9363089ba7eb87882b6013015f2a9"
+            },
+            "skipped_keys": [
+              {
+                "dh_pub": "062f0d81e65423fdaef6639dc79eb01c7e3f01ffebde941095f387ee977ceb51",
+                "n": 1,
+                "message_key": "e5a24ea9a4c7b371f76015bed34fc0f3db1ca8355b923e7bd6d4ec4c6f5715f2"
+              }
+            ],
+            "chain_key": "f6d18482cb363be5ef1d75429ac10814e4cfd20cf98e12dc6f7dae04789fbf0f",
+            "message_key": "024e9584681b31f9a53b1b466b9ae030e3ee428d5555dd2583e93efbee800af4",
+            "plaintext": "6d657373616765206237",
+            "skipped_key_count": 1
+          },
+          {
+            "op": "receive",
+            "side": "alice",
+            "message": "b6",
+            "from_skipped_key": true,
+            "message_key": "e5a24ea9a4c7b371f76015bed34fc0f3db1ca8355b923e7bd6d4ec4c6f5715f2",
+            "plaintext": "6d657373616765206236",
+            "skipped_key_count": 0
+          }
+        ]
+      }
     }
   ]
 }

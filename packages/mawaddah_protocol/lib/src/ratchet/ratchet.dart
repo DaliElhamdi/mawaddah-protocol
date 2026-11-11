@@ -9,18 +9,19 @@
 /// that document. Nothing here is a new construction: every function maps to
 /// one of its functions, with the choices listed in PROTOCOL.md section 6.
 ///
-/// This file covers in-order delivery in both directions and the DH ratchet
-/// step on every turn change. Skipped message keys (out-of-order delivery,
-/// Signal 3.5 `SkipMessageKeys`) and saving the state come with issue #14:
-/// until then a message that would need a skipped key is rejected with
-/// [RatchetFailure.skippedMessage] and the session is left unchanged.
+/// Covers the DH ratchet step on every turn change, skipped message keys for
+/// out-of-order delivery (Signal 3.5 `TrySkippedMessageKeys` and
+/// `SkipMessageKeys`, with the limits of PROTOCOL.md section 6) and saving
+/// the state ([RatchetSession.toStorageBytes], [RatchetSession.save]).
 library;
 
 import 'dart:typed_data';
 
+import '../clock.dart';
 import '../crypto/crypto.dart';
 import '../pairing/pairing.dart';
 import '../random_source.dart';
+import '../storage.dart';
 
 // --- labels (PROTOCOL.md section 6) -----------------------------------------
 
@@ -38,6 +39,18 @@ const ratchetAssociatedDataLength = 128;
 const envelopePrefixLength = 50;
 
 const _maxU32 = 0xFFFFFFFF;
+
+/// Most skipped message keys one received message may create, counting both
+/// `SkipMessageKeys` calls of a DH ratchet step (PROTOCOL.md section 6,
+/// `MAX_SKIP`). A header that would need more is rejected with
+/// [RatchetFailure.tooManySkipped].
+const maxSkip = 1000;
+
+/// Most skipped message keys kept at once; when full, the oldest is deleted.
+const maxStoredSkippedKeys = 1000;
+
+/// A skipped message key older than this is deleted (PROTOCOL.md section 6).
+const skippedKeyLifetime = Duration(days: 30);
 
 // --- header ------------------------------------------------------------------
 
@@ -113,15 +126,16 @@ enum RatchetFailure {
   /// The header's ratchet key is unusable (small order: all-zero X25519).
   invalidKey,
 
-  /// The message comes after one that has not arrived yet.
+  /// Opening the message would need more than [maxSkip] new skipped message
+  /// keys (the header claims too many messages that have not arrived).
   ///
   /// This and [oldMessage] are decided from the header before the AEAD
-  /// check, so they say nothing about whether the message is genuine. Handled by
-  /// skipped message keys in issue #14; until then it is rejected.
-  skippedMessage,
+  /// check, so they say nothing about whether the message is genuine.
+  tooManySkipped,
 
-  /// The message number was already used in this chain (a repeat, or a
-  /// message older than the current one).
+  /// The message number was already used in the current receiving chain
+  /// and no skipped key is stored for it: a repeat, or a message whose
+  /// skipped key was deleted (older than [skippedKeyLifetime] or evicted).
   oldMessage,
 }
 
@@ -138,24 +152,44 @@ final class RatchetException implements Exception {
 
 // --- session -----------------------------------------------------------------
 
+/// A skipped message key (Signal 3.2 `MKSKIPPED` entry) and when it was
+/// stored, for the [skippedKeyLifetime] rule.
+final class _SkippedKey {
+  _SkippedKey(this.mk, this.storedAt);
+
+  final SecretBytes mk;
+  final DateTime storedAt;
+}
+
+/// `MKSKIPPED` is indexed by the sender's ratchet key and the message number.
+typedef _SkippedId = (X25519PublicKey, int);
+
 /// One side of a Double Ratchet session (Signal 3.2 state variables).
 ///
-/// Create it with [RatchetSession.fromPairing]. [encrypt] and [decrypt] take
-/// the [envelopePrefixLength] envelope bytes that come before the ratchet
-/// header, so the AEAD authenticates `AD || envelope bytes[0..90]` exactly as
-/// PROTOCOL.md section 7 says.
+/// Create it with [RatchetSession.fromPairing], or restore a saved one with
+/// [RatchetSession.fromStorageBytes] / [RatchetSession.load]. [encrypt] and
+/// [decrypt] take the [envelopePrefixLength] envelope bytes that come before
+/// the ratchet header, so the AEAD authenticates `AD || envelope
+/// bytes[0..90]` exactly as PROTOCOL.md section 7 says.
 ///
 /// Not thread-safe; one session per pair. Call [dispose] to wipe the keys.
 final class RatchetSession {
   RatchetSession._({
     required this._crypto,
     required this._random,
+    required this._clock,
     required Uint8List associatedData,
     required this._dhs,
     required this._dhr,
     required this._rk,
     required this._cks,
-  }) : _ad = Uint8List.fromList(associatedData).asUnmodifiableView();
+    this._ckr,
+    this._ns = 0,
+    this._nr = 0,
+    this._pn = 0,
+    Map<_SkippedId, _SkippedKey>? skipped,
+  }) : _ad = Uint8List.fromList(associatedData).asUnmodifiableView(),
+       _skipped = skipped ?? {};
 
   /// Starts the session from a finished pairing (PROTOCOL.md section 4.4).
   ///
@@ -171,10 +205,12 @@ final class RatchetSession {
   /// session is being erased too.
   ///
   /// [random] must be a secure source in the app; it supplies every new
-  /// ratchet key pair (Signal 3.1 `GENERATE_DH`).
+  /// ratchet key pair (Signal 3.1 `GENERATE_DH`). [clock] dates the skipped
+  /// message keys ([skippedKeyLifetime]).
   factory RatchetSession.fromPairing({
     required Crypto crypto,
     required RandomSource random,
+    required Clock clock,
     required PairingResult pairing,
   }) {
     final sk = pairing.rootKey;
@@ -187,6 +223,7 @@ final class RatchetSession {
         return RatchetSession.initBob(
           crypto: crypto,
           random: random,
+          clock: clock,
           rootKey: sk.copy(),
           associatedData: pairing.associatedData,
           ratchetKeyPair: pair,
@@ -195,6 +232,7 @@ final class RatchetSession {
       return RatchetSession.initAlice(
         crypto: crypto,
         random: random,
+        clock: clock,
         rootKey: sk.copy(),
         associatedData: pairing.associatedData,
         remoteRatchetKey: pairing.initiatorRatchetKey,
@@ -212,6 +250,7 @@ final class RatchetSession {
   factory RatchetSession.initAlice({
     required Crypto crypto,
     required RandomSource random,
+    required Clock clock,
     required SecretBytes rootKey,
     required Uint8List associatedData,
     required X25519PublicKey remoteRatchetKey,
@@ -228,6 +267,7 @@ final class RatchetSession {
         return RatchetSession._(
           crypto: crypto,
           random: random,
+          clock: clock,
           associatedData: associatedData,
           dhs: dhs,
           dhr: remoteRatchetKey,
@@ -249,6 +289,7 @@ final class RatchetSession {
   factory RatchetSession.initBob({
     required Crypto crypto,
     required RandomSource random,
+    required Clock clock,
     required SecretBytes rootKey,
     required Uint8List associatedData,
     required X25519KeyPair ratchetKeyPair,
@@ -263,11 +304,138 @@ final class RatchetSession {
     return RatchetSession._(
       crypto: crypto,
       random: random,
+      clock: clock,
       associatedData: associatedData,
       dhs: ratchetKeyPair,
       dhr: null,
       rk: rootKey,
       cks: null,
+    );
+  }
+
+  /// A session from bytes written by [toStorageBytes]. Zeroes [bytes], also
+  /// when it throws.
+  ///
+  /// Throws [FormatException] when [bytes] is damaged, inconsistent or in an
+  /// unknown format version.
+  factory RatchetSession.fromStorageBytes({
+    required Crypto crypto,
+    required RandomSource random,
+    required Clock clock,
+    required Uint8List bytes,
+  }) {
+    // Every secret imported so far; wiped if a later step fails.
+    final owned = <Object>[];
+    void wipeOwned() {
+      for (final o in owned) {
+        switch (o) {
+          case final SecretBytes s:
+            s.dispose();
+          case final X25519KeyPair p:
+            p.dispose();
+        }
+      }
+    }
+
+    try {
+      if (bytes.length < _storageFixedLength) {
+        throw const FormatException('stored ratchet session is too short');
+      }
+      if (bytes[0] != storageFormatVersion) {
+        throw FormatException('unknown stored ratchet format ${bytes[0]}');
+      }
+      final data = ByteData.sublistView(bytes);
+      final flags = bytes[_oFlags];
+      if (flags & ~(_fDhr | _fCks | _fCkr) != 0) {
+        throw const FormatException('unknown flags in stored ratchet session');
+      }
+      final hasDhr = flags & _fDhr != 0;
+      final hasCks = flags & _fCks != 0;
+      final hasCkr = flags & _fCkr != 0;
+      // Reachable states: Bob before the first message (no DHr, CKs, CKr),
+      // Alice before the first reply (DHr and CKs), and after any DH
+      // ratchet step (all three).
+      if (hasCkr && !(hasDhr && hasCks) || hasCks != hasDhr) {
+        throw const FormatException('inconsistent stored ratchet session');
+      }
+      final ns = data.getUint32(_oNs);
+      final nr = data.getUint32(_oNr);
+      final pn = data.getUint32(_oPn);
+      final count = data.getUint32(_oCount);
+      if (count > maxStoredSkippedKeys ||
+          bytes.length != _storageFixedLength + count * _storageSkippedLength) {
+        throw const FormatException('stored ratchet session has a bad length');
+      }
+
+      Uint8List take(int offset, int length) => Uint8List.fromList(
+        Uint8List.sublistView(bytes, offset, offset + length),
+      );
+      SecretBytes secret(int offset) {
+        final s = crypto.importSecret(take(offset, 32));
+        owned.add(s);
+        return s;
+      }
+
+      final dhs = crypto.importX25519KeyPair(take(_oDhs, 32));
+      owned.add(dhs);
+      final rk = secret(_oRk);
+      final cks = hasCks ? secret(_oCks) : null;
+      final ckr = hasCkr ? secret(_oCkr) : null;
+      final skipped = <_SkippedId, _SkippedKey>{};
+      for (var i = 0; i < count; i++) {
+        final o = _storageFixedLength + i * _storageSkippedLength;
+        final id = (X25519PublicKey(take(o, 32)), data.getUint32(o + 32));
+        final ms = data.getInt64(o + 36);
+        if (ms.abs() > _maxDateMs) {
+          throw const FormatException('bad time in stored ratchet session');
+        }
+        final storedAt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
+        if (skipped.containsKey(id)) {
+          throw const FormatException('repeated skipped key in stored session');
+        }
+        skipped[id] = _SkippedKey(secret(o + 44), storedAt);
+      }
+      final session = RatchetSession._(
+        crypto: crypto,
+        random: random,
+        clock: clock,
+        associatedData: Uint8List.sublistView(bytes, _oAd, _oAd + 128),
+        dhs: dhs,
+        dhr: hasDhr ? X25519PublicKey(take(_oDhr, 32)) : null,
+        rk: rk,
+        cks: cks,
+        ckr: ckr,
+        ns: ns,
+        nr: nr,
+        pn: pn,
+        skipped: skipped,
+      );
+      owned.clear();
+      return session;
+    } catch (_) {
+      wipeOwned();
+      rethrow;
+    } finally {
+      bytes.fillRange(0, bytes.length, 0);
+    }
+  }
+
+  /// Reads the session saved under [key] by [save]; null when there is none.
+  /// See [RatchetSession.fromStorageBytes] for the errors.
+  static Future<RatchetSession?> load({
+    required Crypto crypto,
+    required RandomSource random,
+    required Clock clock,
+    required Storage storage,
+    required String key,
+  }) async {
+    final bytes = await storage.read(key);
+    if (bytes == null) return null;
+    return RatchetSession.fromStorageBytes(
+      crypto: crypto,
+      random: random,
+      clock: clock,
+      bytes: bytes,
     );
   }
 
@@ -281,8 +449,35 @@ final class RatchetSession {
     }
   }
 
+  // --- storage format (local only, not part of the wire protocol) ----------
+
+  /// Version byte at the start of [toStorageBytes].
+  static const storageFormatVersion = 1;
+
+  static const _fDhr = 1, _fCks = 2, _fCkr = 4;
+  static const _oAd = 1; // AD, 128 bytes
+  static const _oFlags = _oAd + ratchetAssociatedDataLength; // 129
+  static const _oDhs = _oFlags + 1; // DHs secret key
+  static const _oDhr = _oDhs + 32; // DHr, zeros when absent
+  static const _oRk = _oDhr + 32;
+  static const _oCks = _oRk + 32; // zeros when absent
+  static const _oCkr = _oCks + 32; // zeros when absent
+  static const _oNs = _oCkr + 32;
+  static const _oNr = _oNs + 4;
+  static const _oPn = _oNr + 4;
+  static const _oCount = _oPn + 4;
+  static const _storageFixedLength = _oCount + 4; // 306
+
+  /// One skipped key: `dh_pub` 32, `u32 n`, `i64` stored-at time in
+  /// milliseconds since the Unix epoch (UTC), message key 32.
+  static const _storageSkippedLength = 32 + 4 + 8 + 32; // 76
+
+  /// The range of a Dart [DateTime], in milliseconds.
+  static const _maxDateMs = 8640000000000000;
+
   final Crypto _crypto;
   final RandomSource _random;
+  final Clock _clock;
   final Uint8List _ad;
 
   // Signal 3.2 state variables.
@@ -291,9 +486,11 @@ final class RatchetSession {
   SecretBytes _rk; // RK
   SecretBytes? _cks; // CKs
   SecretBytes? _ckr; // CKr
-  int _ns = 0; // Ns
-  int _nr = 0; // Nr
-  int _pn = 0; // PN
+  int _ns; // Ns
+  int _nr; // Nr
+  int _pn; // PN
+  // MKSKIPPED, in the order the keys were stored (oldest first).
+  final Map<_SkippedId, _SkippedKey> _skipped;
   bool _disposed = false;
 
   /// Whether [encrypt] may be called. False only on the initiator before
@@ -306,10 +503,22 @@ final class RatchetSession {
     return _dhs.publicKey;
   }
 
+  /// How many skipped message keys are stored (at most
+  /// [maxStoredSkippedKeys]), including any older than [skippedKeyLifetime]
+  /// that [decrypt] or [deleteExpiredSkippedKeys] has not deleted yet.
+  int get skippedKeyCount {
+    _ensureLive();
+    return _skipped.length;
+  }
+
   /// Signal 3.4 `RatchetEncrypt(state, plaintext, AD)`.
   ///
   /// [envelopePrefix] is the [envelopePrefixLength] bytes of the envelope
   /// before the ratchet header. Throws [StateError] when [canSend] is false.
+  ///
+  /// Save the session ([toStorageBytes]) before the message leaves the
+  /// device: a session restored from older bytes would use the same message
+  /// key, and so the same AEAD nonce, for a different plaintext.
   RatchetMessage encrypt(
     Uint8List plaintext, {
     required Uint8List envelopePrefix,
@@ -342,13 +551,16 @@ final class RatchetSession {
     }
   }
 
-  /// Signal 3.4 `RatchetDecrypt(state, header, ciphertext, AD)`, without
-  /// skipped message keys (issue #14).
+  /// Signal 3.4 `RatchetDecrypt(state, header, ciphertext, AD)` with the
+  /// skipped message keys of Signal 3.5.
   ///
-  /// Works on new values and only replaces the session's keys once the AEAD
-  /// tag has been checked (Signal 3.5: "if an exception is raised ... the
-  /// message is discarded and changes to the state object are discarded").
-  /// Throws [RatchetException]; then the session is unchanged.
+  /// Works on new values and only changes the session once the AEAD tag has
+  /// been checked (Signal 3.5: "if an exception is raised ... the message is
+  /// discarded and changes to the state object are discarded"). Throws
+  /// [RatchetException]; then the session is unchanged.
+  ///
+  /// A successful call also deletes the skipped keys older than
+  /// [skippedKeyLifetime] and, past [maxStoredSkippedKeys], the oldest ones.
   Uint8List decrypt(
     RatchetHeader header,
     Uint8List ciphertext, {
@@ -357,24 +569,45 @@ final class RatchetSession {
     _checkPrefix(envelopePrefix);
     _ensureLive();
     final crypto = _crypto;
-    final turn = header.dhPub != _dhr;
+    final now = _clock.now();
+    final ad = _concat(envelopePrefix, header);
 
+    // Signal 3.5 `TrySkippedMessageKeys`. An expired key counts as absent.
+    final id = (header.dhPub, header.n);
+    final stored = _skipped[id];
+    if (stored != null && !_isExpired(stored, now)) {
+      final plaintext = _decrypt(crypto, stored.mk, ciphertext, ad);
+      _skipped.remove(id);
+      stored.mk.dispose();
+      _deleteExpired(now);
+      return plaintext;
+    }
+
+    final turn = header.dhPub != _dhr;
     // Candidate values, owned here until the AEAD tag checks out; whatever
     // is still set in `finally` was not committed and is wiped.
+    final newSkipped = <_SkippedId, SecretBytes>{};
     X25519KeyPair? newDhs;
     SecretBytes? newRk;
     SecretBytes? newCks;
     SecretBytes? newCkr; // receiving chain key from the DH ratchet step
+    SecretBytes? skippedTo; // receiving chain key at header.n after skipping
     SecretBytes? nextCkr; // receiving chain key after this message
     SecretBytes? mk;
     try {
-      var ckr = _ckr;
+      SecretBytes? ckr = _ckr;
       var nr = _nr;
       if (turn) {
-        // Signal 3.5 `SkipMessageKeys(state, header.pn)`: messages left in
-        // the old receiving chain would need skipped keys (issue #14).
-        if (ckr != null && header.pn > nr) {
-          throw const RatchetException(RatchetFailure.skippedMessage);
+        // Both `SkipMessageKeys` calls together stay within MAX_SKIP.
+        final oldCkr = ckr;
+        final fromOld = oldCkr != null && header.pn > nr ? header.pn - nr : 0;
+        if (fromOld + header.n > maxSkip) {
+          throw const RatchetException(RatchetFailure.tooManySkipped);
+        }
+        // Signal 3.5 `SkipMessageKeys(state, header.pn)`: the rest of the
+        // old receiving chain. Its last chain key is not needed.
+        if (fromOld > 0) {
+          _skipKeys(oldCkr!, _dhr!, nr, header.pn, newSkipped)?.dispose();
         }
         // Signal 3.5 `DHRatchet(state, header)`.
         final (rk1, ckr1) = _kdfRk(
@@ -395,20 +628,18 @@ final class RatchetSession {
         }
         ckr = ckr1;
         nr = 0;
+      } else {
+        if (ckr == null || header.n < nr) {
+          throw const RatchetException(RatchetFailure.oldMessage);
+        }
+        if (header.n - nr > maxSkip) {
+          throw const RatchetException(RatchetFailure.tooManySkipped);
+        }
       }
-      if (header.n > nr) {
-        throw const RatchetException(RatchetFailure.skippedMessage);
-      }
-      if (header.n < nr || ckr == null) {
-        throw const RatchetException(RatchetFailure.oldMessage);
-      }
-      (nextCkr, mk) = _kdfCk(crypto, ckr);
-      final plaintext = _decrypt(
-        crypto,
-        mk,
-        ciphertext,
-        _concat(envelopePrefix, header),
-      );
+      // Signal 3.5 `SkipMessageKeys(state, header.n)` in the current chain.
+      skippedTo = _skipKeys(ckr, header.dhPub, nr, header.n, newSkipped);
+      (nextCkr, mk) = _kdfCk(crypto, skippedTo ?? ckr);
+      final plaintext = _decrypt(crypto, mk, ciphertext, ad);
 
       // Commit (Signal 3.5: the state changes only on success). Nothing
       // below can throw: `dispose` on a live secret does not fail.
@@ -426,16 +657,110 @@ final class RatchetSession {
       }
       _ckr?.dispose();
       _ckr = nextCkr;
-      _nr = nr + 1;
+      _nr = header.n + 1;
       nextCkr = null;
+      for (final MapEntry(:key, :value) in newSkipped.entries) {
+        // A (dh_pub, n) is never skipped twice, but never leak a key if so.
+        _skipped.remove(key)?.mk.dispose();
+        _skipped[key] = _SkippedKey(value, now);
+      }
+      newSkipped.clear();
+      _deleteExpired(now);
+      while (_skipped.length > maxStoredSkippedKeys) {
+        _skipped.remove(_skipped.keys.first)!.mk.dispose();
+      }
       return plaintext;
     } finally {
+      for (final k in newSkipped.values) {
+        k.dispose();
+      }
       mk?.dispose();
       nextCkr?.dispose();
+      skippedTo?.dispose();
       newCkr?.dispose();
       newDhs?.dispose();
       newRk?.dispose();
       newCks?.dispose();
+    }
+  }
+
+  /// Deletes the skipped message keys older than [skippedKeyLifetime]
+  /// (by the injected clock). [decrypt] does this on every success; the app
+  /// can also call it, for example once per sync, so keys do not outlive
+  /// their 30 days while no message arrives.
+  void deleteExpiredSkippedKeys() {
+    _ensureLive();
+    _deleteExpired(_clock.now());
+  }
+
+  /// The whole session as bytes for the app's encrypted database (local
+  /// only: never sent, logged or put in a backup, PROTOCOL.md section 6).
+  /// The caller must overwrite the list with zeros once it is stored.
+  ///
+  /// Layout (format version 1, integers big-endian): version (1), `AD`
+  /// (128), flags (1: bit 0 `DHr`, bit 1 `CKs`, bit 2 `CKr` present), `DHs`
+  /// secret key (32), `DHr` (32), `RK` (32), `CKs` (32), `CKr` (32) (absent
+  /// values are zeros), `u32 Ns`, `u32 Nr`, `u32 PN`, `u32` number of
+  /// skipped keys, then per skipped key (oldest first): `dh_pub` (32),
+  /// `u32 n`, `i64` time stored in milliseconds since the Unix epoch (UTC),
+  /// message key (32).
+  Uint8List toStorageBytes() {
+    _ensureLive();
+    final count = _skipped.length;
+    final out = Uint8List(_storageFixedLength + count * _storageSkippedLength);
+    final data = ByteData.sublistView(out);
+    void put(int offset, Uint8List secret) {
+      out.setAll(offset, secret);
+      secret.fillRange(0, secret.length, 0);
+    }
+
+    try {
+      out
+        ..[0] = storageFormatVersion
+        ..setAll(_oAd, _ad)
+        ..[_oFlags] =
+            (_dhr != null ? _fDhr : 0) |
+            (_cks != null ? _fCks : 0) |
+            (_ckr != null ? _fCkr : 0);
+      put(_oDhs, _dhs.secretKey.extractBytes());
+      if (_dhr case final dhr?) out.setAll(_oDhr, dhr.bytes);
+      put(_oRk, _rk.extractBytes());
+      if (_cks case final cks?) put(_oCks, cks.extractBytes());
+      if (_ckr case final ckr?) put(_oCkr, ckr.extractBytes());
+      data
+        ..setUint32(_oNs, _ns)
+        ..setUint32(_oNr, _nr)
+        ..setUint32(_oPn, _pn)
+        ..setUint32(_oCount, count);
+      var o = _storageFixedLength;
+      for (final MapEntry(key: (dhPub, n), :value) in _skipped.entries) {
+        out.setAll(o, dhPub.bytes);
+        data
+          ..setUint32(o + 32, n)
+          ..setInt64(o + 36, value.storedAt.millisecondsSinceEpoch);
+        put(o + 44, value.mk.extractBytes());
+        o += _storageSkippedLength;
+      }
+      return out;
+    } catch (_) {
+      out.fillRange(0, out.length, 0);
+      rethrow;
+    }
+  }
+
+  /// Writes [toStorageBytes] to [storage] under [key] and zeroes the bytes
+  /// once the write has finished.
+  ///
+  /// The app commits the session in the same database transaction as the
+  /// events of the message (PROTOCOL.md section 8, step 8), so it will
+  /// usually call [toStorageBytes] itself; this is for callers that keep
+  /// the session on its own.
+  Future<void> save(Storage storage, String key) async {
+    final bytes = toStorageBytes();
+    try {
+      await storage.write(key, bytes);
+    } finally {
+      bytes.fillRange(0, bytes.length, 0);
     }
   }
 
@@ -449,6 +774,48 @@ final class RatchetSession {
     _ckr?.dispose();
     _cks = null;
     _ckr = null;
+    for (final k in _skipped.values) {
+      k.mk.dispose();
+    }
+    _skipped.clear();
+  }
+
+  /// Signal 3.5 `SkipMessageKeys` on copies: derives the message keys
+  /// `from .. until - 1` of chain [ck] (which stays as it is) into [into],
+  /// indexed by [dhPub]. Returns the chain key at [until] (a new secret the
+  /// caller disposes), or null when there is nothing to skip.
+  SecretBytes? _skipKeys(
+    SecretBytes ck,
+    X25519PublicKey dhPub,
+    int from,
+    int until,
+    Map<_SkippedId, SecretBytes> into,
+  ) {
+    SecretBytes? walked;
+    try {
+      for (var n = from; n < until; n++) {
+        final (next, mk) = _kdfCk(_crypto, walked ?? ck);
+        into[(dhPub, n)] = mk;
+        walked?.dispose();
+        walked = next;
+      }
+      final out = walked;
+      walked = null;
+      return out;
+    } finally {
+      walked?.dispose();
+    }
+  }
+
+  static bool _isExpired(_SkippedKey k, DateTime now) =>
+      now.difference(k.storedAt) > skippedKeyLifetime;
+
+  void _deleteExpired(DateTime now) {
+    _skipped.removeWhere((_, k) {
+      if (!_isExpired(k, now)) return false;
+      k.mk.dispose();
+      return true;
+    });
   }
 
   void _ensureLive() {

@@ -27,20 +27,26 @@ import 'package:mawaddah_protocol/mawaddah_protocol.dart';
 
 /// Both sides' sessions: `alice` is the joiner (sends first), `bob` the
 /// initiator.
+///
+/// Both use [clock] (a fresh [FakeClock] when not given).
 ({RatchetSession alice, RatchetSession bob}) sessions(
   Crypto crypto, {
   int seed = 10,
+  Clock? clock,
 }) {
   final p = pair(crypto);
+  final c = clock ?? FakeClock();
   return (
     alice: RatchetSession.fromPairing(
       crypto: crypto,
       random: SeededRandom(seed),
+      clock: c,
       pairing: p.joiner,
     ),
     bob: RatchetSession.fromPairing(
       crypto: crypto,
       random: SeededRandom(seed + 1),
+      clock: c,
       pairing: p.initiator,
     ),
   );
@@ -53,3 +59,36 @@ Uint8List prefix(int counter) => Uint8List(envelopePrefixLength)
   ..buffer.asByteData().setUint64(34, counter);
 
 Uint8List text(String s) => Uint8List.fromList(utf8.encode(s));
+
+/// One sent message with the envelope prefix it was sealed with.
+typedef Sent = ({RatchetMessage m, Uint8List prefix, String text});
+
+/// Seals [message] on [from] with envelope counter [counter].
+Sent send(RatchetSession from, String message, int counter) {
+  final p = prefix(counter);
+  return (
+    m: from.encrypt(text(message), envelopePrefix: p),
+    prefix: p,
+    text: message,
+  );
+}
+
+/// Opens [sent] on [to] (header decoded from its bytes, as received).
+String open(RatchetSession to, Sent sent) => utf8.decode(
+  to.decrypt(
+    RatchetHeader.decode(sent.m.header.encode()),
+    sent.m.ciphertext,
+    envelopePrefix: sent.prefix,
+  ),
+);
+
+/// [sent] with one ciphertext bit flipped.
+Sent tampered(Sent sent) {
+  final c = Uint8List.fromList(sent.m.ciphertext);
+  c[0] ^= 1;
+  return (
+    m: (header: sent.m.header, ciphertext: c),
+    prefix: sent.prefix,
+    text: sent.text,
+  );
+}
