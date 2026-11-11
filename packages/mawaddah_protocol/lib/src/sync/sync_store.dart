@@ -48,9 +48,8 @@ final class SealedEnvelope {
 /// Why a received envelope is kept as raw bytes instead of being applied
 /// (PROTOCOL.md section 8).
 enum UnappliedEnvelopeReason {
-  /// Its `version` or `type` byte is newer than this release. At most
-  /// [SyncStore.maxUnknownVersionEnvelopes] are kept. Shows the "newer
-  /// version" card.
+  /// Its `version` or `type` byte is newer than this release. Shows the
+  /// "newer version" card.
   unknownVersion,
 
   /// Signed by the partner, but the ratchet could not open it. Debug log
@@ -66,7 +65,9 @@ enum UnappliedEnvelopeReason {
   bool get needsUpdate => this == unknownVersion;
 }
 
-/// A received envelope kept as raw bytes.
+/// A received envelope kept as raw bytes. At most
+/// [SyncStore.maxKeptEnvelopes] are kept per reason, the oldest deleted
+/// first.
 final class UnappliedEnvelope {
   UnappliedEnvelope({
     required this.id,
@@ -103,9 +104,9 @@ final class UnappliedEnvelope {
 /// them once the call completes. Byte values returned are the caller's to
 /// zero.
 abstract interface class SyncStore {
-  /// At most this many [UnappliedEnvelopeReason.unknownVersion] envelopes
-  /// are kept; the engine deletes the oldest first (PROTOCOL.md section 8).
-  static const maxUnknownVersionEnvelopes = 100;
+  /// At most this many envelopes are kept per [UnappliedEnvelopeReason];
+  /// the engine deletes the oldest first (PROTOCOL.md sections 8 and 17).
+  static const maxKeptEnvelopes = 100;
 
   /// Runs [action] atomically, joined with the `EventStore` transaction.
   Future<T> transaction<T>(Future<T> Function() action);

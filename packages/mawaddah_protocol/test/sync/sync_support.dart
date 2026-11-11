@@ -43,6 +43,9 @@ final class FlakyRelay implements RelayClient {
   /// When set, fetch waits for it.
   Completer<void>? gate;
 
+  /// When set, fetch returns at most this many envelopes.
+  int? pageSize;
+
   /// Every deposit that reached the relay: inbox and bytes.
   final deposited = <(String, Uint8List)>[];
   var fetches = 0, acks = 0, active = 0, maxActive = 0;
@@ -74,7 +77,11 @@ final class FlakyRelay implements RelayClient {
       _call('fetch', () async {
         fetches++;
         if (gate case final g?) await g.future;
-        if (!duplicates) return inner.fetch(inboxId, after: after);
+        if (!duplicates) {
+          final page = await inner.fetch(inboxId, after: after);
+          final n = pageSize;
+          return n == null || page.length <= n ? page : page.sublist(0, n);
+        }
         final all = await inner.fetch(inboxId);
         return [
           for (final e in all) ...[e, e],

@@ -55,7 +55,7 @@ The real `Clock`, `RandomSource`, `Storage` and `RelayClient` are supplied by th
 [`PROTOCOL.md`](PROTOCOL.md) section 17.
 
 - `SyncEngine.commitLocal(events)` applies this device's events and queues them in the outbox, in one transaction: the app works offline.
-- `SyncEngine.syncOnce()` (one run at a time) fetches after the stored cursor, opens, applies and commits each envelope with its cursor, then acknowledges (cumulative); then it seals and deposits the outbox. A failed deposit is retried as the same sealed bytes, so being offline uses no extra ratchet keys. It returns a `SyncReport` (counts only, `retryAt` from `BackOff`, `clockWarning`). Relay failures are reported, store failures throw.
+- `SyncEngine.syncOnce()` (one run at a time) fetches after the stored cursor, opens, applies and commits each envelope with its cursor, then acknowledges (cumulative); then it seals and deposits the outbox. A failed deposit is retried as the same sealed bytes (a new counter and key only after 1 day). It returns a `SyncReport` (counts only, `clockWarning`, and an advisory `retryAt` from `BackOff` that the app schedules itself). Relay failures are reported, store failures throw.
 - `WakePolicy.v1` is the one table that decides `wake: 1` (a new chat message) or `wake: 0` (receipts, profile, hello).
 - The app implements `SyncStore` over the same database transaction as its `EventStore`; `dart test test/sync` covers 7 days offline, duplicates, partial failures and lost ACKs.
 

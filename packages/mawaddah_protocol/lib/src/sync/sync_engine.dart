@@ -108,11 +108,16 @@ final class SyncReport {
   /// Show "One of your phones has the wrong date or time".
   final bool clockWarning;
 
-  /// The first relay failure of this run (debug log only), or null.
-  final Object? relayError;
+  /// The type name of the first relay failure of this run (debug log
+  /// only), or null. Only the name is kept: a relay error may quote a URL,
+  /// an inbox ID or a response body.
+  final String? relayError;
 
   /// When to try again automatically, or null when nothing is left to do.
-  /// A push, opening the app or a new local event may sync sooner.
+  /// Advisory: the engine never waits; the app schedules the retry. It also
+  /// syncs on every push, when the app opens and after a local change, so
+  /// [waitingForPartner] needs no retry (the partner's message comes with a
+  /// push).
   final DateTime? retryAt;
 
   /// Whether everything was sent and fetched.
@@ -187,7 +192,11 @@ final class SyncEngine {
   Future<ApplyResult> commitLocal(List<Event> events) async {
     for (final e in events) {
       if (_batchLength(e) + _batchOverhead > maxEnvelopePlaintextLength) {
-        throw ArgumentError.value(e, 'events', 'too large for one envelope');
+        throw ArgumentError.value(
+          e.eventId,
+          'events',
+          'too large for one envelope',
+        );
       }
     }
     return store.transaction(() async {
@@ -253,19 +262,19 @@ final class SyncEngine {
       try {
         await _receive(session, window, r);
       } on _RelayFailure catch (e) {
-        r.relayError ??= e.cause;
+        r.relayFailed(e);
       }
       try {
         await _send(session, r);
       } on _RelayFailure catch (e) {
-        r.relayError ??= e.cause;
+        r.relayFailed(e);
       }
     } finally {
       session.dispose();
     }
     final now = _clock.now();
     final since = await store.clockAheadSince();
-    final unfinished = r.relayError != null || r.leftOnRelay > 0;
+    final unfinished = r.relayError != null || r.leftOnRelay > 0 || r.morePages;
     _failures = unfinished ? _failures + 1 : 0;
     return SyncReport(
       envelopesSent: r.envelopesSent,
@@ -294,12 +303,19 @@ final class SyncEngine {
   ) async {
     var cursor = await store.cursor();
     // An ACK lost earlier (or not sent before the app stopped): repeat it.
+    // If it fails again, fetch all the same: ACKs are cumulative, so the
+    // next one covers it.
     if (cursor != null && cursor != _ackedCursor) {
       final c = cursor;
-      await _relay(() => relay.ack(_inbox, c));
-      _ackedCursor = c;
+      try {
+        await _relay(() => relay.ack(_inbox, c));
+        _ackedCursor = c;
+      } on _RelayFailure catch (e) {
+        r.relayFailed(e);
+      }
     }
     var leftOnRelay = false;
+    var finished = false;
     for (var page = 0; page < maxFetchPagesPerSync && !leftOnRelay; page++) {
       final before = cursor;
       final envelopes = await _relay(() => relay.fetch(_inbox, after: before));
@@ -315,8 +331,14 @@ final class SyncEngine {
         await _relay(() => relay.ack(_inbox, c));
         _ackedCursor = c;
       } else if (!leftOnRelay) {
-        break; // nothing new
+        finished = true; // nothing new
+        break;
       }
+    }
+    if (!leftOnRelay && !finished) {
+      // Page limit reached: more may be waiting; the next run goes on.
+      r.morePages = true;
+      return;
     }
     // Only a finished fetch tells whether an envelope is still ahead.
     final since = await store.clockAheadSince();
@@ -404,14 +426,13 @@ final class SyncEngine {
   }
 
   Future<void> _keep(RelayEnvelope item, UnappliedEnvelopeReason reason) async {
-    if (reason == UnappliedEnvelopeReason.unknownVersion) {
-      final kept = (await store.unappliedEnvelopes())
-          .where((e) => e.reason == reason && e.id != item.cursor)
-          .toList();
-      final excess = kept.length - SyncStore.maxUnknownVersionEnvelopes + 1;
-      for (var i = 0; i < excess; i++) {
-        await store.removeUnappliedEnvelope(kept[i].id);
-      }
+    // At most [SyncStore.maxKeptEnvelopes] per reason, oldest dropped.
+    final kept = (await store.unappliedEnvelopes())
+        .where((e) => e.reason == reason && e.id != item.cursor)
+        .toList();
+    final excess = kept.length - SyncStore.maxKeptEnvelopes + 1;
+    for (var i = 0; i < excess; i++) {
+      await store.removeUnappliedEnvelope(kept[i].id);
     }
     await store.putUnappliedEnvelope(
       UnappliedEnvelope(
@@ -549,7 +570,10 @@ final class _Run {
   var envelopesSent = 0, eventsSent = 0, resealed = 0;
   var envelopesOpened = 0, eventsApplied = 0, eventsUnapplied = 0;
   var duplicates = 0, kept = 0, leftOnRelay = 0;
-  var waitingForPartner = false;
+  var waitingForPartner = false, morePages = false;
   final failures = <EnvelopeFailure, int>{};
-  Object? relayError;
+  String? relayError;
+
+  void relayFailed(_RelayFailure e) =>
+      relayError ??= e.cause.runtimeType.toString();
 }

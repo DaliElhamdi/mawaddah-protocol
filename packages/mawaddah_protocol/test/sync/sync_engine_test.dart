@@ -276,7 +276,7 @@ void main() {
         await alice.say(t);
         final r = await alice.sync();
         expect(r.complete, isFalse);
-        expect(r.relayError, isA<RelayDown>());
+        expect(r.relayError, 'RelayDown');
         retries.add(r.retryAt!.difference(alice.clock.now()));
         // Never more than one sealed envelope waiting.
         expect(await alice.store.sealedEnvelopes(), hasLength(1));
@@ -430,7 +430,6 @@ void main() {
       bob.store.onWrite = null;
       await bob.restart();
       final r = await bob.sync();
-      // The first two come again (no ACK) and are refused as replays.
       // The stored cursor is acked again first, so the first two are gone.
       expect(r.envelopeFailures, isEmpty);
       expect(r.envelopesOpened, 2);
@@ -446,7 +445,7 @@ void main() {
       relay.loseAckAnswers = 1;
       final r = await bob.sync();
       expect(r.eventsApplied, 1);
-      expect(r.relayError, isA<RelayDown>());
+      expect(r.relayError, 'RelayDown');
       expect(r.retryAt, isNotNull);
       expect(bob.messages(), ['m0']);
 
@@ -472,6 +471,69 @@ void main() {
       expect(await relay.pending(bob.inbox), 0);
       expect(r.eventsApplied, 0);
       expect(bob.messages(), ['m0']);
+    });
+  });
+
+  group('more review cases', () {
+    test('a failed repeat of a lost ACK does not stop fetching', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      await alice.say('m0');
+      await alice.sync();
+      relay.loseAckAnswers = 1;
+      await bob.sync();
+      await alice.say('m1');
+      await alice.sync();
+      relay.failAcks = 1; // the repeated ACK fails
+      final r = await bob.sync();
+      expect(r.relayError, 'RelayDown');
+      expect(r.envelopesOpened, 1);
+      expect(bob.messages(), ['m0', 'm1']);
+      expect(await relay.pending(bob.inbox), 0, reason: 'page ACK covers it');
+    });
+
+    test(
+      'the page limit leaves the run incomplete; the next run goes on',
+      () async {
+        final (alice: _, :bob, :relay) = await couple(crypto);
+        relay.pageSize = 1;
+        for (var i = 0; i < maxFetchPagesPerSync + 1; i++) {
+          await relay.inner.deposit(
+            bob.inbox,
+            Uint8List(500)
+              ..[0] = 1
+              ..[1] = 1,
+          );
+        }
+        final first = await bob.sync();
+        expect(first.envelopeFailures, {
+          EnvelopeFailure.malformed: maxFetchPagesPerSync,
+        });
+        expect(first.complete, isFalse);
+        expect(first.relayError, isNull);
+        final second = await bob.sync();
+        expect(second.envelopeFailures, {EnvelopeFailure.malformed: 1});
+        expect(second.complete, isTrue);
+        expect(await relay.pending(bob.inbox), 0);
+      },
+    );
+
+    test('a store failure after the deposit: the same bytes go again and the '
+        'partner refuses the copy as a replay', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      await alice.say('once');
+      alice.store.onWrite = (m) {
+        if (m == 'removeFromOutbox') throw StateError('disk full');
+      };
+      await expectLater(alice.sync(), throwsStateError);
+      expect(relay.deposited, hasLength(1));
+      alice.store.onWrite = null;
+      await alice.restart();
+      expect((await alice.sync()).envelopesSent, 1);
+      expect(relay.deposited, hasLength(2));
+      expect(relay.deposited[1].$2, relay.deposited[0].$2);
+      final r = await bob.sync();
+      expect(r.envelopeFailures, {EnvelopeFailure.replayed: 1});
+      expect(bob.messages(), ['once']);
     });
   });
 
@@ -504,7 +566,7 @@ void main() {
       final r = await bob.sync();
       expect(r.envelopesKept, 102);
       final kept = await bob.store.unappliedEnvelopes();
-      expect(kept, hasLength(SyncStore.maxUnknownVersionEnvelopes));
+      expect(kept, hasLength(SyncStore.maxKeptEnvelopes));
       expect(kept.every((e) => e.reason.needsUpdate), isTrue);
       expect(kept.first.bytes[1], 2, reason: 'the first two were dropped');
       expect(await relay.pending(bob.inbox), 0);

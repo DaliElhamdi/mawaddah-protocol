@@ -336,8 +336,8 @@ The relay rejects a request if the signature does not verify, the timestamp is m
 | Relay request time window / nonce memory | ±300 s / 15 minutes |
 | Attachment chunk / blob size | 65,536 bytes plaintext / ≤ 10 MB |
 | Sealed envelope kept for resending | at most 1 day, then its events are sealed again (section 17) |
-| Unknown-version envelopes kept | 100 |
-| Sync retry back-off | 5 s, doubled after each failed run, at most 15 minutes |
+| Raw envelopes kept unapplied | 100 per reason (unknown version, undecryptable, refused plaintext), oldest deleted first |
+| Sync retry back-off | 5 s, doubled after each unfinished run, at most 15 minutes; fetch pages per run: 100 |
 
 ## 15. Test vectors
 Committed in `packages/mawaddah_protocol/test/vectors/`, used by the package tests, the app's tests and the partner bot, and (for relay signing) by the relay tests. One JSON file per area:
@@ -386,14 +386,14 @@ How a phone sends and fetches envelopes (spec 4.6 and 8.7). It adds no wire form
 
 **Local changes.** A change becomes events (section 10) that are applied locally and added to the **outbox** in one database transaction, together with the HLC. The app works fully offline; only sending waits for the network. An event already stored (a repeated **Done** tap) is neither applied nor queued again.
 
-**One run** (`SyncEngine.syncOnce`) first receives, then sends: the initiator can send only after the joiner's first message has arrived (section 6), and receiving first shows the partner's news sooner. Only one run happens at a time; a call during a run waits for it and then starts one more run, shared by all calls made meanwhile. A relay failure stops that half of the run and is retried later with the back-off of section 14; a database failure stops the run and keeps nothing of the step that failed.
+**One run** (`SyncEngine.syncOnce`) first receives, then sends: the initiator can send only after the joiner's first message has arrived (section 6), and receiving first shows the partner's news sooner. Only one run happens at a time; a call during a run waits for it and then starts one more run, shared by all calls made meanwhile. A relay failure stops that half of the run and is retried later with the back-off of section 14; a database failure stops the run and keeps nothing of the step that failed. The back-off only says when to try again: the app schedules that try, and also syncs on every push, when it opens and after a local change. A run is unfinished (and gives a retry time) after a relay failure, an envelope left on the relay, or 100 fetched pages with more possibly waiting; an initiator waiting for the joiner's first message needs no retry, because that message comes with a push.
 
 **Receiving.**
-1. If the stored cursor has not been acknowledged in this app session (an ACK lost, or the app stopped before it), acknowledge it again.
+1. If the stored cursor has not been acknowledged in this app session (an ACK lost, or the app stopped before it), acknowledge it again. If that fails, fetch all the same: the next ACK covers it.
 2. Fetch the envelopes after the stored cursor. Handle each in order as in section 8, and store its cursor in the same transaction as its events, session, replay window and HLC (or alone, for an envelope that is discarded).
 3. After each page, acknowledge the last cursor handled. An ACK is cumulative: the relay deletes every envelope up to and including that cursor.
 4. An envelope whose time is ahead of the clock (section 8 step 5) stops the run's receiving: neither it nor anything after it is acknowledged, so it is fetched again next time. The phone stores when this first happened and shows the wrong-time card after 24 hours; the date is cleared once the envelope opens.
-5. Kept raw envelopes (unknown version, undecryptable, refused plaintext) are stored by their cursor; at most 100 of unknown version, the oldest deleted first.
+5. Kept raw envelopes (unknown version, undecryptable, refused plaintext) are stored by their cursor; at most 100 per reason, the oldest deleted first (section 8 asks this for unknown versions; the others are capped too so the database cannot grow without limit).
 
 **Sending.**
 1. Envelopes already sealed go first, as **the same bytes**, in counter order. A deposit that failed is therefore repeated without using up another counter or ratchet key, however long the phone stays offline. If the relay did take it but its answer was lost, the copy is refused as a replay (section 8 step 4).
