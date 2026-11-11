@@ -19,8 +19,11 @@ class FakeRelayClient implements RelayClient {
       List.unmodifiable(_wakes[inboxId] ?? const <bool>[]);
 
   @override
-  Future<void> deposit(String inboxId, Uint8List body,
-      {bool wake = false}) async {
+  Future<void> deposit(
+    String inboxId,
+    Uint8List body, {
+    bool wake = false,
+  }) async {
     _counter++;
     // Zero-padded so cursors compare correctly as strings.
     final cursor = _counter.toString().padLeft(12, '0');

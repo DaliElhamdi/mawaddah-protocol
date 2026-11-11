@@ -15,8 +15,8 @@ final class SodiumCrypto implements Crypto {
   /// (`randombytes_buf`) is used. Tests pass a `SeededRandom` to get
   /// repeatable keys.
   SodiumCrypto(na.SodiumSumo sodium, {RandomSource? random})
-      : _sodium = sodium,
-        _random = random ?? SodiumRandomSource(sodium);
+    : _sodium = sodium,
+      _random = random ?? SodiumRandomSource(sodium);
 
   /// Loads the libsodium built by the `sodium` build hook, then
   /// [SodiumCrypto.new].
@@ -52,8 +52,8 @@ final class SodiumCrypto implements Crypto {
 
   Uint8List? _ad(Uint8List? associatedData) =>
       (associatedData == null || associatedData.isEmpty)
-          ? null
-          : associatedData;
+      ? null
+      : associatedData;
 
   // --- X25519 ------------------------------------------------------------
 
@@ -65,8 +65,11 @@ final class SodiumCrypto implements Crypto {
   X25519KeyPair importX25519KeyPair(Uint8List secretKey) {
     if (secretKey.length != X25519SecretKey.byteLength) {
       secretKey.fillRange(0, secretKey.length, 0);
-      throw ArgumentError.value(secretKey.length, 'secretKey',
-          'must be ${X25519SecretKey.byteLength} bytes long');
+      throw ArgumentError.value(
+        secretKey.length,
+        'secretKey',
+        'must be ${X25519SecretKey.byteLength} bytes long',
+      );
     }
     return _x25519Pair(_importBytes(secretKey));
   }
@@ -104,8 +107,11 @@ final class SodiumCrypto implements Crypto {
   Ed25519KeyPair importEd25519KeyPair(Uint8List seed) {
     if (seed.length != Ed25519SecretKey.seedLength) {
       seed.fillRange(0, seed.length, 0);
-      throw ArgumentError.value(seed.length, 'seed',
-          'must be ${Ed25519SecretKey.seedLength} bytes long');
+      throw ArgumentError.value(
+        seed.length,
+        'seed',
+        'must be ${Ed25519SecretKey.seedLength} bytes long',
+      );
     }
     return _ed25519Pair(_importBytes(seed));
   }
@@ -124,20 +130,23 @@ final class SodiumCrypto implements Crypto {
 
   @override
   Ed25519Signature sign(Ed25519SecretKey secretKey, Uint8List message) =>
-      Ed25519Signature(_sodium.crypto.sign
-          .detached(message: message, secretKey: secretKey._live));
+      Ed25519Signature(
+        _sodium.crypto.sign.detached(
+          message: message,
+          secretKey: secretKey._live,
+        ),
+      );
 
   @override
   bool verify(
     Ed25519PublicKey publicKey,
     Uint8List message,
     Ed25519Signature signature,
-  ) =>
-      _sodium.crypto.sign.verifyDetached(
-        message: message,
-        signature: signature.bytes,
-        publicKey: publicKey.bytes,
-      );
+  ) => _sodium.crypto.sign.verifyDetached(
+    message: message,
+    signature: signature.bytes,
+    publicKey: publicKey.bytes,
+  );
 
   // --- XChaCha20-Poly1305 ------------------------------------------------
 
@@ -152,7 +161,10 @@ final class SodiumCrypto implements Crypto {
     if (key.length != AeadKey.byteLength) {
       key.fillRange(0, key.length, 0);
       throw ArgumentError.value(
-          key.length, 'key', 'must be ${AeadKey.byteLength} bytes long');
+        key.length,
+        'key',
+        'must be ${AeadKey.byteLength} bytes long',
+      );
     }
     return AeadKey._(_sodium, _importBytes(key));
   }
@@ -160,13 +172,18 @@ final class SodiumCrypto implements Crypto {
   @override
   AeadKey aeadKeyFrom(SecretBytes keyMaterial) {
     if (keyMaterial.length < AeadKey.byteLength) {
-      throw ArgumentError.value(keyMaterial.length, 'keyMaterial',
-          'must be at least ${AeadKey.byteLength} bytes long');
+      throw ArgumentError.value(
+        keyMaterial.length,
+        'keyMaterial',
+        'must be at least ${AeadKey.byteLength} bytes long',
+      );
     }
     return AeadKey._(
       _sodium,
-      keyMaterial._use((b) =>
-          _sodium.secureCopy(Uint8List.sublistView(b, 0, AeadKey.byteLength))),
+      keyMaterial._use(
+        (b) =>
+            _sodium.secureCopy(Uint8List.sublistView(b, 0, AeadKey.byteLength)),
+      ),
     );
   }
 
@@ -180,13 +197,12 @@ final class SodiumCrypto implements Crypto {
     required AeadNonce nonce,
     required Uint8List plaintext,
     Uint8List? associatedData,
-  }) =>
-      _aead.encrypt(
-        message: plaintext,
-        nonce: nonce.bytes,
-        key: key._live,
-        additionalData: _ad(associatedData),
-      );
+  }) => _aead.encrypt(
+    message: plaintext,
+    nonce: nonce.bytes,
+    key: key._live,
+    additionalData: _ad(associatedData),
+  );
 
   @override
   Uint8List decrypt({
@@ -251,7 +267,10 @@ final class SodiumCrypto implements Crypto {
     }
     if (prk.length != hkdfPrkLength) {
       throw ArgumentError.value(
-          prk.length, 'prk', 'must be $hkdfPrkLength bytes long');
+        prk.length,
+        'prk',
+        'must be $hkdfPrkLength bytes long',
+      );
     }
     RangeError.checkValueInInterval(length, 1, hkdfMaxLength, 'length');
     return SecretBytes._(

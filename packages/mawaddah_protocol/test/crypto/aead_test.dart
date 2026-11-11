@@ -20,12 +20,21 @@ void main() {
         final ad = hex(c.input['ad']);
         final plaintext = hex(c.input['plaintext']);
         final ct = crypto.encrypt(
-            key: key, nonce: nonce, plaintext: plaintext, associatedData: ad);
+          key: key,
+          nonce: nonce,
+          plaintext: plaintext,
+          associatedData: ad,
+        );
         expect(toHex(ct), c.output['ciphertext']);
         expect(
-            crypto.decrypt(
-                key: key, nonce: nonce, ciphertext: ct, associatedData: ad),
-            plaintext);
+          crypto.decrypt(
+            key: key,
+            nonce: nonce,
+            ciphertext: ct,
+            associatedData: ad,
+          ),
+          plaintext,
+        );
         key.dispose();
       });
     }
@@ -41,7 +50,11 @@ void main() {
       key = crypto.generateAeadKey();
       nonce = crypto.generateAeadNonce();
       ct = crypto.encrypt(
-          key: key, nonce: nonce, plaintext: plaintext, associatedData: ad);
+        key: key,
+        nonce: nonce,
+        plaintext: plaintext,
+        associatedData: ad,
+      );
     });
     tearDown(() => key.dispose());
 
@@ -51,42 +64,58 @@ void main() {
       for (var i = 0; i < ct.length; i++) {
         final bad = Uint8List.fromList(ct)..[i] ^= 0x80;
         expect(
-            () => crypto.decrypt(
-                key: key, nonce: nonce, ciphertext: bad, associatedData: ad),
-            refused());
+          () => crypto.decrypt(
+            key: key,
+            nonce: nonce,
+            ciphertext: bad,
+            associatedData: ad,
+          ),
+          refused(),
+        );
       }
     });
     test('changed associated data', () {
       expect(
-          () => crypto.decrypt(
-              key: key,
-              nonce: nonce,
-              ciphertext: ct,
-              associatedData: Uint8List.fromList([1, 2, 4])),
-          refused());
-      expect(() => crypto.decrypt(key: key, nonce: nonce, ciphertext: ct),
-          refused());
+        () => crypto.decrypt(
+          key: key,
+          nonce: nonce,
+          ciphertext: ct,
+          associatedData: Uint8List.fromList([1, 2, 4]),
+        ),
+        refused(),
+      );
+      expect(
+        () => crypto.decrypt(key: key, nonce: nonce, ciphertext: ct),
+        refused(),
+      );
     });
     test('another nonce or key', () {
       expect(
-          () => crypto.decrypt(
-              key: key,
-              nonce: crypto.generateAeadNonce(),
-              ciphertext: ct,
-              associatedData: ad),
-          refused());
+        () => crypto.decrypt(
+          key: key,
+          nonce: crypto.generateAeadNonce(),
+          ciphertext: ct,
+          associatedData: ad,
+        ),
+        refused(),
+      );
       final other = crypto.generateAeadKey();
       expect(
-          () => crypto.decrypt(
-              key: other, nonce: nonce, ciphertext: ct, associatedData: ad),
-          refused());
+        () => crypto.decrypt(
+          key: other,
+          nonce: nonce,
+          ciphertext: ct,
+          associatedData: ad,
+        ),
+        refused(),
+      );
       other.dispose();
     });
     test('a ciphertext shorter than the tag', () {
       expect(
-          () =>
-              crypto.decrypt(key: key, nonce: nonce, ciphertext: Uint8List(15)),
-          refused());
+        () => crypto.decrypt(key: key, nonce: nonce, ciphertext: Uint8List(15)),
+        refused(),
+      );
     });
   });
 
@@ -98,12 +127,14 @@ void main() {
     expect(crypto.decrypt(key: key, nonce: nonce, ciphertext: ct), isEmpty);
     // Empty associated data is the same as none.
     expect(
-        crypto.decrypt(
-            key: key,
-            nonce: nonce,
-            ciphertext: ct,
-            associatedData: Uint8List(0)),
-        isEmpty);
+      crypto.decrypt(
+        key: key,
+        nonce: nonce,
+        ciphertext: ct,
+        associatedData: Uint8List(0),
+      ),
+      isEmpty,
+    );
     key.dispose();
   });
 
@@ -121,7 +152,9 @@ void main() {
     final key = crypto.aeadKeyFrom(derived);
     expect(key.extractBytes(), material.sublist(0, 32));
     expect(derived.isDisposed, isFalse);
-    expect(() => crypto.aeadKeyFrom(crypto.importSecret(Uint8List(31))),
-        throwsArgumentError);
+    expect(
+      () => crypto.aeadKeyFrom(crypto.importSecret(Uint8List(31))),
+      throwsArgumentError,
+    );
   });
 }

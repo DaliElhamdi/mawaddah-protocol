@@ -9,7 +9,7 @@ part of 'crypto.dart';
 /// The comparison is not constant-time: never use it for MACs or secrets.
 abstract base class _PublicBytes {
   _PublicBytes(Uint8List bytes, int length, String what)
-      : bytes = _checkedCopy(bytes, length, what);
+    : bytes = _checkedCopy(bytes, length, what);
 
   /// A read-only copy of the bytes.
   final Uint8List bytes;
@@ -17,7 +17,10 @@ abstract base class _PublicBytes {
   static Uint8List _checkedCopy(Uint8List bytes, int length, String what) {
     if (bytes.length != length) {
       throw ArgumentError.value(
-          bytes.length, what, 'must be $length bytes long');
+        bytes.length,
+        what,
+        'must be $length bytes long',
+      );
     }
     return Uint8List.fromList(bytes).asUnmodifiableView();
   }
@@ -46,7 +49,7 @@ abstract base class _PublicBytes {
 /// X25519 public key (32 bytes, RFC 7748 u-coordinate).
 final class X25519PublicKey extends _PublicBytes {
   X25519PublicKey(Uint8List bytes)
-      : super(bytes, byteLength, 'X25519PublicKey');
+    : super(bytes, byteLength, 'X25519PublicKey');
 
   static const byteLength = 32;
 }
@@ -54,7 +57,7 @@ final class X25519PublicKey extends _PublicBytes {
 /// Ed25519 public key (32 bytes, RFC 8032 encoding).
 final class Ed25519PublicKey extends _PublicBytes {
   Ed25519PublicKey(Uint8List bytes)
-      : super(bytes, byteLength, 'Ed25519PublicKey');
+    : super(bytes, byteLength, 'Ed25519PublicKey');
 
   static const byteLength = 32;
 }
@@ -62,7 +65,7 @@ final class Ed25519PublicKey extends _PublicBytes {
 /// Ed25519 detached signature (64 bytes).
 final class Ed25519Signature extends _PublicBytes {
   Ed25519Signature(Uint8List bytes)
-      : super(bytes, byteLength, 'Ed25519Signature');
+    : super(bytes, byteLength, 'Ed25519Signature');
 
   static const byteLength = 64;
 }
@@ -132,7 +135,7 @@ abstract base class _Secret {
 /// root and chain keys.
 final class SecretBytes extends _Secret {
   SecretBytes._(na.SodiumSumo sodium, na.SecureKey key)
-      : super(sodium, key, null, 'SecretBytes');
+    : super(sodium, key, null, 'SecretBytes');
 
   /// An independent copy (for example to keep a chain key while deriving
   /// from it). Dispose both.
@@ -151,7 +154,7 @@ final class SecretBytes extends _Secret {
 /// X25519 secret key (32 bytes, clamped by libsodium on use).
 final class X25519SecretKey extends _Secret {
   X25519SecretKey._(na.SodiumSumo sodium, na.SecureKey key)
-      : super(sodium, key, byteLength, 'X25519SecretKey');
+    : super(sodium, key, byteLength, 'X25519SecretKey');
 
   static const byteLength = 32;
 }
@@ -161,7 +164,7 @@ final class X25519SecretKey extends _Secret {
 /// what [Crypto.importEd25519KeyPair] takes back.
 final class Ed25519SecretKey extends _Secret {
   Ed25519SecretKey._(na.SodiumSumo sodium, na.SecureKey key)
-      : super(sodium, key, _libsodiumLength, 'Ed25519SecretKey');
+    : super(sodium, key, _libsodiumLength, 'Ed25519SecretKey');
 
   /// Length of the seed returned by [extractBytes].
   static const seedLength = 32;
@@ -175,7 +178,7 @@ final class Ed25519SecretKey extends _Secret {
 /// XChaCha20-Poly1305 key (32 bytes).
 final class AeadKey extends _Secret {
   AeadKey._(na.SodiumSumo sodium, na.SecureKey key)
-      : super(sodium, key, byteLength, 'AeadKey');
+    : super(sodium, key, byteLength, 'AeadKey');
 
   static const byteLength = 32;
 }

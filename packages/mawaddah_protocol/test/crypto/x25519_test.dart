@@ -28,8 +28,10 @@ void main() {
     for (final c in cases) {
       test(c.name, () {
         if (c.input.containsKey('scalar')) {
-          expect(toHex(dh(hex(c.input['scalar']), hex(c.input['u']))),
-              c.output['u']);
+          expect(
+            toHex(dh(hex(c.input['scalar']), hex(c.input['u']))),
+            c.output['u'],
+          );
         } else if (c.input.containsKey('iterations')) {
           // Section 5.2: k = u = 9; repeat: k, u = X25519(k, u), k.
           var k = Uint8List(32)..[0] = 9;
@@ -41,8 +43,9 @@ void main() {
           }
           expect(toHex(k), c.output['k']);
         } else {
-          final alice =
-              crypto.importX25519KeyPair(hex(c.input['alice_secret']));
+          final alice = crypto.importX25519KeyPair(
+            hex(c.input['alice_secret']),
+          );
           final bob = crypto.importX25519KeyPair(hex(c.input['bob_secret']));
           expect(toHex(alice.publicKey.bytes), c.output['alice_public']);
           expect(toHex(bob.publicKey.bytes), c.output['bob_public']);
@@ -61,8 +64,10 @@ void main() {
 
   test('a small-order public key (all zeros) is refused', () {
     final pair = crypto.generateX25519KeyPair();
-    expect(() => crypto.x25519(pair.secretKey, X25519PublicKey(Uint8List(32))),
-        throwsA(isA<InvalidPublicKeyException>()));
+    expect(
+      () => crypto.x25519(pair.secretKey, X25519PublicKey(Uint8List(32))),
+      throwsA(isA<InvalidPublicKeyException>()),
+    );
     pair.dispose();
   });
 

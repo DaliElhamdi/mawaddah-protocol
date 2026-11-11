@@ -21,8 +21,11 @@ void main() {
         final sig = crypto.sign(pair.secretKey, message);
         expect(toHex(sig.bytes), c.output['signature']);
         expect(crypto.verify(pair.publicKey, message, sig), isTrue);
-        expect(toHex(pair.secretKey.extractBytes()), c.input['seed'],
-            reason: 'extractBytes returns the seed');
+        expect(
+          toHex(pair.secretKey.extractBytes()),
+          c.input['seed'],
+          reason: 'extractBytes returns the seed',
+        );
         pair.dispose();
       });
     }
@@ -44,8 +47,10 @@ void main() {
     });
     test('a changed signature', () {
       final bad = Uint8List.fromList(sig.bytes)..[10] ^= 1;
-      expect(crypto.verify(pair.publicKey, message, Ed25519Signature(bad)),
-          isFalse);
+      expect(
+        crypto.verify(pair.publicKey, message, Ed25519Signature(bad)),
+        isFalse,
+      );
     });
     test('another key', () {
       final other = crypto.generateEd25519KeyPair();
@@ -67,6 +72,8 @@ void main() {
     expect(() => Ed25519PublicKey(Uint8List(33)), throwsArgumentError);
     expect(() => Ed25519Signature(Uint8List(63)), throwsArgumentError);
     expect(
-        () => crypto.importEd25519KeyPair(Uint8List(64)), throwsArgumentError);
+      () => crypto.importEd25519KeyPair(Uint8List(64)),
+      throwsArgumentError,
+    );
   });
 }

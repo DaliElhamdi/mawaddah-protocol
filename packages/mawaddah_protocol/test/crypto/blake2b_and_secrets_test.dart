@@ -15,8 +15,10 @@ void main() {
   group('BLAKE2b', () {
     for (final c in loadVectors('rfc7693_blake2b')) {
       test(c.name, () {
-        final digest = crypto.blake2b(hex(c.input['message']),
-            length: c.input['length']! as int);
+        final digest = crypto.blake2b(
+          hex(c.input['message']),
+          length: c.input['length']! as int,
+        );
         expect(toHex(digest), c.output['digest']);
       });
     }
@@ -72,8 +74,10 @@ void main() {
     test('public values compare by value', () {
       final pk = Uint8List.fromList(List.filled(32, 1));
       expect(X25519PublicKey(pk), X25519PublicKey(Uint8List.fromList(pk)));
-      expect(X25519PublicKey(pk).hashCode,
-          X25519PublicKey(Uint8List.fromList(pk)).hashCode);
+      expect(
+        X25519PublicKey(pk).hashCode,
+        X25519PublicKey(Uint8List.fromList(pk)).hashCode,
+      );
       expect(X25519PublicKey(pk), isNot(Ed25519PublicKey(pk)));
       // The stored bytes are a copy and cannot be changed through the getter.
       final k = X25519PublicKey(pk);

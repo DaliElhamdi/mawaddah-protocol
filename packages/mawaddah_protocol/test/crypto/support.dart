@@ -14,8 +14,9 @@ typedef VectorCase = ({
 
 /// Reads `test/vectors/<file>.json` (tests run from the package root).
 List<VectorCase> loadVectors(String file) {
-  final json = jsonDecode(File('test/vectors/$file.json').readAsStringSync())
-      as Map<String, Object?>;
+  final json = jsonDecode(
+    File('test/vectors/$file.json').readAsStringSync(),
+  ) as Map<String, Object?>;
   if (json['file'] != file) throw StateError('$file: wrong "file" field');
   final cases = (json['cases']! as List<Object?>).cast<Map<String, Object?>>();
   if (cases.isEmpty) throw StateError('$file: no cases');
