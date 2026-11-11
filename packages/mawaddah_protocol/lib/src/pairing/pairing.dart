@@ -257,8 +257,9 @@ final class PairingInitiator {
     required Clock clock,
   }) {
     final identity = DeviceIdentity.generate(crypto, random);
+    X25519KeyPair? ek;
     try {
-      final ek = _newEphemeral(crypto, random);
+      ek = _newEphemeral(crypto, random);
       return PairingInitiator._(
         crypto,
         clock,
@@ -269,6 +270,7 @@ final class PairingInitiator {
       );
     } catch (_) {
       identity.dispose();
+      ek?.dispose();
       rethrow;
     }
   }
@@ -301,6 +303,17 @@ final class PairingInitiator {
       secret: Uint8List.fromList(_secret),
       slotId: slotId,
     );
+  }
+
+  /// Gives up this attempt (the person backed out or the slot expired before
+  /// any reply): erases the keys and `S`. The caller also deletes the inbox
+  /// and the slot. Safe to call more than once, and after [acceptReply].
+  void abandon() {
+    if (_used) return;
+    _used = true;
+    _identity.dispose();
+    _ek.dispose();
+    _secret.fillRange(0, _secret.length, 0);
   }
 
   /// Checks the joiner's [reply] and returns the pairing result.
@@ -526,4 +539,8 @@ final class PairingJoiner {
 
   /// The shared keys, valid if the initiator accepts [reply].
   final PairingResult result;
+
+  /// The relay refused the reply or the person cancelled: erases the keys
+  /// held in [result]. The caller also deletes this attempt's inbox.
+  void abandon() => result.dispose();
 }

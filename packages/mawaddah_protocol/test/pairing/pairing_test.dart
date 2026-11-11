@@ -343,6 +343,25 @@ void main() {
       },
     );
 
+    test('abandon erases the attempt and ends it', () {
+      final init = newInitiator();
+      final joiner = PairingJoiner.fromQr(
+        crypto: crypto,
+        random: SecureTestRandom(),
+        qrText: init.qr(slot()).encode(),
+      );
+      init.abandon();
+      init.abandon();
+      expect(() => init.qr(slot()), throwsStateError);
+      expectFailure(
+        () => init.acceptReply(joiner.reply),
+        PairingFailure.alreadyUsed,
+      );
+      joiner.abandon();
+      expect(joiner.result.identity.isDisposed, isTrue);
+      expect(joiner.result.rootKey.isDisposed, isTrue);
+    });
+
     test('the QR secret is erased after the attempt', () {
       final init = newInitiator();
       final joiner = PairingJoiner.fromQr(
