@@ -28,7 +28,7 @@ export interface RelayDeps {
   /** The Durable Object of the device whose inbox ID is [inboxId]. */
   device(inboxId: string): DeviceApi;
   /** The rate limiter of the IP bucket [bucket] (see `ipBucket`). */
-  registrationLimiter(bucket: string): Promise<RateLimiterApi>;
+  registrationLimiter(bucket: string): RateLimiterApi;
   /** The relay clock, in milliseconds since the Unix epoch. */
   now(): number;
 }
@@ -96,6 +96,8 @@ async function authenticate(request: Request, url: URL, deps: RelayDeps, maxBody
 
 /** The body, or null when it is longer than [max] bytes. */
 async function readBody(request: Request, max: number): Promise<Uint8Array | null> {
+  // A declared length over the limit is refused at once; a missing or
+  // unreadable one (NaN) is caught while reading.
   const declared = request.headers.get('content-length');
   if (declared !== null && Number(declared) > max) return null;
   if (request.body === null) return new Uint8Array(0);
@@ -135,9 +137,10 @@ async function registerInbox(request: Request, url: URL, deps: RelayDeps): Promi
 
   const device = deps.device(auth.inboxId);
   // Registering again with the same key (a retry after a lost answer) is not
-  // counted against the IP limit.
+  // counted against the IP limit. Check-then-act across two objects: two
+  // first registrations of one key sent at the same moment may both count.
   if ((await device.registration()) === null) {
-    const limiter = await deps.registrationLimiter(ipBucket(request.headers.get('cf-connecting-ip')));
+    const limiter = deps.registrationLimiter(ipBucket(request.headers.get('cf-connecting-ip')));
     const limit = await limiter.hit(deps.now());
     if (!limit.allowed) {
       return errorResponse(

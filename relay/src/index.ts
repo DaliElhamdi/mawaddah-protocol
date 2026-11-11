@@ -14,8 +14,10 @@ export { DeviceObject, RegistrationLimitObject } from './durable_objects';
 function depsFor(env: Env): RelayDeps {
   return {
     device: (inboxId) => env.DEVICES.get(env.DEVICES.idFromName(inboxId)),
-    registrationLimiter: async (bucket) =>
-      env.REGISTRATION_LIMITS.get(env.REGISTRATION_LIMITS.idFromName(await bucketObjectName(bucket))),
+    registrationLimiter: (bucket) => ({
+      hit: async (nowMs) =>
+        env.REGISTRATION_LIMITS.get(env.REGISTRATION_LIMITS.idFromName(await bucketObjectName(bucket))).hit(nowMs),
+    }),
     now: () => Date.now(),
   };
 }

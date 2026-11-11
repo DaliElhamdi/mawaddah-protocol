@@ -78,9 +78,12 @@ final class RelayRequestSigner {
   /// The bytes that are signed: six lines joined by `\n`, no final newline.
   ///
   /// Throws [ArgumentError] for a [method] that is not uppercase letters, a
-  /// [pathAndQuery] that does not start with `/` or holds a control
-  /// character or space, a negative [timestamp], or a [nonce] that is not 22
-  /// base64url characters.
+  /// negative [timestamp], a [nonce] that is not 22 base64url characters,
+  /// or a [pathAndQuery] the relay would not rebuild the same way: it must
+  /// start with `/` and use only base64url characters and `/` in the path,
+  /// then optionally `?` and a non-empty query of base64url characters, `=`
+  /// and `&` (PROTOCOL.md section 13). That rules out `.` segments,
+  /// percent-escapes, `#`, `\` and an empty `?`, which URL parsing changes.
   static Uint8List signingInput({
     required String method,
     required String pathAndQuery,
@@ -95,7 +98,7 @@ final class RelayRequestSigner {
       throw ArgumentError.value(
         pathAndQuery,
         'pathAndQuery',
-        'must start with / and hold only visible ASCII',
+        'must be / and base64url characters, then an optional ?query',
       );
     }
     if (timestamp < 0) {
@@ -116,7 +119,7 @@ final class RelayRequestSigner {
   }
 
   static final _method = RegExp(r'^[A-Z]+$');
-  static final _path = RegExp(r'^/[\x21-\x7e]*$');
+  static final _path = RegExp(r'^/[A-Za-z0-9_/-]*(\?[A-Za-z0-9_=&-]+)?$');
   static final _nonce = RegExp(r'^[A-Za-z0-9_-]{22}$');
 
   static String _b64(List<int> bytes) =>

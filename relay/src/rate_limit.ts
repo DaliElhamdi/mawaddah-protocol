@@ -55,13 +55,15 @@ export class RegistrationCounter {
  * The rate-limit bucket of a client address: the whole IPv4 address, or the
  * /64 prefix of an IPv6 address (one home or phone network usually gets a
  * whole /64, so counting single IPv6 addresses would be easy to dodge).
- * An IPv4-mapped IPv6 address counts as its IPv4 address. A missing or
- * unreadable address shares one bucket.
+ * An IPv4-mapped IPv6 address counts as its IPv4 address (NAT64 and 6to4
+ * addresses are not folded). A missing or unreadable address, including one
+ * with a zone (`fe80::1%eth0`), shares the one bucket `unknown`: this fails
+ * closed. Behind Cloudflare `cf-connecting-ip` is always set.
  */
 export function ipBucket(address: string | null): string {
   if (address === null) return 'unknown';
   const a = address.trim().toLowerCase();
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(a)) return `v4:${a}`;
+  if (a.includes('.') && !a.includes(':')) return isIpv4(a) ? `v4:${a}` : 'unknown';
   const groups = expandIpv6(a);
   if (groups === null) return 'unknown';
   if (groups.slice(0, 5).every((g) => g === 0) && groups[5] === 0xffff) {
@@ -72,6 +74,12 @@ export function ipBucket(address: string | null): string {
     .slice(0, 4)
     .map((g) => g.toString(16))
     .join(':')}::/64`;
+}
+
+/** A dotted IPv4 address in its one canonical spelling (no leading zeros, each part at most 255). */
+function isIpv4(text: string): boolean {
+  const parts = text.split('.');
+  return parts.length === 4 && parts.every((p) => /^(0|[1-9][0-9]{0,2})$/.test(p) && Number(p) <= 255);
 }
 
 /** The eight 16-bit groups of an IPv6 address, or null if it is not one. */

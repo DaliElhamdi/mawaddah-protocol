@@ -67,7 +67,20 @@ describe('ipBucket', () => {
     expect(ipBucket('::ffff:cb00:7107')).toBe('v4:203.0.113.7');
   });
   it('puts a missing or unreadable address in one shared bucket', () => {
-    for (const bad of [null, '', 'relay.test', '1:2:3:4:5:6:7:8:9', '1::2::3', '::ffff:300.1.1.1', '12345::']) {
+    for (const bad of [
+      null,
+      '',
+      'relay.test',
+      '999.1.1.1',
+      '203.0.113.07',
+      '1.2.3',
+      '1.2.3.4.5',
+      '1:2:3:4:5:6:7:8:9',
+      '1::2::3',
+      '::ffff:300.1.1.1',
+      '12345::',
+      'fe80::1%eth0',
+    ]) {
       expect(ipBucket(bad), String(bad)).toBe('unknown');
     }
   });

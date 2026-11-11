@@ -32,7 +32,7 @@ export class FakeRelay implements RelayDeps {
     };
   }
 
-  async registrationLimiter(bucket: string): Promise<RateLimiterApi> {
+  registrationLimiter(bucket: string): RateLimiterApi {
     let counter = this.buckets.get(bucket);
     if (counter === undefined) {
       const sql = memorySql();

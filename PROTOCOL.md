@@ -322,7 +322,7 @@ Headers:
 
 The relay rejects a request if the signature does not verify, the timestamp is more than 300 seconds from its own clock, the nonce was seen in the last 15 minutes (spec 4.5 asks for at least 10; the accepted timestamps span 10 minutes, so the memory must be longer than that), or (for inbox routes) the key does not own that inbox or is not on its allow-list. `POST /v1/inbox` is signed with the key it registers, which proves the device holds it. The string names no relay, but a key is registered on one relay only (keys are per pairing), so a request captured on staging fails on production. The relay checks the body size, then the headers, the timestamp, the signature and last the nonce, and answers a failure with a JSON error code (`auth_missing`, `auth_malformed`, `clock_skew` with the relay's `server_time`, `bad_signature`, `nonce_reused`).
 
-The path line is the path and query **as the relay's runtime parses the URL**. Clients send paths that need no normalising (only base64url IDs, digits and `/?=&`; no `.` segments, no percent-escapes, no empty `?`), so the line they sign is the line the relay rebuilds. Endpoints, bodies, limits and the full list of error codes are in [`relay/README.md`](relay/README.md).
+The path line is the path and query **as the relay's runtime parses the URL**. Clients therefore send only paths that URL parsing leaves unchanged: `/`, then base64url characters and `/`, then optionally `?` and a non-empty query of base64url characters, `=` and `&` (so no `.` segments, percent-escapes, `#`, `\` or empty `?`). The line they sign is then the line the relay rebuilds. Endpoints, bodies, limits and the full list of error codes are in [`relay/README.md`](relay/README.md).
 
 ## 14. Constants
 | Name | Value |
@@ -382,6 +382,7 @@ Stated plainly, so nobody relies on more than this gives:
 - **Clock trust:** HLC order depends on the phones' clocks within the windows above; a phone with a badly wrong clock delays its own envelopes until fixed.
 - **Push metadata:** the relay learns which deposits asked for a wake-up (section 17), so it can tell a chat message from a receipt by its timing and flag, though not its content.
 - **Registration limit per network:** the relay allows 5 new inboxes per IP address (IPv6: per /64) per hour. Phones behind one carrier-grade NAT address share that limit, so a busy mobile network could make a pairing attempt wait up to an hour.
+- **New keys cost the relay a little each:** any request signed with a fresh key (valid signature, no inbox) creates a small device object holding its nonce for 15 minutes, before any per-IP limit applies. This is an abuse and cost risk, not a privacy one; a Cloudflare rate-limiting rule at the edge is planned with the deployment (protocol #25).
 - **Relay refusals are not told apart yet:** until the Dart relay client (protocol #24) names its errors, every failed deposit is retried with back-off, including one the relay would refuse forever.
 
 ## 17. Outbox and sync loop

@@ -159,6 +159,26 @@ void main() {
       expect(() => input(path: '/v1/a b'), throwsArgumentError);
       expect(() => input(path: '/v1/a\nb'), throwsArgumentError);
       expect(() => input(path: '/v1/é'), throwsArgumentError);
+      // Paths that URL parsing would change, so the relay would rebuild a
+      // different line and answer bad_signature.
+      for (final path in [
+        '/v1/./inbox',
+        '/v1/../inbox',
+        '/v1/inbox/.',
+        '/v1/%41',
+        '/v1/inbox#x',
+        r'/v1\inbox',
+        '/v1/inbox?',
+        '/v1/inbox?a b',
+        '/v1/inbox?a=%20',
+        '/v1/inbox?a?b',
+      ]) {
+        expect(() => input(path: path), throwsArgumentError, reason: path);
+      }
+      expect(
+        input(path: '/v1/inbox/AbC-_9/envelopes?after=17&x=y'),
+        isNotEmpty,
+      );
       expect(() => input(timestamp: -1), throwsArgumentError);
       expect(() => input(nonce: 'short'), throwsArgumentError);
       expect(() => input(nonce: 'AAAAAAAAAAAAAAAAAAAAA='), throwsArgumentError);

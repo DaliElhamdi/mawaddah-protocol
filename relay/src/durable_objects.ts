@@ -5,6 +5,10 @@
 // the logic is in DeviceState and RegistrationCounter, which the unit tests
 // run on Node's SQLite with a fake clock. Alarms delete what has expired, and
 // an object with nothing left deletes all of its storage.
+//
+// Times: requests pass the Worker's clock in (`nowMs`), so the handler and
+// the unit tests share one clock; alarms read the object's own `Date.now()`.
+// Both are Cloudflare's clock, so the difference is negligible.
 
 import { DurableObject } from 'cloudflare:workers';
 import { DeviceState, type RegisterResult, type Registration } from './device_state';
