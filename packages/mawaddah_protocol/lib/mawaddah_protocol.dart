@@ -24,6 +24,7 @@ export 'src/identity/identity.dart';
 export 'src/pairing/pairing.dart';
 export 'src/random_source.dart';
 export 'src/ratchet/ratchet.dart';
+export 'src/relay/relay_signing.dart';
 export 'src/relay_client.dart';
 export 'src/storage.dart';
 export 'src/sync/sync_engine.dart';
