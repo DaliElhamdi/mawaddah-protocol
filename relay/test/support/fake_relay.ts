@@ -17,6 +17,8 @@ export class FakeRelay implements RelayDeps {
   ) {}
 
   readonly devices = new Map<string, DeviceState>();
+  /** Runs a statement on a device's database (to show what the relay stores). */
+  readonly deviceSql = new Map<string, (query: string) => unknown[]>();
   readonly buckets = new Map<string, RegistrationCounter>();
   readonly lookupBuckets = new Map<string, LookupFailureCounter>();
   private slots: PairingSlots | null = null;
@@ -67,12 +69,20 @@ export class FakeRelay implements RelayDeps {
       this.closers.push(sql.close);
       state = new DeviceState(sql);
       this.devices.set(inboxId, state);
+      this.deviceSql.set(inboxId, (q) => sql.exec(q));
     }
     const s = state;
     return {
       useNonce: async (nonce, now) => s.useNonce(nonce, now),
       registration: async () => s.registration(),
       register: async (r) => s.register(r),
+      allow: async (key) => s.allow(key),
+      // Copied, as Durable Object RPC does: the state must not keep the caller's buffer.
+      deposit: async (key, body, now) => s.deposit(key, body.slice(), now),
+      fetchEnvelopes: async (after) => s.fetchEnvelopes(after),
+      ack: async (cursor) => s.ack(cursor),
+      setPushToken: async (token) => s.setPushToken(token),
+      deleteInbox: async () => s.deleteInbox(),
     };
   }
 

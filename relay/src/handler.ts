@@ -7,9 +7,17 @@
 // Nothing here logs requests, bodies or IP addresses (spec 4.5).
 
 import { type SignedRequest, verifySignedRequest } from './auth';
-import { fromBase64Url, inboxIdFor, jsonObject } from './encoding';
+import { fromBase64Url, inboxIdFor, jsonObject, toBase64Url } from './encoding';
 import { errorResponse, JSON_HEADERS, jsonResponse } from './errors';
-import type { Platform, RegisterResult, Registration } from './device_state';
+import {
+  type AllowResult,
+  type DepositResult,
+  type EnvelopePage,
+  MAX_ENVELOPE_BYTES,
+  type Platform,
+  type RegisterResult,
+  type Registration,
+} from './device_state';
 import { parseBundle, parseReply } from './pairing_messages';
 import type { CreateResult, LookupResult, ReadReplyResult, ReplyResult } from './pairing_slots';
 import { ipBucket, type RateLimitResult } from './rate_limit';
@@ -19,6 +27,12 @@ export interface DeviceApi {
   useNonce(nonce: string, nowMs: number): Promise<boolean>;
   registration(): Promise<Registration | null>;
   register(registration: Registration): Promise<RegisterResult>;
+  allow(senderKey: string): Promise<AllowResult>;
+  deposit(senderKey: string, body: Uint8Array, nowMs: number): Promise<DepositResult>;
+  fetchEnvelopes(after: number | null): Promise<EnvelopePage | null>;
+  ack(cursor: number): Promise<number | null>;
+  setPushToken(pushToken: string | null): Promise<boolean>;
+  deleteInbox(): Promise<void>;
 }
 
 /** The rate-limit Durable Object of one IP bucket. */
@@ -59,6 +73,9 @@ export const MAX_REGISTRATION_BODY = 8 * 1024;
 
 /** Largest accepted body of the pairing-slot routes (a bundle or reply is about 400 bytes). */
 export const MAX_PAIRING_BODY = 4 * 1024;
+
+/** Largest accepted body of the small JSON inbox routes (allow, ack, push token). */
+export const MAX_INBOX_BODY = 8 * 1024;
 
 /** Longest accepted push token (FCM tokens are about 160 characters). */
 export const MAX_PUSH_TOKEN_LENGTH = 4096;
@@ -102,6 +119,28 @@ async function route(request: Request, deps: RelayDeps): Promise<Response> {
     if (request.method === 'POST') return postReply(request, url, handle, deps);
     if (request.method === 'GET') return readReply(request, url, handle, deps);
     return methodNotAllowed('GET, POST');
+  }
+  const inbox = /^\/v1\/inbox\/([^/]+)(\/allow|\/envelopes|\/ack|\/push-token)?$/.exec(url.pathname);
+  if (inbox !== null) {
+    const inboxId = inbox[1] ?? '';
+    switch (inbox[2]) {
+      case undefined:
+        if (request.method !== 'DELETE') return methodNotAllowed('DELETE');
+        return deleteInbox(request, url, inboxId, deps);
+      case '/allow':
+        if (request.method !== 'POST') return methodNotAllowed('POST');
+        return allowSender(request, url, inboxId, deps);
+      case '/envelopes':
+        if (request.method === 'PUT') return depositEnvelope(request, url, inboxId, deps);
+        if (request.method === 'GET') return fetchEnvelopes(request, url, inboxId, deps);
+        return methodNotAllowed('GET, PUT');
+      case '/ack':
+        if (request.method !== 'POST') return methodNotAllowed('POST');
+        return ackEnvelopes(request, url, inboxId, deps);
+      case '/push-token':
+        if (request.method !== 'POST') return methodNotAllowed('POST');
+        return updatePushToken(request, url, inboxId, deps);
+    }
   }
   return errorResponse(404, 'not_found');
 }
@@ -203,17 +242,25 @@ async function registerInbox(request: Request, url: URL, deps: RelayDeps): Promi
 export function parseRegistration(body: Uint8Array): Registration | null {
   const fields = jsonObject(body);
   if (fields === null) return null;
-  const { signing_key: signingKey, push_token: pushToken, platform } = fields;
+  const { signing_key: signingKey, platform } = fields;
   if (typeof signingKey !== 'string' || fromBase64Url(signingKey, 32) === null) return null;
-  if (!('push_token' in fields)) return null;
-  if (
-    pushToken !== null &&
-    (typeof pushToken !== 'string' || pushToken.length > MAX_PUSH_TOKEN_LENGTH || !PUSH_TOKEN.test(pushToken))
-  ) {
-    return null;
-  }
+  const pushToken = pushTokenField(fields);
+  if (pushToken === undefined) return null;
   if (platform !== 'android' && platform !== 'ios') return null;
-  return { signingKey, pushToken: pushToken as string | null, platform: platform as Platform };
+  return { signingKey, pushToken, platform: platform as Platform };
+}
+
+/**
+ * The required `push_token` field: visible ASCII (at most
+ * `MAX_PUSH_TOKEN_LENGTH` characters) or null. Undefined when it is missing
+ * or invalid.
+ */
+function pushTokenField(fields: Record<string, unknown>): string | null | undefined {
+  if (!('push_token' in fields)) return undefined;
+  const token = fields.push_token;
+  if (token === null) return null;
+  if (typeof token !== 'string' || token.length > MAX_PUSH_TOKEN_LENGTH || !PUSH_TOKEN.test(token)) return undefined;
+  return token;
 }
 
 // --- pairing slots (spec 4.5, PROTOCOL.md section 4.5) ----------------------
@@ -354,4 +401,151 @@ async function readReply(request: Request, url: URL, slotId: string, deps: Relay
     case 'used':
       return errorResponse(409, 'slot_used');
   }
+}
+
+// --- inbox routes (spec 4.5): allow, envelopes, ACK, push token, delete -----
+
+/** Envelope cursors: decimal, no leading zeros, at most 2^53 - 1. */
+const CURSOR = /^(0|[1-9][0-9]{0,15})$/;
+
+/** The cursor in [text], or null when it is not a canonical cursor. */
+function parseCursor(text: string): number | null {
+  if (!CURSOR.test(text)) return null;
+  const value = Number(text);
+  return Number.isSafeInteger(value) ? value : null;
+}
+
+/** An inbox ID as sent in a path: canonical base64url of 16 bytes. */
+function isInboxId(text: string): boolean {
+  return fromBase64Url(text, 16) !== null;
+}
+
+type Owned =
+  | { readonly ok: true; readonly body: Uint8Array }
+  | { readonly ok: false; readonly response: Response };
+
+/**
+ * Authenticates a request on the inbox [inboxId] that only its owner may
+ * make: the signing key must be the one the inbox ID is derived from.
+ */
+async function authenticateOwner(
+  request: Request,
+  url: URL,
+  inboxId: string,
+  deps: RelayDeps,
+  maxBody: number,
+): Promise<Owned> {
+  const auth = await authenticate(request, url, deps, maxBody);
+  if (!auth.ok) return auth;
+  if (!isInboxId(inboxId)) return { ok: false, response: errorResponse(404, 'inbox_not_found') };
+  if (auth.inboxId !== inboxId) return { ok: false, response: errorResponse(403, 'not_inbox_owner') };
+  return { ok: true, body: auth.body };
+}
+
+/**
+ * `POST /v1/inbox/{id}/allow`, by the owner, body `{"sender_key": IKsig of
+ * the partner}`: from then on only that key may deposit (spec 4.5). One key
+ * per inbox; the same key again gets `200`, another key `409 allow_conflict`.
+ */
+async function allowSender(request: Request, url: URL, inboxId: string, deps: RelayDeps): Promise<Response> {
+  const owned = await authenticateOwner(request, url, inboxId, deps, MAX_INBOX_BODY);
+  if (!owned.ok) return owned.response;
+  const fields = jsonObject(owned.body);
+  const senderKey = fields?.sender_key;
+  if (typeof senderKey !== 'string' || fromBase64Url(senderKey, 32) === null) {
+    return errorResponse(400, 'malformed_request');
+  }
+  switch (await deps.device(inboxId).allow(senderKey)) {
+    case 'allowed':
+      return jsonResponse(201, {});
+    case 'repeat':
+      return jsonResponse(200, {});
+    case 'conflict':
+      return errorResponse(409, 'allow_conflict');
+    case 'no_inbox':
+      return errorResponse(404, 'inbox_not_found');
+  }
+}
+
+/**
+ * `PUT /v1/inbox/{id}/envelopes`: deposits one sealed envelope (the raw
+ * bytes, at most 65,536) signed by the inbox's allowed sender. Header
+ * `Maw-Wake: 0|1` says whether the sender asks for a push (sent from #23).
+ */
+async function depositEnvelope(request: Request, url: URL, inboxId: string, deps: RelayDeps): Promise<Response> {
+  const auth = await authenticate(request, url, deps, MAX_ENVELOPE_BYTES);
+  if (!auth.ok) return auth.response;
+  if (!isInboxId(inboxId)) return errorResponse(404, 'inbox_not_found');
+  const wake = request.headers.get('maw-wake');
+  if ((wake !== '0' && wake !== '1') || auth.body.byteLength === 0) return errorResponse(400, 'malformed_request');
+  const result = await deps.device(inboxId).deposit(auth.signed.keyText, auth.body, deps.now());
+  switch (result.kind) {
+    case 'stored':
+      return jsonResponse(201, {});
+    case 'no_inbox':
+      return errorResponse(404, 'inbox_not_found');
+    case 'not_allowed':
+      return errorResponse(403, 'sender_not_allowed');
+    case 'full':
+      return errorResponse(409, 'inbox_full');
+  }
+}
+
+/**
+ * `GET /v1/inbox/{id}/envelopes[?after=cursor]`, by the owner: the waiting
+ * envelopes after the cursor, in deposit order, one page at a time.
+ */
+async function fetchEnvelopes(request: Request, url: URL, inboxId: string, deps: RelayDeps): Promise<Response> {
+  const owned = await authenticateOwner(request, url, inboxId, deps, 0);
+  if (!owned.ok) return owned.response;
+  let after: number | null = null;
+  if (url.search !== '') {
+    const match = /^\?after=([^&]*)$/.exec(url.search);
+    after = match === null ? null : parseCursor(match[1] ?? '');
+    if (after === null) return errorResponse(400, 'malformed_request');
+  }
+  const page = await deps.device(inboxId).fetchEnvelopes(after);
+  if (page === null) return errorResponse(404, 'inbox_not_found');
+  return jsonResponse(200, {
+    envelopes: page.envelopes.map((e) => ({ cursor: String(e.cursor), body: toBase64Url(e.body) })),
+    more: page.more,
+  });
+}
+
+/**
+ * `POST /v1/inbox/{id}/ack`, by the owner, body `{"cursor": "<cursor>"}`:
+ * deletes every envelope up to and including that cursor at once.
+ */
+async function ackEnvelopes(request: Request, url: URL, inboxId: string, deps: RelayDeps): Promise<Response> {
+  const owned = await authenticateOwner(request, url, inboxId, deps, MAX_INBOX_BODY);
+  if (!owned.ok) return owned.response;
+  const text = jsonObject(owned.body)?.cursor;
+  const cursor = typeof text === 'string' ? parseCursor(text) : null;
+  if (cursor === null) return errorResponse(400, 'malformed_request');
+  const deleted = await deps.device(inboxId).ack(cursor);
+  if (deleted === null) return errorResponse(404, 'inbox_not_found');
+  return jsonResponse(200, {});
+}
+
+/** `POST /v1/inbox/{id}/push-token`, by the owner, body `{"push_token": string or null}`. */
+async function updatePushToken(request: Request, url: URL, inboxId: string, deps: RelayDeps): Promise<Response> {
+  const owned = await authenticateOwner(request, url, inboxId, deps, MAX_INBOX_BODY);
+  if (!owned.ok) return owned.response;
+  const fields = jsonObject(owned.body);
+  const pushToken = fields === null ? undefined : pushTokenField(fields);
+  if (pushToken === undefined) return errorResponse(400, 'malformed_request');
+  if (!(await deps.device(inboxId).setPushToken(pushToken))) return errorResponse(404, 'inbox_not_found');
+  return jsonResponse(200, {});
+}
+
+/**
+ * `DELETE /v1/inbox/{id}`, by the owner: deletes the inbox, its allowed
+ * sender and its envelopes (unpair, "Delete all data"). `200` also when
+ * there was nothing to delete, so a retry after a lost answer succeeds.
+ */
+async function deleteInbox(request: Request, url: URL, inboxId: string, deps: RelayDeps): Promise<Response> {
+  const owned = await authenticateOwner(request, url, inboxId, deps, 0);
+  if (!owned.ok) return owned.response;
+  await deps.device(inboxId).deleteInbox();
+  return jsonResponse(200, {});
 }

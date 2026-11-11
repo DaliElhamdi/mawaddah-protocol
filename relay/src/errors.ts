@@ -28,6 +28,11 @@ export type ErrorCode =
   | 'slot_used'
   | 'slot_conflict'
   | 'slots_full'
+  | 'inbox_not_found'
+  | 'not_inbox_owner'
+  | 'sender_not_allowed'
+  | 'allow_conflict'
+  | 'inbox_full'
   | 'internal_error';
 
 export function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {

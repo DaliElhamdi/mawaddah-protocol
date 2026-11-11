@@ -54,12 +54,19 @@ async function register(key: TestKey, o: { nonce?: string; ip?: string; signatur
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
 }
 
-async function signed(key: TestKey, method: string, path: string, body: string, ip: string) {
+async function signed(
+  key: TestKey,
+  method: string,
+  path: string,
+  body: string | Uint8Array,
+  ip: string,
+  extra: Record<string, string> = {},
+) {
   const headers = await signHeaders(key, { method, path, body, timestamp: Math.floor(Date.now() / 1000) });
   const res = await worker.fetch(`http://relay.test${path}`, {
     method,
-    body: method === 'GET' ? undefined : body,
-    headers: { ...headers, 'cf-connecting-ip': ip },
+    body: method === 'GET' || method === 'DELETE' ? undefined : body,
+    headers: { ...headers, 'cf-connecting-ip': ip, ...extra },
   });
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
 }
@@ -146,6 +153,70 @@ describe('relay Worker (local runtime)', () => {
     expect(refused.status).toBe(429);
     expect(refused.headers.get('retry-after')).not.toBeNull();
     expect(((await refused.json()) as Record<string, unknown>).error).toBe('rate_limited');
+  });
+
+  it('carries envelopes: allow, deposit, fetch in order, ACK deletes, delete the inbox', async () => {
+    const owner = await testKey(seedOf(400));
+    const partner = await testKey(seedOf(401));
+    const stranger = await testKey(seedOf(402));
+    const ip = '192.0.2.40';
+    for (const k of [owner, partner, stranger]) expect((await register(k, { ip })).status).toBe(201);
+    const inbox = await inboxIdFor(owner.publicKey);
+    const base = `/v1/inbox/${inbox}`;
+    const wake = { 'maw-wake': '1' };
+
+    expect(await signed(owner, 'POST', `${base}/allow`, JSON.stringify({ sender_key: partner.keyText }), ip)).toEqual({
+      status: 201,
+      body: {},
+    });
+    // Bytes of every value, including zeros, and the largest envelope.
+    const bodies = [new Uint8Array(426), Uint8Array.from({ length: 65_536 }, (_, i) => i % 251), new Uint8Array([0, 255, 1])];
+    for (const b of bodies) {
+      expect(await signed(partner, 'PUT', `${base}/envelopes`, b, ip, wake)).toEqual({ status: 201, body: {} });
+    }
+    expect(await signed(stranger, 'PUT', `${base}/envelopes`, bodies[0] ?? new Uint8Array(1), ip, wake)).toEqual({
+      status: 403,
+      body: { error: 'sender_not_allowed' },
+    });
+    expect((await signed(partner, 'PUT', `${base}/envelopes`, new Uint8Array(65_537), ip, wake)).status).toBe(413);
+    expect(await signed(partner, 'GET', `${base}/envelopes`, '', ip)).toEqual({
+      status: 403,
+      body: { error: 'not_inbox_owner' },
+    });
+
+    const fetched = await signed(owner, 'GET', `${base}/envelopes`, '', ip);
+    expect(fetched.status).toBe(200);
+    const page = fetched.body as { envelopes: { cursor: string; body: string }[]; more: boolean };
+    expect(page.more).toBe(false);
+    expect(page.envelopes.map((e) => new Uint8Array(Buffer.from(e.body, 'base64url')))).toEqual(bodies);
+    const cursors = page.envelopes.map((e) => e.cursor);
+
+    expect(await signed(owner, 'POST', `${base}/ack`, JSON.stringify({ cursor: cursors[1] }), ip)).toEqual({
+      status: 200,
+      body: {},
+    });
+    const rest = await signed(owner, 'GET', `${base}/envelopes?after=0`, '', ip);
+    expect((rest.body as { envelopes: { cursor: string }[] }).envelopes.map((e) => e.cursor)).toEqual([cursors[2]]);
+
+    // After everything is acknowledged, a new envelope still gets a later cursor.
+    await signed(owner, 'POST', `${base}/ack`, JSON.stringify({ cursor: cursors[2] }), ip);
+    await signed(partner, 'PUT', `${base}/envelopes`, new Uint8Array([9]), ip, { 'maw-wake': '0' });
+    const later = await signed(owner, 'GET', `${base}/envelopes?after=${cursors[2]}`, '', ip);
+    expect((later.body as { envelopes: unknown[] }).envelopes.length).toBe(1);
+
+    expect(await signed(owner, 'POST', `${base}/push-token`, JSON.stringify({ push_token: 'fcm-new' }), ip)).toEqual({
+      status: 200,
+      body: {},
+    });
+    expect(await signed(owner, 'DELETE', base, '', ip)).toEqual({ status: 200, body: {} });
+    expect(await signed(partner, 'PUT', `${base}/envelopes`, new Uint8Array([1]), ip, wake)).toEqual({
+      status: 404,
+      body: { error: 'inbox_not_found' },
+    });
+    expect(await signed(owner, 'GET', `${base}/envelopes`, '', ip)).toEqual({
+      status: 404,
+      body: { error: 'inbox_not_found' },
+    });
   });
 
   it('returns JSON errors with stable codes elsewhere', async () => {
