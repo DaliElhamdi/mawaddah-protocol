@@ -102,7 +102,7 @@ final class Event {
     required this.authorDevice,
     this.protocolVersion = version.protocolVersion,
     required this.schemaVersion,
-  }) : payload = _freezeMap(payload) {
+  }) : payload = _checkedFreeze(payload) {
     final problem = _check();
     if (problem != null) throw ArgumentError(problem);
   }
@@ -326,7 +326,7 @@ abstract final class EventBatch {
         '"author_device" is not the envelope sender',
       );
     }
-    return ReceivedEvent._(id, event.toJson(), event, sender);
+    return ReceivedEvent._(id, Map.unmodifiable(event.toJson()), event, sender);
   }
 }
 
@@ -373,6 +373,16 @@ int _depth(Object? value) {
   return deepest;
 }
 
+/// [_freezeMap] after the depth check, so that the recursion is bounded.
+JsonMap _checkedFreeze(JsonMap payload) {
+  if (_depth(payload) > Event.maxPayloadDepth) {
+    throw ArgumentError(
+      '"payload" nests more than ${Event.maxPayloadDepth} levels',
+    );
+  }
+  return _freezeMap(payload);
+}
+
 /// A read-only deep copy of a JSON map. Callers check the depth first, so the
 /// recursion is bounded.
 JsonMap _freezeMap(JsonMap map) =>
@@ -386,5 +396,6 @@ Object? _freeze(Object? v) {
   }
   if (v is List) return List<Object?>.unmodifiable(v.map(_freeze));
   if (v == null || v is String || v is num || v is bool) return v;
-  throw ArgumentError.value(v, 'payload', 'not a JSON value');
+  // No value in the message: a payload holds what people wrote.
+  throw ArgumentError('payload holds a ${v.runtimeType}, not a JSON value');
 }

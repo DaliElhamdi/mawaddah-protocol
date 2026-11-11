@@ -167,6 +167,47 @@ void main() {
       expect((await store.entity('message', id))!.created, second.stamp);
     });
 
+    test('a delete purges the payload of unapplied events too', () async {
+      final id = partner.newId();
+      final create = partner.make('message', id, EventOp.create, {
+        'text': 'salam',
+      });
+      final newer = partner.make('message', id, EventOp.create, {
+        'text': 'salam, newer',
+      }, 2);
+      await applier.applyReceived(batch([create, newer]), sender: bob);
+      expect(
+        (await store.unapplied()).single.reason,
+        UnappliedReason.newerSchema,
+      );
+      await applier.applyReceived(
+        batch([partner.make('message', id, EventOp.delete)]),
+        sender: bob,
+      );
+      final kept = (await store.unapplied()).single;
+      expect(kept.reason, UnappliedReason.newerSchema);
+      expect(kept.json['payload'], isEmpty);
+      expect(kept.json['event_id'], newer.eventId);
+      expect(await dump(store), isNot(contains('salam')));
+    });
+
+    test(
+      'after a delete, even an event it cannot apply keeps no payload',
+      () async {
+        final id = partner.newId();
+        await applier.applyReceived(
+          batch([partner.make('message', id, EventOp.delete)]),
+          sender: bob,
+        );
+        final late = partner.make('message', id, 'edit', {'text': 'salam'}, 2);
+        final r = await applier.applyReceived(batch([late]), sender: bob);
+        expect(r.applied, [late]);
+        expect(r.unapplied, isEmpty);
+        expect((await store.event(late.eventId))!.payload, isEmpty);
+        expect(await dump(store), isNot(contains('salam')));
+      },
+    );
+
     test('a delete is final: a later update changes nothing', () async {
       final r = Applier(
         store,

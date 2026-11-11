@@ -64,8 +64,11 @@ final class Applier {
   /// [EventStore.transaction].
   ///
   /// Fails with [EventException] before changing anything when the plaintext is
-  /// refused ([EventBatch.decode]). The app then keeps the envelope
-  /// unapplied, as for an undecryptable one.
+  /// refused ([EventBatch.decode]). The envelope was opened all the same, so
+  /// the app still commits the ratchet session, the replay window and the HLC
+  /// (PROTOCOL.md section 8 step 8), keeps the envelope in its own unapplied
+  /// envelope store (as for an undecryptable one; [EventStore] holds events
+  /// only) and acknowledges it. It must not roll back that transaction.
   Future<ApplyResult> applyReceived(
     Uint8List plaintext, {
     required DeviceId sender,
@@ -88,7 +91,13 @@ final class Applier {
         final reason = event == null
             ? UnappliedReason.newerProtocol
             : _classify(event);
-        if (reason != null) {
+        if (reason != null && event != null && await _isDeleted(event)) {
+          // A tombstone is final: an event of a deleted entity changes
+          // nothing, even one this release cannot apply, and keeps no
+          // payload.
+          await store.putEvent(event.withoutPayload());
+          applied.add(event);
+        } else if (reason != null) {
           final u = UnappliedEvent(
             eventId: item.eventId,
             json: item.json,
@@ -183,6 +192,9 @@ final class Applier {
     }
     return ApplyResult(applied: applied, unapplied: still, duplicates: 0);
   });
+
+  Future<bool> _isDeleted(Event e) async =>
+      (await store.entity(e.entityType, e.entityId))?.isDeleted ?? false;
 
   UnappliedReason? _classify(Event e) {
     final rule = registry[e.entityType];

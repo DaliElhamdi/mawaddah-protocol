@@ -41,6 +41,25 @@ void main() {
       expect(back.stamp, sample.stamp);
     });
 
+    test('a received event\'s JSON is read-only', () {
+      final got = EventBatch.decode(batch([sample]), sender: alice).single;
+      expect(() => got.json['op'] = 'delete', throwsUnsupportedError);
+    });
+
+    test(
+      'the constructor refuses a payload nested too deep, without recursion',
+      () {
+        JsonMap v = {};
+        for (var i = 0; i < 200000; i++) {
+          v = {'a': v};
+        }
+        expect(
+          () => maker.make('reaction', maker.newId(), EventOp.update, v),
+          throwsArgumentError,
+        );
+      },
+    );
+
     test('payload is read-only all the way down', () {
       final e = maker.make('reaction', maker.newId(), EventOp.update, {
         'list': [1, 2],

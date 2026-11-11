@@ -120,7 +120,8 @@ final class EntityState {
 /// The [Applier] does every change for one batch inside one [transaction].
 /// The app runs that inside the same database transaction as the ratchet
 /// session, the replay window and the HLC (PROTOCOL.md section 8 step 8);
-/// a nested call must join the outer transaction.
+/// a nested call must join the outer transaction. The [Applier] never catches
+/// a store error: any failure ends the outermost transaction.
 abstract interface class EventStore {
   /// Runs [action] atomically: if it throws, no change it made is kept.
   Future<T> transaction<T>(Future<T> Function() action);
@@ -128,14 +129,17 @@ abstract interface class EventStore {
   /// Whether an event with [eventId] is in the log or unapplied.
   Future<bool> containsEvent(String eventId);
 
-  /// Adds [event] to the log (never replaces one with the same ID).
+  /// Adds [event] to the log. Does nothing if an event with the same ID is
+  /// already logged (the [Applier] checks [containsEvent] first).
   Future<void> putEvent(Event event);
 
   /// The logged event with [eventId], or null.
   Future<Event?> event(String eventId);
 
   /// Replaces the payload of every logged event of the entity with `{}`
-  /// (the entity was deleted, PROTOCOL.md section 10).
+  /// (the entity was deleted, PROTOCOL.md section 10), and the `payload` of
+  /// every unapplied event whose JSON names the same `entity_type` and
+  /// `entity_id` (keeping the rest of its JSON and its reason).
   Future<void> purgePayloads(String entityType, String entityId);
 
   /// The state of an entity, or null if no event touched it.

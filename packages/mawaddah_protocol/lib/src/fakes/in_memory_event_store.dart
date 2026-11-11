@@ -95,6 +95,25 @@ final class InMemoryEventStore implements EventStore {
         _events[key] = value.withoutPayload();
       }
     }
+    for (final MapEntry(:key, :value) in _unapplied.entries.toList()) {
+      final json = value.json;
+      if (json['entity_type'] == entityType &&
+          json['entity_id'] == entityId &&
+          json['payload'] is Map &&
+          (json['payload']! as Map).isNotEmpty) {
+        _unapplied[key] = UnappliedEvent(
+          eventId: value.eventId,
+          json: Map.unmodifiable({
+            ...json,
+            'payload': const <String, Object?>{},
+          }),
+          reason: value.reason,
+          sender: value.sender,
+          hlc: value.hlc,
+        );
+        _changedUnapplied();
+      }
+    }
   }
 
   @override
