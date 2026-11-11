@@ -13,5 +13,6 @@ export 'src/fakes/seeded_random.dart';
 export 'src/identity/identity.dart';
 export 'src/pairing/pairing.dart';
 export 'src/random_source.dart';
+export 'src/ratchet/ratchet.dart';
 export 'src/relay_client.dart';
 export 'src/storage.dart';
