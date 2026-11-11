@@ -28,6 +28,7 @@ Future<void> main() async {
   _write('envelope', _envelopeCases(crypto));
   _write('hlc', _hlcCases());
   _write('uuid7', _uuid7Cases());
+  _write('event', await _eventCases());
 }
 
 void _write(String file, List<Map<String, Object?>> cases) {
@@ -1451,3 +1452,305 @@ List<Map<String, Object?>> _uuid7Cases() => [
       },
     },
 ];
+
+// --- event.json -------------------------------------------------------------------
+
+String _reasonName(UnappliedReason r) => switch (r) {
+  UnappliedReason.newerProtocol => 'newer_protocol',
+  UnappliedReason.unknownEntityType => 'unknown_entity_type',
+  UnappliedReason.unknownOp => 'unknown_op',
+  UnappliedReason.newerSchema => 'newer_schema',
+  UnappliedReason.invalidPayload => 'invalid_payload',
+  UnappliedReason.rejected => 'rejected',
+};
+
+String _eventFailureName(EventFailure f) => switch (f) {
+  EventFailure.malformed => 'malformed',
+  EventFailure.wrongAuthor => 'wrong_author',
+};
+
+/// Makes events for one device: clock from [startMs], UUIDs from
+/// SeededRandom([seed]).
+class _EventMaker {
+  _EventMaker(int b, int seed, int startMs)
+    : device = DeviceId.fromBytes(Uint8List(16)..fillRange(0, 16, b)),
+      _ms = startMs {
+    factory = EventFactory(
+      hlc: HlcClock(_MsClock(() => _ms)),
+      random: SeededRandom(seed),
+      author: device,
+    );
+  }
+
+  final DeviceId device;
+  int _ms;
+  late final EventFactory factory;
+
+  void advance(int ms) => _ms += ms;
+
+  Event make(String type, String id, String op, [JsonMap payload = const {}]) =>
+      factory.make(entityType: type, entityId: id, op: op, payload: payload);
+
+  String newId() => factory.newEntityId();
+}
+
+Map<String, Object?> _stateJson(EntityState s) => {
+  'entity_type': s.entityType,
+  'entity_id': s.entityId,
+  'fields': {
+    for (final k in s.fields.keys.toList()..sort())
+      k: {'value': s.fields[k]!.value, 'event_id': s.fields[k]!.stamp.eventId},
+  },
+  'created': s.created?.eventId,
+  'deleted': s.deleted?.eventId,
+};
+
+Future<List<Map<String, Object?>>> _eventCases() async {
+  const t0 = 1762862400000;
+  final a = _EventMaker(0x0a, 600, t0);
+  final b = _EventMaker(0x0b, 601, t0 + 250);
+  final cases = <Map<String, Object?>>[];
+
+  // Encoding: the plaintext bytes for a list of events.
+  final profile = a.newId();
+  final hello = a.make('device', a.newId(), EventOp.update, {
+    'protocol_version': 1,
+    'min_supported_protocol': 1,
+    'envelope_versions': [1],
+  });
+  final named = a.make('profile', profile, EventOp.update, {
+    'first_name': 'أمينة',
+    'gender': 'female',
+    'mode': 'engaged',
+  });
+  final msg = a.newId();
+  final text = a.make('message', msg, EventOp.create, {
+    'text': 'salam "quoted" \\ line\nbreak \u0001 é 😊',
+  });
+  for (final (name, events) in [
+    ('the hello', [hello]),
+    ('a profile with an Arabic name', [named]),
+    (
+      'three events; escapes, control and non-ASCII characters',
+      [hello, named, text],
+    ),
+  ]) {
+    cases.add({
+      'name': 'encode: $name',
+      'input': {
+        'events': [for (final e in events) e.toJson()],
+      },
+      'output': {'plaintext': _hex(EventBatch.encode(events))},
+    });
+  }
+
+  // Decoding: refused plaintexts (nothing is applied).
+  final good = named.toJson();
+  List<int> raw(Object json) => utf8.encode(jsonEncode(json));
+  for (final (name, bytes, sender) in [
+    ('not UTF-8', [0xff, 0xfe], a.device),
+    ('not JSON', utf8.encode('{"events": ['), a.device),
+    ('empty event list', raw({'events': <Object?>[]}), a.device),
+    (
+      'extra top-level key',
+      raw({
+        'events': [good],
+        'v': 1,
+      }),
+      a.device,
+    ),
+    (
+      'extra event field',
+      raw({
+        'events': [
+          {...good, 'extra': true},
+        ],
+      }),
+      a.device,
+    ),
+    (
+      'protocol_version as a float',
+      raw({
+        'events': [
+          {...good, 'protocol_version': 1.0},
+        ],
+      }),
+      a.device,
+    ),
+    (
+      'delete with a payload',
+      raw({
+        'events': [
+          {...good, 'op': 'delete'},
+        ],
+      }),
+      a.device,
+    ),
+    (
+      'one good event, one with a bad hlc',
+      raw({
+        'events': [
+          good,
+          {...good, 'hlc': '0123'},
+        ],
+      }),
+      a.device,
+    ),
+    (
+      'newer event without event_id',
+      raw({
+        'events': [
+          {'protocol_version': 2},
+        ],
+      }),
+      a.device,
+    ),
+    (
+      'author is not the sender',
+      raw({
+        'events': [good],
+      }),
+      b.device,
+    ),
+  ]) {
+    Object? error;
+    try {
+      EventBatch.decode(Uint8List.fromList(bytes), sender: sender);
+    } on EventException catch (e) {
+      error = _eventFailureName(e.failure);
+    }
+    if (error == null) throw StateError('decode case "$name" was accepted');
+    cases.add({
+      'name': 'decode: $name',
+      'input': {'plaintext': _hex(bytes), 'sender': _hex(sender.bytes)},
+      'error': error,
+    });
+  }
+
+  // Applying: a set of events in batches; any order of the batches, any
+  // repeats, gives the output state.
+  Future<Map<String, Object?>> applyCase(
+    String name,
+    DeviceId local,
+    List<(DeviceId, List<Object?>)> batches,
+  ) async {
+    final store = InMemoryEventStore();
+    final applier = Applier(store, localDevice: local);
+    for (final (sender, events) in batches) {
+      await applier.applyReceived(
+        Uint8List.fromList(raw({'events': events})),
+        sender: sender,
+      );
+    }
+    final entities = [...store.entities]
+      ..sort(
+        (x, y) => '${x.entityType}/${x.entityId}'.compareTo(
+          '${y.entityType}/${y.entityId}',
+        ),
+      );
+    final log = store.events.keys.toList()..sort();
+    return {
+      'name': 'apply: $name',
+      'input': {
+        'local_device': _hex(local.bytes),
+        'batches': [
+          for (final (sender, events) in batches)
+            {'sender': _hex(sender.bytes), 'events': events},
+        ],
+      },
+      'output': {
+        'entities': [for (final s in entities) _stateJson(s)],
+        'log': [
+          for (final id in log)
+            {
+              'event_id': id,
+              'payload_purged':
+                  store.events[id]!.payload.isEmpty &&
+                  store.events[id]!.op != EventOp.delete,
+            },
+        ],
+        'unapplied': [
+          for (final u in await store.unapplied())
+            {'event_id': u.eventId, 'reason': _reasonName(u.reason)},
+        ],
+      },
+    };
+  }
+
+  final c = _EventMaker(0x0c, 602, t0);
+
+  // Field-level last-writer-wins with clock skew and an HLC tie.
+  final p = a.newId();
+  a.advance(1000);
+  final a1 = a.make('profile', p, EventOp.update, {
+    'first_name': 'Amina',
+    'gender': 'female',
+    'mode': 'engaged',
+  });
+  b.advance(1000); // Bob's clock is 250 ms ahead: his edit wins "mode".
+  final b1 = b.make('profile', p, EventOp.update, {'mode': 'contracted'});
+  a.advance(100);
+  final a2 = a.make('profile', p, EventOp.update, {'first_name': 'Aminah'});
+  // Bob edits the same field with exactly Alice's hlc: the higher author
+  // bytes (Bob, 0x0b...) win.
+  final bTie = Event.fromJson({
+    ...a2.toJson(),
+    'event_id': b.newId(),
+    'author_device': b.device.toBase64Url(),
+    'payload': {'first_name': 'Amna'},
+  });
+  cases.add(
+    await applyCase('last-writer-wins per field, HLC tie', c.device, [
+      (b.device, [b1.toJson(), bTie.toJson()]),
+      (a.device, [a2.toJson(), a1.toJson()]),
+    ]),
+  );
+
+  // Append-only and tombstones: delete before create, a second create, a
+  // repeat.
+  final m1 = a.newId(), m2 = b.newId();
+  a.advance(10);
+  final c1 = a.make('message', m1, EventOp.create, {'text': 'first'});
+  b.advance(10);
+  final c2 = b.make('message', m2, EventOp.create, {'text': 'kept'});
+  final c2b = b.make('message', m2, EventOp.create, {'text': 'kept, again'});
+  final d1 = b.make('message', m1, EventOp.delete);
+  cases.add(
+    await applyCase('append-only, tombstone before create', c.device, [
+      (b.device, [d1.toJson(), c2.toJson()]),
+      (a.device, [c1.toJson()]),
+      (b.device, [c2b.toJson(), c2.toJson()]),
+    ]),
+  );
+
+  // Unapplied: newer protocol, unknown type, op, schema, invalid payload.
+  b.advance(10);
+  final v2 = {
+    'event_id': b.newId(),
+    'protocol_version': 2,
+    'hlc': b.factory.hlc.send().toHex(),
+    'shape': 'unknown',
+  };
+  final unknownType = b.make('note', b.newId(), EventOp.update, {'t': 1});
+  final unknownOp = b.make('message', m2, EventOp.update, {'text': 'x'});
+  final newerSchema = Event.fromJson({
+    ...b.make('profile', p, EventOp.update, {'mode': 'married_cohab'}).toJson(),
+    'schema_version': 2,
+  });
+  final invalid = b.make('profile', p, EventOp.update, {'gender': 'x'});
+  cases.add(
+    await applyCase('unapplied events are kept, in HLC order', a.device, [
+      (
+        b.device,
+        [
+          invalid.toJson(),
+          newerSchema.toJson(),
+          unknownOp.toJson(),
+          unknownType.toJson(),
+          v2,
+        ],
+      ),
+    ]),
+  );
+  return cases;
+}
