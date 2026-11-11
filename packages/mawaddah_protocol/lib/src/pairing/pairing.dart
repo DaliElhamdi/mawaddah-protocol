@@ -292,6 +292,14 @@ final class PairingInitiator {
   /// register).
   PublicIdentity get publicIdentity => _identity.publicIdentity;
 
+  /// This attempt's identity keys, to sign the relay requests of the
+  /// attempt with a `RelayRequestSigner`: register the inbox, open the slot,
+  /// read the reply, and delete the inbox when giving up (before [abandon]).
+  /// The initiator owns them: never dispose them. After [abandon] or a
+  /// failed [acceptReply] they are erased; after a successful one
+  /// [PairingResult.identity] is this same object.
+  DeviceIdentity get identity => _identity;
+
   /// The QR for the slot the relay returned. The QR carries `S`: show it
   /// only on this screen.
   PairingQr qr(Uint8List slotId) {

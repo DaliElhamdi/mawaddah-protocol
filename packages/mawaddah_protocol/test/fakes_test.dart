@@ -77,12 +77,12 @@ void main() {
       final r = FakeRelayClient();
       await r.deposit('i', b([1]));
       await r.deposit('i', b([2]), wake: true);
-      final all = await r.fetch('i');
+      final all = (await r.fetch('i')).envelopes;
       expect(all.map((e) => e.body), [
         b([1]),
         b([2]),
       ]);
-      final rest = await r.fetch('i', after: all.first.cursor);
+      final rest = (await r.fetch('i', after: all.first.cursor)).envelopes;
       expect(rest.map((e) => e.body), [
         b([2]),
       ]);
@@ -93,15 +93,15 @@ void main() {
       await r.deposit('i', b([1]));
       await r.deposit('i', b([2]));
       await r.deposit('j', b([3]));
-      final all = await r.fetch('i');
+      final all = (await r.fetch('i')).envelopes;
       await r.ack('i', all.first.cursor);
-      expect((await r.fetch('i')).map((e) => e.body), [
+      expect((await r.fetch('i')).envelopes.map((e) => e.body), [
         b([2]),
       ]);
-      expect((await r.fetch('j')).map((e) => e.body), [
+      expect((await r.fetch('j')).envelopes.map((e) => e.body), [
         b([3]),
       ]);
-      expect(await r.fetch('unknown'), isEmpty);
+      expect((await r.fetch('unknown')).envelopes, isEmpty);
     });
   });
 }

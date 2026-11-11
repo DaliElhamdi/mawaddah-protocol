@@ -108,9 +108,10 @@ final class SyncReport {
   /// Show "One of your phones has the wrong date or time".
   final bool clockWarning;
 
-  /// The type name of the first relay failure of this run (debug log
-  /// only), or null. Only the name is kept: a relay error may quote a URL,
-  /// an inbox ID or a response body.
+  /// The first relay failure of this run (debug log only), or null: the
+  /// relay's error code for a [RelayException] (`network`, `inbox_full`,
+  /// …), the type name of anything else. Nothing more is kept: another
+  /// error may quote a URL, an inbox ID or a response body.
   final String? relayError;
 
   /// When to try again automatically, or null when nothing is left to do.
@@ -318,8 +319,8 @@ final class SyncEngine {
     var finished = false;
     for (var page = 0; page < maxFetchPagesPerSync && !leftOnRelay; page++) {
       final before = cursor;
-      final envelopes = await _relay(() => relay.fetch(_inbox, after: before));
-      for (final item in envelopes) {
+      final fetched = await _relay(() => relay.fetch(_inbox, after: before));
+      for (final item in fetched.envelopes) {
         if (!await _handle(item, session, window, r)) {
           leftOnRelay = true;
           break;
@@ -330,8 +331,11 @@ final class SyncEngine {
         final c = cursor;
         await _relay(() => relay.ack(_inbox, c));
         _ackedCursor = c;
-      } else if (!leftOnRelay) {
-        finished = true; // nothing new
+      }
+      // Nothing more waits, or nothing new came (a page of old envelopes
+      // only cannot move the cursor; fetching again would loop).
+      if (!leftOnRelay && (!fetched.more || cursor == before)) {
+        finished = true;
         break;
       }
     }
@@ -574,6 +578,8 @@ final class _Run {
   final failures = <EnvelopeFailure, int>{};
   String? relayError;
 
-  void relayFailed(_RelayFailure e) =>
-      relayError ??= e.cause.runtimeType.toString();
+  void relayFailed(_RelayFailure e) => relayError ??= switch (e.cause) {
+    final RelayException x => x.code.wireName,
+    final other => other.runtimeType.toString(),
+  };
 }

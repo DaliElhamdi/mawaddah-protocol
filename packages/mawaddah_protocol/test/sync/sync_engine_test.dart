@@ -318,6 +318,35 @@ void main() {
       expect(bob.messages(), texts);
       expect(await relay.pending(bob.inbox), 0);
     });
+
+    test('a relay refusal is reported by its code only', () async {
+      final (:alice, bob: _, :relay) = await couple(crypto);
+      await alice.say('hi');
+      relay.inner.failNext(
+        const RelayException(RelayErrorCode.inboxFull, status: 409),
+        times: 2,
+      );
+      final r = await alice.sync();
+      expect(r.relayError, 'inbox_full');
+      expect(r.complete, isFalse);
+      expect(r.retryAt, isNotNull);
+      expect((await alice.sync()).envelopesSent, 1);
+    });
+
+    test('fetching stops when the relay says nothing more waits', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      for (var i = 0; i < 5; i++) {
+        await alice.say('m$i');
+        await alice.sync();
+      }
+      relay.pageSize = 2; // pages of 2, 2, 1; "more" on the first two
+      final before = relay.fetches;
+      final r = await bob.sync();
+      expect(r.envelopesOpened, 5);
+      expect(r.complete, isTrue);
+      expect(relay.fetches - before, 3, reason: 'no empty fetch at the end');
+      expect(await relay.pending(bob.inbox), 0);
+    });
   });
 
   group('duplicates, partial failures and lost ACKs', () {
@@ -333,7 +362,8 @@ void main() {
         relay.dropAcks = true; // the relay keeps them
         final first = await bob.sync();
         expect(first.envelopesOpened, 5);
-        // Page 1: 5 opened + 5 repeats; page 2 brings all 10 again.
+        // Page 1: 5 opened + 5 repeats; page 2 ("more") brings all 10
+        // again, which moves the cursor nowhere, so receiving stops.
         expect(first.envelopeFailures, {EnvelopeFailure.replayed: 15});
         expect(first.complete, isTrue);
         final second = await bob.sync();
@@ -385,7 +415,7 @@ void main() {
       expect(relay.deposited.first.$2, waitingBytes);
       expect(await alice.store.outbox(), isEmpty);
       final counters = [
-        for (final e in await inner.fetch(bob.inbox))
+        for (final e in (await inner.fetch(bob.inbox)).envelopes)
           Envelope.parse(e.body).counter,
       ];
       expect(counters, [for (var i = 1; i <= counters.length; i++) i]);
@@ -703,9 +733,8 @@ void main() {
 }
 
 /// A relay whose [fail]th deposit fails (counting from 1).
-final class _FailNth implements RelayClient {
-  _FailNth(this.inner, {required this.fail});
-  final RelayClient inner;
+final class _FailNth extends DelegatingRelay {
+  _FailNth(super.inner, {required this.fail});
   final int fail;
   var _n = 0;
 
@@ -714,13 +743,6 @@ final class _FailNth implements RelayClient {
     if (++_n == fail) throw const RelayDown('deposit');
     return inner.deposit(inboxId, body, wake: wake);
   }
-
-  @override
-  Future<List<RelayEnvelope>> fetch(String inboxId, {String? after}) =>
-      inner.fetch(inboxId, after: after);
-
-  @override
-  Future<void> ack(String inboxId, String cursor) => inner.ack(inboxId, cursor);
 }
 
 /// Makes events of a throwaway device, for the wake table.

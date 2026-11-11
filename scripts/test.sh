@@ -20,5 +20,9 @@ if [ -f relay/package.json ]; then
   echo "== npm test (relay)"
   if need npm; then (cd relay && npm ci --silent && npm test) || fail=1; fi
 fi
+if [ -f relay/package.json ] && [ -f packages/mawaddah_protocol/pubspec.yaml ]; then
+  echo "== relay client integration (Dart client against wrangler dev)"
+  if need dart && need npx && need setsid; then scripts/relay-integration.sh || fail=1; fi
+fi
 
 if [ "$fail" -eq 0 ]; then echo "tests OK"; else echo "tests FAILED"; exit 1; fi
