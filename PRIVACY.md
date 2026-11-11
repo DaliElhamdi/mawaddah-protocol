@@ -13,6 +13,8 @@ No one can read your private moments. Your data lives on your two phones. What t
 | FCM push tokens | Keys (it never holds them) |
 | IP addresses, transiently (abuse protection, up to 24 hours) | |
 
+What the relay stores for each inbox: the device's public signing key, its push token and its platform (Android or iOS). It also remembers each device's recent request nonces for 15 minutes, to refuse replayed requests. For the limit on new inboxes (5 per network per hour) it keeps the times of recent registrations under a hash of the IP address (or of the IPv6 /64 network), and deletes them one hour after the last one. A hash hides the address only from a casual look: it is not anonymous. The relay keeps no request logs. Details: `relay/README.md`.
+
 ## Third parties
 - **Cloudflare** hosts the relay and sees IP addresses at its edge.
 - **Google Firebase Cloud Messaging** delivers wake-ups and sees push tokens and timing, never content.
