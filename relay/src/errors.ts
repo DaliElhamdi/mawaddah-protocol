@@ -33,6 +33,7 @@ export type ErrorCode =
   | 'sender_not_allowed'
   | 'allow_conflict'
   | 'inbox_full'
+  | 'invalid_cursor'
   | 'internal_error';
 
 export function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {

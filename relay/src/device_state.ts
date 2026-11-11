@@ -36,6 +36,11 @@ export interface StoredEnvelope {
   readonly body: Uint8Array;
 }
 
+export type FetchResult = EnvelopePage | 'no_inbox' | 'ahead';
+
+/** How many envelopes an ACK deleted, or why it was refused. */
+export type AckResult = number | 'no_inbox' | 'ahead';
+
 export interface EnvelopePage {
   readonly envelopes: readonly StoredEnvelope[];
   /** True when more envelopes wait after the last one of this page. */
@@ -176,36 +181,59 @@ export class DeviceState {
   }
 
   /**
+   * The highest cursor handed out in this inbox (0 before the first
+   * deposit). AUTOINCREMENT keeps it in `sqlite_sequence`, also after the
+   * envelopes were deleted.
+   */
+  lastCursor(): number {
+    const seq = this.sql.exec("SELECT seq FROM sqlite_sequence WHERE name = 'envelopes'")[0]?.seq;
+    return typeof seq === 'number' ? seq : 0;
+  }
+
+  /**
    * The envelopes after [after] (from the start when null), in deposit
    * order, at most `PAGE_MAX_ENVELOPES` and `PAGE_MAX_BYTES` (but always at
-   * least one when any is waiting). Null when there is no inbox.
+   * least one when any is waiting). `no_inbox` when there is no inbox;
+   * `ahead` when [after] was never handed out (resuming there would skip
+   * the envelopes deposited up to it).
    */
-  fetchEnvelopes(after: number | null): EnvelopePage | null {
-    if (this.registration() === null) return null;
+  fetchEnvelopes(after: number | null): FetchResult {
+    if (this.registration() === null) return 'no_inbox';
+    if (after !== null && after > this.lastCursor()) return 'ahead';
+    // Sizes first, so only the bodies of the envelopes kept are read.
     const rows = this.sql.exec(
-      'SELECT seq, body, size FROM envelopes WHERE seq > ? ORDER BY seq LIMIT ?',
+      'SELECT seq, size FROM envelopes WHERE seq > ? ORDER BY seq LIMIT ?',
       after ?? 0,
       PAGE_MAX_ENVELOPES + 1,
     );
-    const envelopes: StoredEnvelope[] = [];
+    let kept = 0;
     let bytes = 0;
     for (const row of rows) {
       const size = row.size as number;
-      if (envelopes.length === PAGE_MAX_ENVELOPES) break;
-      if (envelopes.length > 0 && bytes + size > PAGE_MAX_BYTES) break;
+      if (kept === PAGE_MAX_ENVELOPES) break;
+      if (kept > 0 && bytes + size > PAGE_MAX_BYTES) break;
       bytes += size;
-      envelopes.push({ cursor: row.seq as number, body: row.body as Uint8Array });
+      kept++;
     }
-    return { envelopes, more: rows.length > envelopes.length };
+    const last = rows[kept - 1]?.seq;
+    const envelopes: StoredEnvelope[] =
+      last === undefined
+        ? []
+        : this.sql
+            .exec('SELECT seq, body FROM envelopes WHERE seq > ? AND seq <= ? ORDER BY seq', after ?? 0, last)
+            .map((row) => ({ cursor: row.seq as number, body: row.body as Uint8Array }));
+    return { envelopes, more: rows.length > kept };
   }
 
   /**
    * Deletes every envelope up to and including [cursor] (the ACK is
-   * cumulative, PROTOCOL.md section 17). Returns how many were deleted, or
-   * null when there is no inbox.
+   * cumulative, PROTOCOL.md section 17). Returns how many were deleted;
+   * `no_inbox` when there is no inbox; `ahead` when [cursor] was never
+   * handed out (it would delete envelopes the device has not seen).
    */
-  ack(cursor: number): number | null {
-    if (this.registration() === null) return null;
+  ack(cursor: number): AckResult {
+    if (this.registration() === null) return 'no_inbox';
+    if (cursor > this.lastCursor()) return 'ahead';
     return this.sql.exec('DELETE FROM envelopes WHERE seq <= ? RETURNING seq', cursor).length;
   }
 
@@ -217,12 +245,14 @@ export class DeviceState {
   }
 
   /**
-   * Deletes the inbox, its allowed sender and its envelopes (spec 4.5;
-   * blobs come with #22). The nonces stay until they expire, so a request
-   * captured before the delete cannot be replayed to recreate the inbox.
+   * Deletes the inbox, its allowed sender, its envelopes and the count of
+   * cursors handed out (spec 4.5; blobs come with #22). The nonces stay
+   * until they expire, so a request captured before the delete cannot be
+   * replayed to recreate the inbox.
    */
   deleteInbox(): void {
     this.sql.exec('DELETE FROM envelopes');
+    this.sql.exec("DELETE FROM sqlite_sequence WHERE name = 'envelopes'");
     this.sql.exec('DELETE FROM allowed_sender');
     this.sql.exec('DELETE FROM inbox');
   }

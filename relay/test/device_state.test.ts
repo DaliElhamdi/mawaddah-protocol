@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { NONCE_MEMORY_MS } from '../src/auth';
 import {
   DeviceState,
+  type EnvelopePage,
+  type FetchResult,
   MAX_ENVELOPE_BYTES,
   MAX_PENDING_BYTES,
   PAGE_MAX_BYTES,
@@ -93,6 +95,11 @@ function registered(): { state: DeviceState; rows: (q: string) => unknown[] } {
   return f;
 }
 
+function pageOf(result: FetchResult): EnvelopePage {
+  if (typeof result === 'string') throw new Error(`no page: ${result}`);
+  return result;
+}
+
 function bytes(n: number, fill = 7): Uint8Array {
   return new Uint8Array(n).fill(fill);
 }
@@ -125,8 +132,8 @@ describe('DeviceState envelopes', () => {
   it('refuses deposits into a missing inbox', () => {
     const { state } = fresh();
     expect(state.deposit(partner, bytes(10), t0)).toEqual({ kind: 'no_inbox' });
-    expect(state.fetchEnvelopes(null)).toBeNull();
-    expect(state.ack(1)).toBeNull();
+    expect(state.fetchEnvelopes(null)).toBe('no_inbox');
+    expect(state.ack(1)).toBe('no_inbox');
     expect(state.setPushToken('t')).toBe(false);
   });
 
@@ -140,7 +147,7 @@ describe('DeviceState envelopes', () => {
       envelopes: bodies.map((body, i) => ({ cursor: i + 1, body })),
       more: false,
     });
-    expect(state.fetchEnvelopes(1)?.envelopes.map((e) => e.cursor)).toEqual([2, 3]);
+    expect(pageOf(state.fetchEnvelopes(1)).envelopes.map((e) => e.cursor)).toEqual([2, 3]);
     expect(state.fetchEnvelopes(3)).toEqual({ envelopes: [], more: false });
   });
 
@@ -155,9 +162,9 @@ describe('DeviceState envelopes', () => {
     const { state } = registered();
     state.allow(partner);
     for (let i = 0; i < PAGE_MAX_ENVELOPES + 1; i++) state.deposit(partner, bytes(1), t0);
-    const first = state.fetchEnvelopes(null);
-    expect(first?.envelopes.length).toBe(PAGE_MAX_ENVELOPES);
-    expect(first?.more).toBe(true);
+    const first = pageOf(state.fetchEnvelopes(null));
+    expect(first.envelopes.length).toBe(PAGE_MAX_ENVELOPES);
+    expect(first.more).toBe(true);
     expect(state.fetchEnvelopes(PAGE_MAX_ENVELOPES)).toEqual({
       envelopes: [{ cursor: PAGE_MAX_ENVELOPES + 1, body: bytes(1) }],
       more: false,
@@ -167,10 +174,10 @@ describe('DeviceState envelopes', () => {
     big.allow(partner);
     const per = Math.floor(PAGE_MAX_BYTES / MAX_ENVELOPE_BYTES); // 16 full envelopes fill a page exactly
     for (let i = 0; i < per + 1; i++) big.deposit(partner, bytes(MAX_ENVELOPE_BYTES), t0);
-    const page = big.fetchEnvelopes(null);
-    expect(page?.envelopes.length).toBe(per);
-    expect(page?.more).toBe(true);
-    expect(big.fetchEnvelopes(per)?.envelopes.length).toBe(1);
+    const page = pageOf(big.fetchEnvelopes(null));
+    expect(page.envelopes.length).toBe(per);
+    expect(page.more).toBe(true);
+    expect(pageOf(big.fetchEnvelopes(per)).envelopes.length).toBe(1);
   });
 
   it('ACK deletes every envelope up to and including the cursor', () => {
@@ -180,8 +187,24 @@ describe('DeviceState envelopes', () => {
     expect(state.ack(3)).toBe(3);
     expect(rows('SELECT seq FROM envelopes')).toEqual([{ seq: 4 }, { seq: 5 }]);
     expect(state.ack(3)).toBe(0);
-    expect(state.ack(99)).toBe(2);
+    expect(state.ack(5)).toBe(2);
     expect(rows('SELECT seq FROM envelopes')).toEqual([]);
+  });
+
+  it('refuses an ACK or a fetch after a cursor it never handed out', () => {
+    const { state, rows } = registered();
+    state.allow(partner);
+    expect(state.ack(1)).toBe('ahead');
+    expect(state.fetchEnvelopes(1)).toBe('ahead');
+    expect(state.fetchEnvelopes(0)).toEqual({ envelopes: [], more: false });
+    for (let i = 0; i < 3; i++) state.deposit(partner, bytes(2), t0);
+    expect(state.ack(4)).toBe('ahead');
+    expect(state.fetchEnvelopes(4)).toBe('ahead');
+    expect(rows('SELECT seq FROM envelopes')).toEqual([{ seq: 1 }, { seq: 2 }, { seq: 3 }]);
+    // After everything is acknowledged the last cursor still counts.
+    expect(state.ack(3)).toBe(3);
+    expect(state.lastCursor()).toBe(3);
+    expect(state.fetchEnvelopes(3)).toEqual({ envelopes: [], more: false });
   });
 
   it('never hands out a cursor twice, also after everything was acknowledged', () => {
@@ -191,7 +214,7 @@ describe('DeviceState envelopes', () => {
     state.deposit(partner, bytes(1), t0);
     state.ack(2);
     expect(state.deposit(partner, bytes(1, 5), t0)).toEqual({ kind: 'stored', cursor: 3 });
-    expect(state.fetchEnvelopes(2)?.envelopes).toEqual([{ cursor: 3, body: bytes(1, 5) }]);
+    expect(pageOf(state.fetchEnvelopes(2)).envelopes).toEqual([{ cursor: 3, body: bytes(1, 5) }]);
   });
 
   it('refuses a deposit that would pass 100 MiB pending, and takes it again after an ACK', () => {
@@ -224,6 +247,7 @@ describe('DeviceState push token and delete', () => {
     expect(rows('SELECT * FROM inbox')).toEqual([]);
     expect(rows('SELECT * FROM allowed_sender')).toEqual([]);
     expect(rows('SELECT * FROM envelopes')).toEqual([]);
+    expect(rows('SELECT * FROM sqlite_sequence')).toEqual([]);
     expect(state.useNonce('n1', t0 + 1)).toBe(false);
     expect(state.isEmpty(t0)).toBe(false);
     expect(state.isEmpty(t0 + NONCE_MEMORY_MS)).toBe(true);
@@ -239,8 +263,11 @@ describe('DeviceState push token and delete', () => {
     // Not reachable through the routes (the inbox row goes with them), checked anyway.
     state['sql'].exec('DELETE FROM inbox');
     expect(state.isEmpty(t0)).toBe(false);
+    state['sql'].exec('DELETE FROM allowed_sender');
+    expect(state.isEmpty(t0)).toBe(false); // the envelope alone
+    state['sql'].exec('INSERT INTO allowed_sender (id, sender_key) VALUES (1, ?)', partner);
     state['sql'].exec('DELETE FROM envelopes');
-    expect(state.isEmpty(t0)).toBe(false);
+    expect(state.isEmpty(t0)).toBe(false); // the allowed sender alone
     state['sql'].exec('DELETE FROM allowed_sender');
     expect(state.isEmpty(t0)).toBe(true);
   });

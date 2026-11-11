@@ -298,6 +298,9 @@ describe('POST /v1/inbox/{id}/ack', () => {
     await expectError(await ack('1', partner), 403, 'not_inbox_owner');
     for (const cursor of [1, '', '01', null, '1.5']) await expectError(await ack(cursor), 400, 'malformed_request');
     expect(storedRows()).toEqual([{ seq: 1 }]);
+    await expectError(await ack('2'), 400, 'invalid_cursor');
+    await expectError(await fetchPage('?after=2'), 400, 'invalid_cursor');
+    expect(storedRows()).toEqual([{ seq: 1 }]);
   });
 });
 

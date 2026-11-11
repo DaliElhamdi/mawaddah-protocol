@@ -15,7 +15,8 @@ import {
   type AllowResult,
   type DepositResult,
   DeviceState,
-  type EnvelopePage,
+  type AckResult,
+  type FetchResult,
   type RegisterResult,
   type Registration,
 } from './device_state';
@@ -88,11 +89,11 @@ export class DeviceObject extends DurableObject<Env> {
     return this.state.deposit(senderKey, body, nowMs);
   }
 
-  async fetchEnvelopes(after: number | null): Promise<EnvelopePage | null> {
+  async fetchEnvelopes(after: number | null): Promise<FetchResult> {
     return this.state.fetchEnvelopes(after);
   }
 
-  async ack(cursor: number): Promise<number | null> {
+  async ack(cursor: number): Promise<AckResult> {
     return this.state.ack(cursor);
   }
 

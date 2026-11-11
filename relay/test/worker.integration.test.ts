@@ -203,6 +203,11 @@ describe('relay Worker (local runtime)', () => {
     await signed(partner, 'PUT', `${base}/envelopes`, new Uint8Array([9]), ip, { 'maw-wake': '0' });
     const later = await signed(owner, 'GET', `${base}/envelopes?after=${cursors[2]}`, '', ip);
     expect((later.body as { envelopes: unknown[] }).envelopes.length).toBe(1);
+    // A cursor the relay never handed out is refused (sqlite_sequence in the real runtime).
+    expect(await signed(owner, 'GET', `${base}/envelopes?after=999`, '', ip)).toEqual({
+      status: 400,
+      body: { error: 'invalid_cursor' },
+    });
 
     expect(await signed(owner, 'POST', `${base}/push-token`, JSON.stringify({ push_token: 'fcm-new' }), ip)).toEqual({
       status: 200,

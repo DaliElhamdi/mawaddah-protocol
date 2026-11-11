@@ -12,7 +12,8 @@ import { errorResponse, JSON_HEADERS, jsonResponse } from './errors';
 import {
   type AllowResult,
   type DepositResult,
-  type EnvelopePage,
+  type AckResult,
+  type FetchResult,
   MAX_ENVELOPE_BYTES,
   type Platform,
   type RegisterResult,
@@ -29,8 +30,8 @@ export interface DeviceApi {
   register(registration: Registration): Promise<RegisterResult>;
   allow(senderKey: string): Promise<AllowResult>;
   deposit(senderKey: string, body: Uint8Array, nowMs: number): Promise<DepositResult>;
-  fetchEnvelopes(after: number | null): Promise<EnvelopePage | null>;
-  ack(cursor: number): Promise<number | null>;
+  fetchEnvelopes(after: number | null): Promise<FetchResult>;
+  ack(cursor: number): Promise<AckResult>;
   setPushToken(pushToken: string | null): Promise<boolean>;
   deleteInbox(): Promise<void>;
 }
@@ -493,7 +494,8 @@ async function depositEnvelope(request: Request, url: URL, inboxId: string, deps
 
 /**
  * `GET /v1/inbox/{id}/envelopes[?after=cursor]`, by the owner: the waiting
- * envelopes after the cursor, in deposit order, one page at a time.
+ * envelopes after the cursor, in deposit order, one page at a time. A
+ * cursor the relay never handed out gets `invalid_cursor`.
  */
 async function fetchEnvelopes(request: Request, url: URL, inboxId: string, deps: RelayDeps): Promise<Response> {
   const owned = await authenticateOwner(request, url, inboxId, deps, 0);
@@ -505,7 +507,8 @@ async function fetchEnvelopes(request: Request, url: URL, inboxId: string, deps:
     if (after === null) return errorResponse(400, 'malformed_request');
   }
   const page = await deps.device(inboxId).fetchEnvelopes(after);
-  if (page === null) return errorResponse(404, 'inbox_not_found');
+  if (page === 'no_inbox') return errorResponse(404, 'inbox_not_found');
+  if (page === 'ahead') return errorResponse(400, 'invalid_cursor');
   return jsonResponse(200, {
     envelopes: page.envelopes.map((e) => ({ cursor: String(e.cursor), body: toBase64Url(e.body) })),
     more: page.more,
@@ -514,7 +517,8 @@ async function fetchEnvelopes(request: Request, url: URL, inboxId: string, deps:
 
 /**
  * `POST /v1/inbox/{id}/ack`, by the owner, body `{"cursor": "<cursor>"}`:
- * deletes every envelope up to and including that cursor at once.
+ * deletes every envelope up to and including that cursor at once. A cursor
+ * the relay never handed out gets `invalid_cursor`.
  */
 async function ackEnvelopes(request: Request, url: URL, inboxId: string, deps: RelayDeps): Promise<Response> {
   const owned = await authenticateOwner(request, url, inboxId, deps, MAX_INBOX_BODY);
@@ -523,7 +527,8 @@ async function ackEnvelopes(request: Request, url: URL, inboxId: string, deps: R
   const cursor = typeof text === 'string' ? parseCursor(text) : null;
   if (cursor === null) return errorResponse(400, 'malformed_request');
   const deleted = await deps.device(inboxId).ack(cursor);
-  if (deleted === null) return errorResponse(404, 'inbox_not_found');
+  if (deleted === 'no_inbox') return errorResponse(404, 'inbox_not_found');
+  if (deleted === 'ahead') return errorResponse(400, 'invalid_cursor');
   return jsonResponse(200, {});
 }
 
