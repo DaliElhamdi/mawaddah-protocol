@@ -264,6 +264,8 @@ describe('errors', () => {
       registrationLimiter: (bucket) => relay.registrationLimiter(bucket),
       lookupLimiter: (bucket) => relay.lookupLimiter(bucket),
       pairingSlots: () => relay.pairingSlots(),
+      push: null,
+      background: (task) => relay.background(task),
       now: () => t0,
     };
     const res = await send(key, {}, broken);

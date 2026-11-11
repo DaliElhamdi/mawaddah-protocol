@@ -149,7 +149,7 @@ describe('DeviceState envelopes', () => {
     state.allow(partner);
     const bodies = [bytes(3, 1), bytes(5, 2), bytes(1, 3)];
     const cursors = bodies.map((b) => state.deposit(partner, b, t0));
-    expect(cursors).toEqual([1, 2, 3].map((c) => ({ kind: 'stored', cursor: c })));
+    expect(cursors).toEqual([1, 2, 3].map((c) => ({ kind: 'stored', cursor: c, pushToken: 'token-1' })));
     expect(state.fetchEnvelopes(null, t0)).toEqual({
       envelopes: bodies.map((body, i) => ({ cursor: i + 1, body })),
       more: false,
@@ -220,7 +220,7 @@ describe('DeviceState envelopes', () => {
     state.deposit(partner, bytes(1), t0);
     state.deposit(partner, bytes(1), t0);
     state.ack(2);
-    expect(state.deposit(partner, bytes(1, 5), t0)).toEqual({ kind: 'stored', cursor: 3 });
+    expect(state.deposit(partner, bytes(1, 5), t0)).toEqual({ kind: 'stored', cursor: 3, pushToken: 'token-1' });
     expect(pageOf(state.fetchEnvelopes(2, t0)).envelopes).toEqual([{ cursor: 3, body: bytes(1, 5) }]);
   });
 
@@ -243,6 +243,33 @@ describe('DeviceState push token and delete', () => {
     expect(state.registration()?.pushToken).toBe('token-2');
     expect(state.setPushToken(null)).toBe(true);
     expect(state.registration()).toEqual({ ...reg, pushToken: null });
+  });
+
+  it('hands the current push token to a deposit, for the wake-up', () => {
+    const { state } = registered();
+    state.allow(partner);
+    state.setPushToken('token-2');
+    expect(state.deposit(partner, bytes(1), t0)).toEqual({ kind: 'stored', cursor: 1, pushToken: 'token-2' });
+    state.setPushToken(null);
+    expect(state.deposit(partner, bytes(1), t0)).toEqual({ kind: 'stored', cursor: 2, pushToken: null });
+  });
+
+  it('clears an unregistered push token only while it is still the stored one', () => {
+    const { state } = registered();
+    expect(state.clearPushToken('token-other')).toBe(false);
+    expect(state.registration()?.pushToken).toBe('token-1');
+    expect(state.clearPushToken('token-1')).toBe(true);
+    expect(state.registration()).toEqual({ ...reg, pushToken: null });
+    expect(state.clearPushToken('token-1')).toBe(false);
+    // The device sent a new token while FCM answered about the old one.
+    state.setPushToken('token-2');
+    expect(state.clearPushToken('token-1')).toBe(false);
+    expect(state.registration()?.pushToken).toBe('token-2');
+  });
+
+  it('clears no push token when there is no inbox', () => {
+    const { state } = fresh();
+    expect(state.clearPushToken('token-1')).toBe(false);
   });
 
   it('deletes the inbox, the allowed sender, the envelopes and the blobs, and keeps the nonces', () => {
@@ -445,7 +472,7 @@ describe('DeviceState 30-day delete', () => {
     expect(rows('SELECT * FROM blob_chunks')).toEqual([]);
     // The inbox, its sender and the cursor count stay.
     expect(state.registration()).toEqual(reg);
-    expect(state.deposit(partner, bytes(1), t0 + 2000 + RETENTION_MS)).toEqual({ kind: 'stored', cursor: 3 });
+    expect(state.deposit(partner, bytes(1), t0 + 2000 + RETENTION_MS)).toEqual({ kind: 'stored', cursor: 3, pushToken: 'token-1' });
   });
 
   it('counts a blob from its first chunk, also when it never completed', () => {

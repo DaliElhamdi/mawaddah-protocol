@@ -4,6 +4,7 @@
 // The handler's dependencies backed by the real state classes over in-memory
 // SQLite, with a settable clock: the Durable Objects without the runtime.
 
+import type { PushSender } from '../../src/fcm';
 import type { DeviceApi, LookupLimiterApi, PairingSlotsApi, RateLimiterApi, RelayDeps } from '../../src/handler';
 import { DeviceState } from '../../src/device_state';
 import { PairingSlots, type RandomBytes, secureRandomBytes } from '../../src/pairing_slots';
@@ -90,6 +91,7 @@ export class FakeRelay implements RelayDeps {
       deleteBlob: async (blobId, key) => s.deleteBlob(blobId, key),
       ack: async (cursor) => s.ack(cursor),
       setPushToken: async (token) => s.setPushToken(token),
+      clearPushToken: async (token) => s.clearPushToken(token),
       deleteInbox: async () => s.deleteInbox(),
     };
   }
@@ -104,6 +106,20 @@ export class FakeRelay implements RelayDeps {
     }
     const c = counter;
     return { hit: async (now) => c.hit(now) };
+  }
+
+  /** The push sender the handler uses (none by default). */
+  push: PushSender | null = null;
+  /** The tasks the handler started after its answer (see `settle`). */
+  readonly tasks: Promise<void>[] = [];
+
+  background(task: Promise<void>): void {
+    this.tasks.push(task);
+  }
+
+  /** Waits for every background task started so far (the Worker's `waitUntil`). */
+  async settle(): Promise<void> {
+    await Promise.all(this.tasks.splice(0));
   }
 
   now(): number {

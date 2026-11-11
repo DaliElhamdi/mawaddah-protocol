@@ -26,6 +26,7 @@ import {
   type RegisterResult,
   type Registration,
 } from './device_state';
+import type { PushSender } from './fcm';
 import { parseBundle, parseReply } from './pairing_messages';
 import type { CreateResult, LookupResult, ReadReplyResult, ReplyResult } from './pairing_slots';
 import { ipBucket, type RateLimitResult } from './rate_limit';
@@ -50,6 +51,8 @@ export interface DeviceApi {
   getBlobChunk(blobId: string, index: number, nowMs: number): Promise<GetChunkResult>;
   deleteBlob(blobId: string, senderKey: string | null): Promise<DeleteBlobResult>;
   setPushToken(pushToken: string | null): Promise<boolean>;
+  /** Forgets [pushToken] if it is still the stored one (FCM called it unregistered). */
+  clearPushToken(pushToken: string): Promise<boolean>;
   deleteInbox(): Promise<void>;
 }
 
@@ -82,6 +85,13 @@ export interface RelayDeps {
   /** The code-lookup limiter of the IP bucket [bucket]. */
   lookupLimiter(bucket: string): LookupLimiterApi;
   pairingSlots(): PairingSlotsApi;
+  /** Sends FCM wake-ups; null when the relay has no service account (then none are sent). */
+  readonly push: PushSender | null;
+  /**
+   * Runs [task] after the answer is sent (the Worker's `waitUntil`), so a
+   * slow push never delays a deposit. [task] never rejects.
+   */
+  background(task: Promise<void>): void;
   /** The relay clock, in milliseconds since the Unix epoch. */
   now(): number;
 }
@@ -497,7 +507,9 @@ async function allowSender(request: Request, url: URL, inboxId: string, deps: Re
 /**
  * `PUT /v1/inbox/{id}/envelopes`: deposits one sealed envelope (the raw
  * bytes, at most 65,536) signed by the inbox's allowed sender. Header
- * `Maw-Wake: 0|1` says whether the sender asks for a push (sent from #23).
+ * `Maw-Wake: 0|1` says whether the sender asks for a push: with `1`, once the
+ * envelope is stored, the inbox's phone gets a content-free FCM wake-up
+ * (spec 4.5, 8.7). The answer does not wait for it or depend on it.
  */
 async function depositEnvelope(request: Request, url: URL, inboxId: string, deps: RelayDeps): Promise<Response> {
   const auth = await authenticate(request, url, deps, MAX_ENVELOPE_BYTES);
@@ -505,9 +517,13 @@ async function depositEnvelope(request: Request, url: URL, inboxId: string, deps
   if (!isInboxId(inboxId)) return errorResponse(404, 'inbox_not_found');
   const wake = request.headers.get('maw-wake');
   if ((wake !== '0' && wake !== '1') || auth.body.byteLength === 0) return errorResponse(400, 'malformed_request');
-  const result = await deps.device(inboxId).deposit(auth.signed.keyText, auth.body, deps.now());
+  const device = deps.device(inboxId);
+  const result = await device.deposit(auth.signed.keyText, auth.body, deps.now());
   switch (result.kind) {
     case 'stored':
+      if (wake === '1' && result.pushToken !== null && deps.push !== null) {
+        deps.background(sendWake(deps.push, device, result.pushToken));
+      }
       return jsonResponse(201, {});
     case 'no_inbox':
       return errorResponse(404, 'inbox_not_found');
@@ -515,6 +531,20 @@ async function depositEnvelope(request: Request, url: URL, inboxId: string, deps
       return errorResponse(403, 'sender_not_allowed');
     case 'full':
       return errorResponse(409, 'inbox_full');
+  }
+}
+
+/**
+ * Sends one wake-up to [pushToken]; if FCM says the token is unregistered,
+ * forgets it (unless the device has sent a new one meanwhile). Best effort:
+ * nothing is retried and nothing is logged; the phone also syncs when the
+ * app opens.
+ */
+async function sendWake(push: PushSender, device: DeviceApi, pushToken: string): Promise<void> {
+  try {
+    if ((await push.wake(pushToken)) === 'unregistered') await device.clearPushToken(pushToken);
+  } catch {
+    // Nothing to report: the deposit already succeeded.
   }
 }
 

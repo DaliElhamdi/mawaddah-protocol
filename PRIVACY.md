@@ -17,7 +17,7 @@ What the relay stores for each inbox: the device's public signing key, its push 
 
 ## Third parties
 - **Cloudflare** hosts the relay and sees IP addresses at its edge.
-- **Google Firebase Cloud Messaging** delivers wake-ups and sees push tokens and timing, never content.
+- **Google Firebase Cloud Messaging** delivers wake-ups and sees push tokens and timing, never content. For each wake-up the relay sends Google only the phone's push token and the fixed message `{"t":"s"}` ("sync"): no inbox ID, sender, count or content. Google can therefore see when a phone was woken, which app and Firebase project it is for, and that the request came from the relay (Cloudflare's address). Because a wake-up follows the partner's message within seconds, its time is close to when the partner sent it. When Google reports a push token as no longer valid, the relay deletes it.
 
 ## Retention and erasure
 Envelopes and attachments are deleted when the receiving phone acknowledges them, and in any case 30 days after they reached the relay (a scheduled clean-up does it, and nothing older is ever handed out). This deletes them from the relay's live storage. Cloudflare keeps its own short-term recovery copies of that storage (for Durable Objects, point-in-time recovery over the last 30 days), which the relay does not control; they hold only the same encrypted bytes. "Delete all data" in the app wipes the phone and deletes the device's inbox on the relay.
