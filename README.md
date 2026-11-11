@@ -32,7 +32,7 @@ The real `Clock`, `RandomSource`, `Storage` and `RelayClient` are supplied by th
 - **Known-answer tests** in `test/crypto/` use the published vectors in `test/vectors/` (RFC 7748, RFC 8032, RFC 5869, RFC 7693, draft-irtf-cfrg-xchacha-03 and libsodium's own XChaCha20-Poly1305 test).
 
 ## Toolchain and checks
-Pinned versions: Dart in `.dart-version`, Node in `.node-version` (CI reads these files). `scripts/check.sh` = format, analyze, lint, typecheck, secret-file and fork-safety guards; `scripts/test.sh` = `dart test` and the relay's Vitest (the first `dart test` compiles libsodium, about 15 s). CI runs both plus gitleaks. Workflows use `pull_request` only, never `pull_request_target`, and no secrets, so fork PRs cannot reach any.
+Pinned versions: Dart in `.dart-version`, Node in `.node-version` (CI reads these files). `scripts/check.sh` = format, analyze, lint, typecheck, secret-file and fork-safety guards; `scripts/test.sh` = `dart test` and the relay's Vitest (the first `dart test` compiles libsodium, about 15 s). CI runs both plus gitleaks (`.gitleaks.toml` keeps the default rules and skips only the published test-vector files, whose "secret" keys are printed in the RFCs). Workflows use `pull_request` only, never `pull_request_target`, and no secrets, so fork PRs cannot reach any.
 
 ## Releases
 Releases are tags `vX.Y.Z` on `main`. The `protocol-release` workflow runs the checks and tests, then publishes a GitHub Release with the matching CHANGELOG section (add `## [X.Y.Z] - date` first; `scripts/release-notes.sh vX.Y.Z` shows what will be published). The private app depends on the package by tag (`ref: vX.Y.Z`), never by branch.
