@@ -79,7 +79,15 @@ export class FakeRelay implements RelayDeps {
       allow: async (key) => s.allow(key),
       // Copied, as Durable Object RPC does: the state must not keep the caller's buffer.
       deposit: async (key, body, now) => s.deposit(key, body.slice(), now),
-      fetchEnvelopes: async (after) => s.fetchEnvelopes(after),
+      fetchEnvelopes: async (after, now) => s.fetchEnvelopes(after, now),
+      putBlobChunk: async (key, blobId, size, index, body, now) =>
+        s.putBlobChunk(key, blobId, size, index, body.slice(), now),
+      // Copied out too: the handler must not see the state's buffer.
+      getBlobChunk: async (blobId, index, now) => {
+        const r = s.getBlobChunk(blobId, index, now);
+        return r.kind === 'chunk' ? { ...r, body: r.body.slice() } : r;
+      },
+      deleteBlob: async (blobId, key) => s.deleteBlob(blobId, key),
       ack: async (cursor) => s.ack(cursor),
       setPushToken: async (token) => s.setPushToken(token),
       deleteInbox: async () => s.deleteInbox(),

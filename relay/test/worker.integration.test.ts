@@ -224,6 +224,43 @@ describe('relay Worker (local runtime)', () => {
     });
   });
 
+  it('carries a blob in 1 MiB chunks: upload, download byte for byte, delete', async () => {
+    const owner = await testKey(seedOf(410));
+    const partner = await testKey(seedOf(411));
+    const ip = '192.0.2.41';
+    for (const k of [owner, partner]) expect((await register(k, { ip })).status).toBe(201);
+    const inbox = await inboxIdFor(owner.publicKey);
+    const blob = `/v1/inbox/${inbox}/blobs/${'AQIDBAUGBwgJCgsMDQ4PEA'}`;
+    await signed(owner, 'POST', `/v1/inbox/${inbox}/allow`, JSON.stringify({ sender_key: partner.keyText }), ip);
+
+    // A full 1 MiB chunk is one SQLite value in the real runtime (limit 2 MB); every byte value.
+    const size = 1024 * 1024 + 3;
+    const whole = Uint8Array.from({ length: size }, (_, i) => (i * 7) % 256);
+    const parts = [whole.slice(0, 1024 * 1024), whole.slice(1024 * 1024)];
+    for (const [i, part] of parts.entries()) {
+      expect(await signed(partner, 'PUT', `${blob}?size=${size}&chunk=${i}`, part, ip)).toEqual({ status: 201, body: {} });
+    }
+    expect((await signed(partner, 'PUT', `${blob}?size=${10 * 1024 * 1024 + 1}&chunk=0`, parts[0] ?? '', ip)).body).toEqual({
+      error: 'blob_too_large',
+    });
+
+    const got: Uint8Array[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      const path = `${blob}?chunk=${i}`;
+      const headers = await signHeaders(owner, { method: 'GET', path, timestamp: Math.floor(Date.now() / 1000) });
+      const res = await worker.fetch(`http://relay.test${path}`, { headers: { ...headers, 'cf-connecting-ip': ip } });
+      expect([res.status, res.headers.get('maw-blob-size')]).toEqual([200, String(size)]);
+      got.push(new Uint8Array(await res.arrayBuffer()));
+    }
+    expect(got).toEqual(parts);
+
+    expect(await signed(owner, 'DELETE', blob, '', ip)).toEqual({ status: 200, body: {} });
+    expect(await signed(owner, 'GET', `${blob}?chunk=0`, '', ip)).toEqual({
+      status: 404,
+      body: { error: 'blob_not_found' },
+    });
+  });
+
   it('returns JSON errors with stable codes elsewhere', async () => {
     const res = await worker.fetch('http://relay.test/v1/nothing');
     expect(res.status).toBe(404);

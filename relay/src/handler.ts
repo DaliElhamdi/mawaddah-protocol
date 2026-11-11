@@ -13,8 +13,15 @@ import {
   type AllowResult,
   type DepositResult,
   type AckResult,
+  BLOB_CHUNK_BYTES,
+  chunkCount,
+  chunkLength,
+  type DeleteBlobResult,
   type FetchResult,
+  type GetChunkResult,
+  MAX_BLOB_BYTES,
   MAX_ENVELOPE_BYTES,
+  type PutChunkResult,
   type Platform,
   type RegisterResult,
   type Registration,
@@ -30,8 +37,18 @@ export interface DeviceApi {
   register(registration: Registration): Promise<RegisterResult>;
   allow(senderKey: string): Promise<AllowResult>;
   deposit(senderKey: string, body: Uint8Array, nowMs: number): Promise<DepositResult>;
-  fetchEnvelopes(after: number | null): Promise<FetchResult>;
+  fetchEnvelopes(after: number | null, nowMs: number): Promise<FetchResult>;
   ack(cursor: number): Promise<AckResult>;
+  putBlobChunk(
+    senderKey: string,
+    blobId: string,
+    size: number,
+    index: number,
+    body: Uint8Array,
+    nowMs: number,
+  ): Promise<PutChunkResult>;
+  getBlobChunk(blobId: string, index: number, nowMs: number): Promise<GetChunkResult>;
+  deleteBlob(blobId: string, senderKey: string | null): Promise<DeleteBlobResult>;
   setPushToken(pushToken: string | null): Promise<boolean>;
   deleteInbox(): Promise<void>;
 }
@@ -120,6 +137,15 @@ async function route(request: Request, deps: RelayDeps): Promise<Response> {
     if (request.method === 'POST') return postReply(request, url, handle, deps);
     if (request.method === 'GET') return readReply(request, url, handle, deps);
     return methodNotAllowed('GET, POST');
+  }
+  const blob = /^\/v1\/inbox\/([^/]+)\/blobs\/([^/]+)$/.exec(url.pathname);
+  if (blob !== null) {
+    const inboxId = blob[1] ?? '';
+    const blobId = blob[2] ?? '';
+    if (request.method === 'PUT') return putBlobChunk(request, url, inboxId, blobId, deps);
+    if (request.method === 'GET') return getBlobChunk(request, url, inboxId, blobId, deps);
+    if (request.method === 'DELETE') return deleteBlob(request, url, inboxId, blobId, deps);
+    return methodNotAllowed('DELETE, GET, PUT');
   }
   const inbox = /^\/v1\/inbox\/([^/]+)(\/allow|\/envelopes|\/ack|\/push-token)?$/.exec(url.pathname);
   if (inbox !== null) {
@@ -506,7 +532,7 @@ async function fetchEnvelopes(request: Request, url: URL, inboxId: string, deps:
     after = match === null ? null : parseCursor(match[1] ?? '');
     if (after === null) return errorResponse(400, 'malformed_request');
   }
-  const page = await deps.device(inboxId).fetchEnvelopes(after);
+  const page = await deps.device(inboxId).fetchEnvelopes(after, deps.now());
   if (page === 'no_inbox') return errorResponse(404, 'inbox_not_found');
   if (page === 'ahead') return errorResponse(400, 'invalid_cursor');
   return jsonResponse(200, {
@@ -553,4 +579,137 @@ async function deleteInbox(request: Request, url: URL, inboxId: string, deps: Re
   if (!owned.ok) return owned.response;
   await deps.device(inboxId).deleteInbox();
   return jsonResponse(200, {});
+}
+
+// --- blobs (spec 4.5, PROTOCOL.md section 12) -------------------------------
+
+/** A blob ID as sent in a path: canonical base64url of 16 bytes (chosen by the sender). */
+function isBlobId(text: string): boolean {
+  return fromBase64Url(text, 16) !== null;
+}
+
+/** The decimal numbers of the query `?<names[0]>=<n>&<names[1]>=<n>…`, in that order, or null. */
+function numbersOf(search: string, names: readonly string[]): number[] | null {
+  const parts = search.startsWith('?') ? search.slice(1).split('&') : [];
+  if (parts.length !== names.length) return null;
+  const out: number[] = [];
+  for (const [i, part] of parts.entries()) {
+    const [name, value, ...rest] = part.split('=');
+    const n = parseCursor(value ?? '');
+    if (name !== names[i] || rest.length > 0 || n === null) return null;
+    out.push(n);
+  }
+  return out;
+}
+
+/**
+ * `PUT /v1/inbox/{id}/blobs/{blob_id}?size=<bytes>&chunk=<index>`, by the
+ * inbox's allowed sender, body: the raw bytes of that chunk. A blob is 1 to
+ * 10 MiB, sent in order in chunks of 1 MiB (the last one shorter). The
+ * first chunk reserves the whole size in the inbox's 100 MiB quota.
+ */
+async function putBlobChunk(
+  request: Request,
+  url: URL,
+  inboxId: string,
+  blobId: string,
+  deps: RelayDeps,
+): Promise<Response> {
+  const auth = await authenticate(request, url, deps, BLOB_CHUNK_BYTES);
+  if (!auth.ok) return auth.response;
+  if (!isInboxId(inboxId)) return errorResponse(404, 'inbox_not_found');
+  if (!isBlobId(blobId)) return errorResponse(404, 'blob_not_found');
+  const query = numbersOf(url.search, ['size', 'chunk']);
+  if (query === null) return errorResponse(400, 'malformed_request');
+  const [size = 0, index = 0] = query;
+  if (size > MAX_BLOB_BYTES) return errorResponse(413, 'blob_too_large');
+  if (size === 0 || index >= chunkCount(size) || auth.body.byteLength !== chunkLength(size, index)) {
+    return errorResponse(400, 'malformed_request');
+  }
+  const result = await deps
+    .device(inboxId)
+    .putBlobChunk(auth.signed.keyText, blobId, size, index, auth.body, deps.now());
+  switch (result.kind) {
+    case 'stored':
+      return jsonResponse(201, {});
+    case 'repeat':
+      return jsonResponse(200, {});
+    case 'no_inbox':
+      return errorResponse(404, 'inbox_not_found');
+    case 'not_allowed':
+      return errorResponse(403, 'sender_not_allowed');
+    case 'quota':
+      return errorResponse(413, 'blob_quota_exceeded');
+    case 'conflict':
+      return errorResponse(409, 'blob_conflict');
+    case 'out_of_order':
+      return errorResponse(409, 'chunk_out_of_order', { next_chunk: result.next });
+  }
+}
+
+/**
+ * `GET /v1/inbox/{id}/blobs/{blob_id}?chunk=<index>`, by the owner: the raw
+ * bytes of one chunk, once the whole blob is uploaded. The header
+ * `Maw-Blob-Size` gives the blob's size, so the client knows the chunk count.
+ */
+async function getBlobChunk(
+  request: Request,
+  url: URL,
+  inboxId: string,
+  blobId: string,
+  deps: RelayDeps,
+): Promise<Response> {
+  const owned = await authenticateOwner(request, url, inboxId, deps, 0);
+  if (!owned.ok) return owned.response;
+  if (!isBlobId(blobId)) return errorResponse(404, 'blob_not_found');
+  const query = numbersOf(url.search, ['chunk']);
+  if (query === null) return errorResponse(400, 'malformed_request');
+  const result = await deps.device(inboxId).getBlobChunk(blobId, query[0] ?? 0, deps.now());
+  switch (result.kind) {
+    case 'chunk':
+      return new Response(result.body, {
+        status: 200,
+        headers: {
+          'content-type': 'application/octet-stream',
+          'cache-control': 'no-store',
+          'maw-blob-size': String(result.size),
+        },
+      });
+    case 'no_inbox':
+      return errorResponse(404, 'inbox_not_found');
+    case 'not_found':
+      return errorResponse(404, 'blob_not_found');
+    case 'incomplete':
+      return errorResponse(409, 'blob_incomplete');
+    case 'no_chunk':
+      return errorResponse(400, 'malformed_request');
+  }
+}
+
+/**
+ * `DELETE /v1/inbox/{id}/blobs/{blob_id}`, by the owner once it has the file
+ * (the blob's ACK), or by the allowed sender (an upload it gave up). `200`
+ * also when the blob was already gone.
+ */
+async function deleteBlob(
+  request: Request,
+  url: URL,
+  inboxId: string,
+  blobId: string,
+  deps: RelayDeps,
+): Promise<Response> {
+  const auth = await authenticate(request, url, deps, 0);
+  if (!auth.ok) return auth.response;
+  if (!isInboxId(inboxId)) return errorResponse(404, 'inbox_not_found');
+  if (!isBlobId(blobId)) return errorResponse(404, 'blob_not_found');
+  const sender = auth.inboxId === inboxId ? null : auth.signed.keyText;
+  switch (await deps.device(inboxId).deleteBlob(blobId, sender)) {
+    case 'deleted':
+    case 'absent':
+      return jsonResponse(200, {});
+    case 'no_inbox':
+      return errorResponse(404, 'inbox_not_found');
+    case 'not_allowed':
+      return errorResponse(403, 'sender_not_allowed');
+  }
 }

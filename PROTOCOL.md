@@ -297,9 +297,9 @@ Registry (v1). Each feature issue adds its types here, with the payload fields, 
 ## 12. Attachments
 Photos and voice notes travel as encrypted blobs, not inside envelopes:
 - Per file: a random 32-byte key and a random 16-byte `blob_id`.
-- The file is encrypted with libsodium secretstream XChaCha20-Poly1305: the 24-byte stream header first, then the file in 65,536-byte plaintext chunks (the last one shorter and tagged `FINAL`). At most 10 MB of ciphertext per blob (relay limit).
+- The file is encrypted with libsodium secretstream XChaCha20-Poly1305: the 24-byte stream header first, then the file in 65,536-byte plaintext chunks (the last one shorter and tagged `FINAL`). At most 10 MiB (10,485,760 bytes) of ciphertext per blob (relay limit). The ciphertext is the plaintext plus the 24-byte header and 17 bytes per secretstream chunk, so the largest file is 10,483,016 bytes (159 full chunks and a last one of 62,792 bytes).
 - The key, `blob_id`, size and media type travel inside the encrypted event that refers to the attachment. The relay sees only the blob ID, its size and when it was uploaded and fetched.
-- The relay upload and download API (chunked `PUT`/`GET /v1/blob/{id}`) is described with the relay.
+- **Relay transfer** (`relay/README.md`, "Blobs"): the sender uploads the ciphertext into the **receiver's** inbox with `PUT /v1/inbox/{inbox_id}/blobs/{blob_id}?size=<bytes>&chunk=<index>`, in order, in relay chunks of 1 MiB (the last one shorter; unrelated to the 64 KiB secretstream chunks), and deposits the envelope that names the blob only after the last chunk is stored. The receiver downloads each chunk with `GET …/blobs/{blob_id}?chunk=<index>` (header `Maw-Blob-Size` gives the size) and, once it has the whole file, deletes it with `DELETE …/blobs/{blob_id}` (the blob's ACK). The sender may delete an upload it gave up. The spec's `/v1/blob/{id}` sits under the inbox so the signed path names the inbox and the quota is per inbox. The relay deletes any blob 30 days after its first chunk.
 
 ## 13. Relay request signing
 Every relay request except `GET /v1/pairing-slot/{slot_id or code}` and `GET /health` is signed with the device's `IKsig`. The signing input is these six lines joined by `\n` (0x0A), UTF-8, with no final newline (the spec's `method | path | sha256(body) | timestamp | nonce`, plus a label):
@@ -337,7 +337,10 @@ The path line is the path and query **as the relay's runtime parses the URL**. C
 | Replay window `W` | 1,024 envelopes |
 | HLC time window | at most 1 hour ahead, at most 31 days behind |
 | Relay request time window / nonce memory | ±300 s / 15 minutes |
-| Attachment chunk / blob size | 65,536 bytes plaintext / ≤ 10 MB |
+| Attachment chunk / blob size | 65,536 bytes plaintext / ≤ 10 MiB (10,485,760 bytes) of ciphertext |
+| Relay blob chunk | 1 MiB (1,048,576 bytes), the last one shorter; at most 10 per blob, uploaded in order |
+| Blobs waiting in one relay inbox | at most 100 MiB, counted from each blob's first chunk (then `413 blob_quota_exceeded`) |
+| Relay retention | every envelope and blob is deleted 30 days after it was stored (a blob: after its first chunk), fetched or not |
 | Sealed envelope kept for resending | at most 1 day, then its events are sealed again (section 17) |
 | Raw envelopes kept unapplied | 100 per reason (unknown version, undecryptable, refused plaintext), oldest deleted first |
 | Relay fetch page | at most 100 envelopes and 1 MiB of envelope bytes (always at least one envelope) |
@@ -386,7 +389,8 @@ Stated plainly, so nobody relies on more than this gives:
 - **A phone that is unlocked and compromised** exposes what is on it; the ratchet only limits what an attacker learns before and after (forward secrecy and post-compromise recovery).
 - **Clock trust:** HLC order depends on the phones' clocks within the windows above; a phone with a badly wrong clock delays its own envelopes until fixed.
 - **Push metadata:** the relay learns which deposits asked for a wake-up (section 17), so it can tell a chat message from a receipt by its timing and flag, though not its content.
-- **Inbox quota:** one inbox holds at most 100 MiB of waiting envelopes. If the receiving phone stays away long enough for its partner to fill that, further deposits wait in the partner's outbox until the receiver fetches and acknowledges.
+- **Inbox quota:** one inbox holds at most 100 MiB of waiting envelopes. If the receiving phone stays away long enough for its partner to fill that, further deposits wait in the partner's outbox until the receiver fetches and acknowledges. Blobs have their own 100 MiB per inbox, reserved at each blob's first chunk, so an upload that was never finished or deleted holds its share until its 30 days pass.
+- **30 days on the relay, then gone:** an envelope or attachment that the receiving phone has not fetched within 30 days is deleted from the relay (Cloudflare's own 30-day storage recovery aside, which holds only ciphertext). A phone away longer than that misses it, and the relay cannot say what was lost. An attachment whose blob was deleted shows as unavailable; the sender can send it again.
 - **Registration limit per network:** the relay allows 5 new inboxes per IP address (IPv6: per /64) per hour. Phones behind one carrier-grade NAT address share that limit, so a busy mobile network could make a pairing attempt wait up to an hour.
 - **New keys cost the relay a little each:** any request signed with a fresh key (valid signature, no inbox) creates a small device object holding its nonce for 15 minutes, before any per-IP limit applies. This is an abuse and cost risk, not a privacy one; a Cloudflare rate-limiting rule at the edge is planned with the deployment (protocol #25).
 - **Relay refusals are not told apart yet:** until the Dart relay client (protocol #24) names its errors, every failed deposit is retried with back-off, including one the relay would refuse forever.

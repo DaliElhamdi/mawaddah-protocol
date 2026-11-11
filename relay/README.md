@@ -2,7 +2,7 @@
 
 The **blind relay** (spec 4.5): a Cloudflare Worker with SQLite-backed Durable Objects. It carries sealed envelopes between the two phones of a pair and cannot open them. The wire format is in [`../PROTOCOL.md`](../PROTOCOL.md); what the relay can see is in [`../PRIVACY.md`](../PRIVACY.md).
 
-> **Status: in progress, not deployed.** Done so far: request signing, nonce memory, inbox registration and its rate limit (protocol #19), pairing slots (#20), allow-list, envelopes, ACK, push token and inbox delete (#21). Still to come: blobs and the 30-day delete (#22), push (#23), deployment (#25).
+> **Status: in progress, not deployed.** Done so far: request signing, nonce memory, inbox registration and its rate limit (protocol #19), pairing slots (#20), allow-list, envelopes, ACK, push token and inbox delete (#21), blobs and the 30-day delete (#22). Still to come: push (#23), deployment (#25).
 
 ## Endpoints so far
 | Endpoint | Signed | Purpose |
@@ -17,8 +17,11 @@ The **blind relay** (spec 4.5): a Cloudflare Worker with SQLite-backed Durable O
 | `PUT /v1/inbox/{id}/envelopes` | yes, by the allowed sender | Deposit one sealed envelope |
 | `GET /v1/inbox/{id}/envelopes?after=cursor` | yes, by the owner | Fetch waiting envelopes |
 | `POST /v1/inbox/{id}/ack` | yes, by the owner | Delete every envelope up to a cursor |
+| `PUT /v1/inbox/{id}/blobs/{blob_id}?size=…&chunk=…` | yes, by the allowed sender | Upload one chunk of an encrypted attachment |
+| `GET /v1/inbox/{id}/blobs/{blob_id}?chunk=…` | yes, by the owner | Download one chunk of a complete blob |
+| `DELETE /v1/inbox/{id}/blobs/{blob_id}` | yes, by the owner or the allowed sender | Delete a blob (the owner's ACK, or an upload given up) |
 | `POST /v1/inbox/{id}/push-token` | yes, by the owner | Replace the push token |
-| `DELETE /v1/inbox/{id}` | yes, by the owner | Delete the inbox, its allowed sender and its envelopes |
+| `DELETE /v1/inbox/{id}` | yes, by the owner | Delete the inbox, its allowed sender, its envelopes and its blobs |
 
 ### `POST /v1/inbox`
 Body (JSON, at most 8 KiB):
@@ -63,7 +66,34 @@ Envelopes come in deposit order, after `cursor` (from the start without `after`)
 
 `POST /v1/inbox/{id}/push-token`, by the owner, body `{"push_token": "<FCM token>"}` or `{"push_token": null}`, with the same rules as at registration. Answer `200 {}`.
 
-`DELETE /v1/inbox/{id}`, by the owner, no body. Deletes the inbox (signing key, push token, platform), its allowed sender and every waiting envelope (blobs too, once they exist, #22). It also resets the inbox's cursor count, so nothing stored tells how many envelopes it ever received. Used by unpair and "Delete all data". Answer `200 {}`, also when the inbox was already gone, so a retry after a lost answer succeeds. The key's nonces are kept until they expire (15 minutes), so a request captured before the delete cannot be replayed to register the inbox again; then the device object deletes all of its storage. A device deletes **only its own** inbox: envelopes it already sent wait in the partner's inbox, where its key stays the allowed sender, until the partner's phone fetches and acknowledges them or deletes its own inbox (and at most 30 days, once #22 is done).
+`DELETE /v1/inbox/{id}`, by the owner, no body. Deletes the inbox (signing key, push token, platform), its allowed sender, every waiting envelope and every blob. It also resets the inbox's cursor count, so nothing stored tells how many envelopes it ever received. Used by unpair and "Delete all data". Answer `200 {}`, also when the inbox was already gone, so a retry after a lost answer succeeds. The key's nonces are kept until they expire (15 minutes), so a request captured before the delete cannot be replayed to register the inbox again; then the device object deletes all of its storage. A device deletes **only its own** inbox: envelopes it already sent wait in the partner's inbox, where its key stays the allowed sender, until the partner's phone fetches and acknowledges them or deletes its own inbox, and at most 30 days.
+
+### Blobs
+Photos and voice notes travel as encrypted blobs (PROTOCOL.md section 12): the sender encrypts the file with its own key, uploads the ciphertext into the **receiving** phone's inbox, then sends the blob ID and key inside an envelope. The relay sees only the blob ID, its size and the times. The spec's `/v1/blob/{id}` is placed under the inbox (`/v1/inbox/{id}/blobs/{blob_id}`), so the signed path names the inbox, the same allowed-sender and owner rules apply, the quota is per inbox and `DELETE /v1/inbox/{id}` takes the blobs with it.
+
+- `blob_id`: 16 random bytes chosen by the sender, as 22 base64url characters (anything else gets `404 blob_not_found`). IDs are per inbox.
+- **Size and chunks:** a blob is 1 byte to **10 MiB** (10,485,760 bytes) and travels in chunks of **1 MiB** (1,048,576 bytes; the last one shorter), at most 10. The chunk size is the relay's; it has nothing to do with the 64 KiB secretstream chunks inside the ciphertext. A Durable Object SQLite value holds at most 2 MB, so each chunk is one row.
+
+`PUT /v1/inbox/{id}/blobs/{blob_id}?size=<bytes>&chunk=<index>`, by the **allowed sender**, body: the chunk's raw bytes. The query is exactly these two decimal numbers in this order, no leading zeros (anything else `400 malformed_request`). `size` above 10 MiB gets `413 blob_too_large`; a body over 1 MiB gets `413 body_too_large`; an index past the last chunk, or a body that is not exactly that chunk's length, gets `400 malformed_request`. Chunks go **in order** from 0:
+- Chunk 0 creates the blob and reserves its whole `size` in the inbox's **blob quota of 100 MiB** (complete or not); a blob that would pass it gets `413 blob_quota_exceeded` (retry later: the owner deletes blobs once it has them, and everything goes after 30 days). The blob quota is separate from the 100 MiB of envelopes.
+- The next chunk in order: `201 {}`.
+- A chunk already stored, with the same bytes: `200 {}` (a retry after a lost answer).
+- A chunk already stored with other bytes, or another `size` than the blob was created with: `409 blob_conflict`. A stored blob never changes.
+- A chunk after the next one expected (or any chunk but 0 for a blob the relay does not have): `409 chunk_out_of_order` with `next_chunk`, the index to send next. An app that restarts an upload sends the chunk it believes is next and follows `next_chunk`.
+- Not the allowed sender: `403 sender_not_allowed`; no inbox: `404 inbox_not_found`.
+
+Upload every chunk before depositing the envelope that names the blob, so the receiver never sees an incomplete one, and never upload a chunk of that blob again once the envelope is deposited: the receiver may already have deleted it, and a chunk 0 would then create a new blob that holds quota until its 30 days pass.
+
+`GET /v1/inbox/{id}/blobs/{blob_id}?chunk=<index>`, by the owner, no body. Answer `200` with the chunk's raw bytes, `content-type: application/octet-stream`, `cache-control: no-store`, and the header `Maw-Blob-Size` (the blob's size, so the client knows how many chunks to fetch). A blob still being uploaded gets `409 blob_incomplete`; an unknown, deleted or expired one `404 blob_not_found`; an index past the last chunk `400 malformed_request`.
+
+`DELETE /v1/inbox/{id}/blobs/{blob_id}`, no body, by:
+- the **owner**, once it has the whole file: this is the blob's ACK (spec 4.5: deleted after ACK), and it frees the quota at once;
+- the **allowed sender**, for an upload it gave up (for example the message was deleted before it was sent). It can also delete a finished blob the receiver has not fetched; that is no more than it could do by never uploading it.
+
+Anyone else gets `403 sender_not_allowed`. Answer `200 {}`, also when the blob was already gone.
+
+### The 30-day delete
+Every envelope and every blob is **hard-deleted 30 days after it was stored** (a blob: after its first chunk; a slow upload does not extend it), whether or not it was fetched (spec 4.5). A blob can therefore expire between two chunk downloads (`404 blob_not_found`). Each read and write of an inbox first deletes what has passed 30 days, so nothing older is ever handed out or counted in a quota, even when an alarm runs late. The device object's alarm is also set, whenever something is stored, for the first moment something expires (a nonce after 15 minutes, an envelope or blob after 30 days), so the delete happens even if nobody uses the inbox again. The inbox itself (keys, push token, allowed sender) stays until `DELETE /v1/inbox/{id}`, with no time limit. "Deleted" means deleted from the object's live SQLite storage: Cloudflare keeps point-in-time recovery for SQLite-backed Durable Objects over the last 30 days, which the relay does not control (it holds only the same ciphertext).
 
 ## Request signing
 Every request except `GET /health` and `GET /v1/pairing-slot/{slot_id or code}` carries the four headers of PROTOCOL.md section 13 (`Maw-Key`, `Maw-Timestamp`, `Maw-Nonce`, `Maw-Signature`). The relay checks, in this order:
@@ -83,6 +113,7 @@ Every error is JSON `{"error": "<code>"}` with `cache-control: no-store`; a few 
 | 400 | `malformed_request` | The body is not the JSON the endpoint expects |
 | 400 | `key_mismatch` | The body names a key other than the signing key |
 | 400 | `invalid_cursor` | The cursor is above the last one this inbox handed out |
+| 404 | `blob_not_found` | No blob with that ID in this inbox (never uploaded, deleted, older than 30 days, or a badly formed ID) |
 | 403 | `inbox_required` | The signing key has no inbox yet (pairing-slot routes) |
 | 403 | `not_inbox_owner` | The inbox in the path is not the signing key's own |
 | 403 | `sender_not_allowed` | The signing key may not deposit into this inbox (not the allowed sender, or none allowed yet) |
@@ -100,7 +131,12 @@ Every error is JSON `{"error": "<code>"}` with `cache-control: no-store`; a few 
 | 409 | `slot_conflict` | This key already opened a slot with another bundle |
 | 409 | `allow_conflict` | This inbox already allows another sender key |
 | 409 | `inbox_full` | 100 MiB of envelopes are already waiting in this inbox; try again later |
+| 409 | `blob_conflict` | The blob already has this chunk with other bytes, or another size |
+| 409 | `chunk_out_of_order` | Chunks go in order; adds `next_chunk`, the index the relay expects |
+| 409 | `blob_incomplete` | The blob is still being uploaded |
 | 413 | `body_too_large` | Body over the endpoint's limit |
+| 413 | `blob_too_large` | The blob's `size` is over 10 MiB |
+| 413 | `blob_quota_exceeded` | This new blob would pass the inbox's 100 MiB of blobs; try again later |
 | 429 | `rate_limited` | Too many registrations, or failed code lookups, from this network; adds `retry_after` |
 | 500 | `internal_error` | Something failed inside the relay |
 | 503 | `slots_full` | Too many pairing slots are open right now; try again in a few minutes |
@@ -108,14 +144,30 @@ Every error is JSON `{"error": "<code>"}` with `cache-control: no-store`; a few 
 ## What is stored
 | Durable Object | Named by | Holds | Deleted |
 |---|---|---|---|
-| `DeviceObject` | the inbox ID | nonces of the last 15 minutes; the inbox: signing key, push token, platform; the one allowed sender key; the waiting envelopes (bytes, size, deposit time, cursor) | nonces after 15 minutes (alarm); each envelope when acknowledged; the inbox, allowed sender and envelopes by `DELETE /v1/inbox/{id}`; an object with nothing left (no inbox, envelope, allowed sender or live nonce) deletes all its storage. The 30-day delete of envelopes comes with #22 |
+| `DeviceObject` | the inbox ID | nonces of the last 15 minutes; the inbox: signing key, push token, platform; the one allowed sender key; the waiting envelopes (bytes, size, deposit time, cursor); the blobs (ID, declared size, chunks stored, time of the first chunk, and the chunk bytes) | nonces after 15 minutes; each envelope when acknowledged; each blob when deleted by the owner or the sender; envelopes and blobs 30 days after they were stored, fetched or not (on every access, and by the alarm); the inbox, allowed sender, envelopes and blobs by `DELETE /v1/inbox/{id}`; an object with nothing left (no inbox, envelope, blob, allowed sender or live nonce) deletes all its storage |
 | `RegistrationLimitObject` | `SHA-256("mawaddah/v1/rate-limit\n" + bucket)`, bucket = the IPv4 address or the IPv6 /64 | the times of the registrations of the last hour | each time after one hour; when none is left, all its storage (alarm) |
 | `LookupLimitObject` | the same hash of the bucket (another namespace) | the times of code lookups of the last 10 minutes that found no open slot | each time after 10 minutes; every counted lookup sets the alarm (also one given back), and when none is left the alarm deletes all its storage |
 | `PairingSlotsObject` | one object, `pairing-slots` | per live slot: slot ID, code, the two signing keys, expiry, and the bundle and reply (public keys only) until the initiator reads the reply | bundle and reply when the reply is read; the whole slot 10 minutes after creation (alarm, and on every access); when none is left, all its storage |
 
 No names, profile data, request logs or raw IP addresses are stored. The IP address is used only to pick the rate-limit object; its name is a hash, which hides the address from a casual look but is **not** anonymous (all IPv4 addresses can be hashed and compared). Its times are deleted about one hour after its last registration (10 minutes after the last counted code lookup), by an alarm (alarms can run late or retry; the spec's bound is 24 hours). A secret key (HMAC) for these names would not hide the address from the only parties who see them, Cloudflare and the relay operator, who see the address at the edge anyway; it can be added with the deployment (#25) if wanted.
 
-**Fresh keys:** a request with a valid signature from a key that has no inbox still records its nonce, so it creates a small `DeviceObject` that deletes itself after 15 minutes. Making many keys therefore costs the relay storage and requests before any per-IP limit applies. Planned for #25: a Cloudflare rate-limiting rule per IP at the edge.
+**Fresh keys:** a request with a valid signature from a key that has no inbox still records its nonce, so it creates a small `DeviceObject` that deletes itself after 15 minutes. Making many keys therefore costs the relay storage and requests before any per-IP limit applies. The same holds for body size: a blob chunk `PUT` is read (up to 1 MiB) before its signature, and before the sender check, is verified. Planned for #25: a Cloudflare rate-limiting rule per IP at the edge.
+
+## Storage choice and cost
+Envelopes and blobs are stored in the receiving device's **SQLite-backed Durable Object**, not in R2:
+- One place per inbox: the quota check and the write happen in one single-threaded object, so they cannot race; `DELETE /v1/inbox/{id}` and the 30-day delete are plain SQL in that object, with no listing of an external bucket.
+- No extra service, binding or account setup, and nothing for the operator to keep in step (R2 lifecycle rules work on whole days and know nothing about inboxes).
+- Limits fit: a SQLite value holds at most 2 MB (hence 1 MiB chunks), and an object holds up to 10 GB on the paid plan (1 GB on the free plan) against at most 200 MiB per inbox (100 MiB of envelopes + 100 MiB of blobs).
+
+Cost (Cloudflare's published prices and limits as read in November 2026, Workers Paid plan; they change, so check the linked pages before relying on them; [Durable Objects](https://developers.cloudflare.com/durable-objects/platform/pricing/), [R2](https://developers.cloudflare.com/r2/pricing/)):
+
+| | Durable Object SQLite (chosen) | R2 Standard |
+|---|---|---|
+| Stored data | 5 GB-month included, then $0.20 per GB-month | 10 GB-month free, then $0.015 per GB-month |
+| Writes | 50 million rows/month included, then $1.00 per million (deletes and `setAlarm` count as writes) | 1 million Class A operations free, then $4.50 per million |
+| Reads | 25 billion rows/month included, then $0.001 per million | 10 million Class B operations free, then $0.36 per million |
+
+Stored data is what waits on the relay, not what passes through it: an attachment is deleted as soon as the receiver has it. One 3 MiB photo costs about 20 rows written in all (3 chunks, the blob row, their index entries, then the deletes) and about 3 rows read to download. **Example:** 1,000 couples, each sending 20 photos of 3 MiB a day: about 60 GiB a day pass through. If each photo waits 12 hours on average, about 32 GB wait at any time: about $5.40 a month above the 5 GB included (R2: about $0.35). About 12 million rows written a month, inside the 50 million included. Both choices also pay the same Workers and Durable Object request and duration charges per call (each chunk is one request), not counted here. In the worst case one inbox holds 200 MiB for 30 days: about $0.04 a month (R2: about $0.003). If stored blobs ever cost more than the simplicity is worth, they can move to R2 behind the same routes (the API does not depend on it). On the free plan, Durable Objects storage is capped at 5 GB for the account.
 
 ## No request logs
 The relay writes nothing to the console and keeps no request logs (spec 4.5). `wrangler.toml` sets `[observability] enabled = false`. When deploying (#25), also check in the Cloudflare dashboard, for the Worker:
@@ -133,7 +185,7 @@ npm run lint
 npm run typecheck # src with Workers types, test/ with Node types
 npm run dev       # local relay at http://localhost:8787
 ```
-- Unit tests run the same SQL as the Durable Objects on Node's built-in `node:sqlite`, with a fake clock, so nonce expiry, slot expiry and the rate-limit windows are tested without waiting.
+- Unit tests run the same SQL as the Durable Objects on Node's built-in `node:sqlite`, with a fake clock, so nonce expiry, slot expiry, the rate-limit windows and the 30-day delete (to the millisecond, and the next alarm time) are tested without waiting.
 - The pairing tests use the bundles and replies of `packages/mawaddah_protocol/test/vectors/pairing.json` (made by the Dart package), so the relay accepts exactly what the Dart code sends and returns it unchanged.
 - `test/worker.integration.test.ts` starts the real Worker with its Durable Objects (`unstable_startWorker` from wrangler, no network, nothing persisted) and talks to it over HTTP.
-- Not covered automatically: Durable Object alarms firing (they need real minutes to pass), and anything on Cloudflare's network (needs #25).
+- Not covered automatically: Durable Object alarms firing (they need real minutes to pass; the tests check the time the alarm is set for and what the alarm's clean-up deletes), and anything on Cloudflare's network (needs #25).

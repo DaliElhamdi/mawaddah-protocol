@@ -12,11 +12,15 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import {
+  alarmToSet,
   type AllowResult,
   type DepositResult,
   DeviceState,
   type AckResult,
+  type DeleteBlobResult,
   type FetchResult,
+  type GetChunkResult,
+  type PutChunkResult,
   type RegisterResult,
   type Registration,
 } from './device_state';
@@ -55,7 +59,13 @@ function sqlOf(storage: DurableObjectStorage): Sql {
   };
 }
 
-/** One per device, named by its inbox ID: its nonces, its inbox, its allowed sender and its envelopes. */
+/**
+ * One per device, named by its inbox ID: its nonces, its inbox, its allowed
+ * sender, its envelopes and its blobs. Whenever something is stored, the
+ * alarm is set no later than the moment the first item expires (a nonce
+ * after 15 minutes, an envelope or blob after 30 days), so the 30-day delete
+ * does not depend on anyone coming back.
+ */
 export class DeviceObject extends DurableObject<Env> {
   private cached: DeviceState | null = null;
 
@@ -64,12 +74,17 @@ export class DeviceObject extends DurableObject<Env> {
     return this.cached;
   }
 
+  /** Moves the alarm earlier when something now expires before it (one alarm per object). */
+  private async scheduleCleanUp(nowMs: number): Promise<void> {
+    const next = this.state.cleanUp(nowMs);
+    if (next === null) return;
+    const set = alarmToSet(await this.ctx.storage.getAlarm(), next);
+    if (set !== null) await this.ctx.storage.setAlarm(set);
+  }
+
   async useNonce(nonce: string, nowMs: number): Promise<boolean> {
     const fresh = this.state.useNonce(nonce, nowMs);
-    if ((await this.ctx.storage.getAlarm()) === null) {
-      const next = this.state.pruneNonces(nowMs);
-      if (next !== null) await this.ctx.storage.setAlarm(next);
-    }
+    await this.scheduleCleanUp(nowMs);
     return fresh;
   }
 
@@ -86,11 +101,34 @@ export class DeviceObject extends DurableObject<Env> {
   }
 
   async deposit(senderKey: string, body: Uint8Array, nowMs: number): Promise<DepositResult> {
-    return this.state.deposit(senderKey, body, nowMs);
+    const result = this.state.deposit(senderKey, body, nowMs);
+    if (result.kind === 'stored') await this.scheduleCleanUp(nowMs);
+    return result;
   }
 
-  async fetchEnvelopes(after: number | null): Promise<FetchResult> {
-    return this.state.fetchEnvelopes(after);
+  async fetchEnvelopes(after: number | null, nowMs: number): Promise<FetchResult> {
+    return this.state.fetchEnvelopes(after, nowMs);
+  }
+
+  async putBlobChunk(
+    senderKey: string,
+    blobId: string,
+    size: number,
+    index: number,
+    body: Uint8Array,
+    nowMs: number,
+  ): Promise<PutChunkResult> {
+    const result = this.state.putBlobChunk(senderKey, blobId, size, index, body, nowMs);
+    if (result.kind === 'stored') await this.scheduleCleanUp(nowMs);
+    return result;
+  }
+
+  async getBlobChunk(blobId: string, index: number, nowMs: number): Promise<GetChunkResult> {
+    return this.state.getBlobChunk(blobId, index, nowMs);
+  }
+
+  async deleteBlob(blobId: string, senderKey: string | null): Promise<DeleteBlobResult> {
+    return this.state.deleteBlob(blobId, senderKey);
   }
 
   async ack(cursor: number): Promise<AckResult> {
@@ -109,7 +147,8 @@ export class DeviceObject extends DurableObject<Env> {
 
   override async alarm(): Promise<void> {
     const now = Date.now();
-    const next = this.state.pruneNonces(now);
+    // Nonces, and envelopes and blobs 30 days old (spec 4.5: hard delete).
+    const next = this.state.cleanUp(now);
     if (next !== null) {
       await this.ctx.storage.setAlarm(next);
     } else if (this.state.isEmpty(now)) {
