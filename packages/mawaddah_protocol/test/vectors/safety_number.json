@@ -1,0 +1,104 @@
+{
+  "file": "safety_number",
+  "protocol_version": 1,
+  "generated_by": "packages/mawaddah_protocol/tool/gen_vectors.dart",
+  "cases": [
+    {
+      "name": "SeededRandom(1) and SeededRandom(2)",
+      "input": {
+        "a": {
+          "sig_seed": "a473ff7bb3cdc899a04dea0fbd30a72e95f0cf2f94e0e05034f24a1d899f196d",
+          "dh_secret": "3e138a839b3468f4eb28e1bfee2a02c8efc111741bec287deb074c4f1e3977a5",
+          "sig_pub": "e5db8097f1f7cfad7bb6ffd5efc9158a9746d4977380a8e6fd3e1c7e9d2486d3",
+          "dh_pub": "2cd7911233c2a7427c0eada59a8b14e14f8faf3fc8c0d02c7d2c7cc9fe4d300e"
+        },
+        "b": {
+          "sig_seed": "69713c142e721fb31689fc0db376c67aa672a31a038886090c59dad9c570deb0",
+          "dh_secret": "dc33a37f6a39dc41e626298e2b1eeccb7ee73a2d8a342f67681bdfa9b0d9df25",
+          "sig_pub": "78641770a235d86293eeeb0c43d02af1c074ae8768d61cd505273cf04597e706",
+          "dh_pub": "dc7f7c0ee927a3341d3d3550b7289ec792eaa8fe048352355f34d68d5715f754"
+        }
+      },
+      "output": {
+        "hash": "663322fb0ce404f693b6cb66fe88d1e65b2de46a0ca97348a89ad4f30cbbc1d4",
+        "safety_number": "47002022828923302296"
+      }
+    },
+    {
+      "name": "SeededRandom(3) and SeededRandom(4)",
+      "input": {
+        "a": {
+          "sig_seed": "4737567fd774b9e83ee51c6bc4d0018bfb5c3ed8d4451e7998ac3b5e2792bbd6",
+          "dh_secret": "0eca71be04681ed25619aa146c320f1779073e82be543956122b13287c55c7a3",
+          "sig_pub": "dfa1005a680a742c6571e544389517a03ca182cbc62ce19b72def65d0d2ce72f",
+          "dh_pub": "972a72b41501cb977ec0e452a4c4e79fb828dff57b4d2dd15525f0ccc43b9927"
+        },
+        "b": {
+          "sig_seed": "527931acc66e58f257677387b2c32e4e89e4482bb23d26155742c5207bb5781c",
+          "dh_secret": "7e54385856d36ac9c4e7056df6188f088c446b11883b1b6f6ee9245ceecfef37",
+          "sig_pub": "08c216946604e6a2596d7670e021b267bfa8bb56d06323b70565d6a06097ef34",
+          "dh_pub": "ee2316ef2ec18d5d400c34147ebc7c519c1b54bfd83a64658687e3c09485367b"
+        }
+      },
+      "output": {
+        "hash": "bb593e6b68055ebbd5a85a8b40df067d5ca0f0b4e00a85f3e9b27ce4912a033d",
+        "safety_number": "73044712106232525193"
+      }
+    },
+    {
+      "name": "SeededRandom(14) and SeededRandom(15): a group with leading zeros",
+      "input": {
+        "a": {
+          "sig_seed": "0fa0431d770941aade65793a20e055fdaea5aacff5015ee62827af1e01737df8",
+          "dh_secret": "bdd440ec073e0894e898335ede32143077ed37e854a0b8bd8a716ff0d19d31ee",
+          "sig_pub": "b24673b312954c8e031ce0346a255af30786bb5e2899ea26cf6b4ac70232847a",
+          "dh_pub": "30419c347bdc8c457e123770b68e065c621c1424818873aff5a7f5e327b60348"
+        },
+        "b": {
+          "sig_seed": "f5d1ef1f2f1c5986e3ecbbc2bb36fdbcc92e265ddd8fcab3f9016a08115e21b5",
+          "dh_secret": "cbcf2b5a112ea0e1a2b53607280a75f9bfb39063341134ad46ffd6b1464123e7",
+          "sig_pub": "7b842c1b9ee64517e6f6fd8c5fb279c9da037ef3e2cfbf9c97cd17d53860d9fc",
+          "dh_pub": "cdd5e32c75dfdf94ae2f7a4efe856e49c47085755895cfb0f502af83fa9b9d65"
+        }
+      },
+      "output": {
+        "hash": "823df0c9a8d0216abaec6cb9daf7b36cd6a7826600b897bb9c7bdb64664d0fa2",
+        "safety_number": "89200364318700861708"
+      }
+    },
+    {
+      "name": "equal Ed25519 keys, ordered by the X25519 key (fixed public bytes)",
+      "input": {
+        "a": {
+          "sig_pub": "1111111111111111111111111111111111111111111111111111111111111111",
+          "dh_pub": "8080808080808080808080808080808080808080808080808080808080808080"
+        },
+        "b": {
+          "sig_pub": "1111111111111111111111111111111111111111111111111111111111111111",
+          "dh_pub": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f"
+        }
+      },
+      "output": {
+        "hash": "884103d748c32a556906f870f877afe3331f8e31b327a6768ad0c0016bd8d94c",
+        "safety_number": "30163238116722256730"
+      }
+    },
+    {
+      "name": "bytes compared unsigned: 0xff... sorts after 0x00... (fixed public bytes)",
+      "input": {
+        "a": {
+          "sig_pub": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "dh_pub": "0101010101010101010101010101010101010101010101010101010101010101"
+        },
+        "b": {
+          "sig_pub": "0000000000000000000000000000000000000000000000000000000000000000",
+          "dh_pub": "fefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefe"
+        }
+      },
+      "output": {
+        "hash": "5ff3f06aaf41d2ab6ab5a7cf3206e4e0eeada48f449d332e18920ea43dd13f94",
+        "safety_number": "25593573070815673176"
+      }
+    }
+  ]
+}

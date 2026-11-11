@@ -8,8 +8,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `PROTOCOL.md`: the v1 wire format (draft, implemented in v0.1.0): identity keys and device ID, pairing (X3DH adapted, QR payload, code path), safety number, Double Ratchet parameters, envelope layout and receive checks, HLC, event schema and versioning, attachments, relay request signing, constants, test-vector layout and known limits.
 - `Crypto` interface and `SodiumCrypto` in `packages/mawaddah_protocol`: X25519, Ed25519, XChaCha20-Poly1305 (IETF), BLAKE2b and HKDF-SHA-256 from libsodium 1.0.22 (sumo) via the `sodium` 4.x package, whose build hook compiles libsodium (no system install). Typed keys; secrets in libsodium guarded memory with `dispose()`; key and nonce randomness from the injected `RandomSource` (`SodiumRandomSource` by default).
 - Known-answer tests and vector files `test/vectors/rfc7748_x25519.json`, `rfc8032_ed25519.json`, `rfc5869_hkdf.json`, `rfc7693_blake2b.json`, `xchacha20poly1305.json`.
+- Device identity (PROTOCOL.md sections 3 and 5): `DeviceIdentity.generate(crypto, random)` makes the Ed25519 signing key and the X25519 key independently (32 random bytes each, seed first); `toStorageBytes` / `fromStorageBytes` for the app's secure storage (65 bytes, versioned, input zeroed, `toString` redacted); `DeviceId` (`SHA-256("mawaddah/v1/inbox" || IKsig_pub)[0..16]`, base64url, strict `parse`); `safetyNumber` (20 digits, same in both orders) and `safetyNumberGroups`.
+- `tool/gen_vectors.dart` and generated vector files `test/vectors/identity.json` and `safety_number.json` (deterministic seeds written into each case).
 
 ### Changed
+- `package:crypto` moved from dev to normal dependencies: the device ID and relay body hashes need SHA-256, which the `sodium` Dart API does not offer (ADR 0006 point 3).
 - `mawaddah_protocol` now needs Dart 3.13 or later (required by `sodium` 4.x) and a C compiler the first time it is built or tested.
 
 ## [0.0.1] - 2026-11-10
