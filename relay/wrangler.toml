@@ -16,7 +16,21 @@ class_name = "DeviceObject"
 name = "REGISTRATION_LIMITS"
 class_name = "RegistrationLimitObject"
 
+# One object per IP bucket (named by a hash): failed pairing-code lookups of the last 10 minutes.
+[[durable_objects.bindings]]
+name = "LOOKUP_LIMITS"
+class_name = "LookupLimitObject"
+
+# One object for all live pairing slots, so codes are unique among them.
+[[durable_objects.bindings]]
+name = "PAIRING_SLOTS"
+class_name = "PairingSlotsObject"
+
 # SQLite-backed Durable Objects (spec 4.5). Migrations are append-only.
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["DeviceObject", "RegistrationLimitObject"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["LookupLimitObject", "PairingSlotsObject"]

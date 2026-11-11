@@ -262,6 +262,8 @@ describe('errors', () => {
         throw new Error('secret detail at /srv/relay.ts:42');
       },
       registrationLimiter: (bucket) => relay.registrationLimiter(bucket),
+      lookupLimiter: (bucket) => relay.lookupLimiter(bucket),
+      pairingSlots: () => relay.pairingSlots(),
       now: () => t0,
     };
     const res = await send(key, {}, broken);

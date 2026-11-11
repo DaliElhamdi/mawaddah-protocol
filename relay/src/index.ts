@@ -9,7 +9,10 @@ import { type Env } from './durable_objects';
 import { handleRequest, type RelayDeps } from './handler';
 import { bucketObjectName } from './rate_limit';
 
-export { DeviceObject, RegistrationLimitObject } from './durable_objects';
+export { DeviceObject, LookupLimitObject, PairingSlotsObject, RegistrationLimitObject } from './durable_objects';
+
+/** The name of the one Durable Object that holds every pairing slot. */
+const PAIRING_SLOTS_NAME = 'pairing-slots';
 
 function depsFor(env: Env): RelayDeps {
   return {
@@ -18,6 +21,14 @@ function depsFor(env: Env): RelayDeps {
       hit: async (nowMs) =>
         env.REGISTRATION_LIMITS.get(env.REGISTRATION_LIMITS.idFromName(await bucketObjectName(bucket))).hit(nowMs),
     }),
+    lookupLimiter: (bucket) => {
+      const stub = async () => env.LOOKUP_LIMITS.get(env.LOOKUP_LIMITS.idFromName(await bucketObjectName(bucket)));
+      return {
+        reserve: async (nowMs) => (await stub()).reserve(nowMs),
+        refund: async (atMs) => (await stub()).refund(atMs),
+      };
+    },
+    pairingSlots: () => env.PAIRING_SLOTS.get(env.PAIRING_SLOTS.idFromName(PAIRING_SLOTS_NAME)),
     now: () => Date.now(),
   };
 }

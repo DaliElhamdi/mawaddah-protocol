@@ -101,7 +101,7 @@ JSON object posted to `POST /v1/pairing-slot`:
 | `ek_pub` | bytes | 32 | `EKi` |
 | `sig` | bytes | 64 | Ed25519 signature by `IKsig_i` over `"mawaddah/v1/bundle" \|\| 0x01 \|\| sig_pub \|\| dh_pub \|\| ek_pub` (`0x01` is the format version `v`) |
 
-The bundle never contains `S`. The relay returns a 16-byte random `slot_id` and a 6-digit decimal `code`, both valid 10 minutes, single use.
+The bundle never contains `S`. The relay returns a 16-byte random `slot_id` and a 6-digit decimal `code` (uniformly random, leading zeros kept, unique among live slots), both valid 10 minutes, single use. The relay verifies the bundle signature and keeps the bundle only until the initiator reads the reply.
 
 ### 4.2 QR payload
 Binary, 129 bytes:
@@ -160,7 +160,7 @@ AD  = IKsig_j || IKdh_j || IKsig_i || IKdh_i       # 128 bytes, X3DH AD = IKA ||
 QR path (normal, D14):
 1. Initiator: generate identity keys, `EKi` and `S`; register its inbox (`POST /v1/inbox`); create the slot with the bundle; show the QR, and under it the code.
 2. Joiner: scan the QR. Generate identity keys and `EKj`. Register its inbox. Compute section 4.4 with `path = "qr"` and the QR's `S`. Post the reply.
-3. Initiator: read the reply from the slot (the relay then deletes the slot). Verify `sig`, recompute `TH`, `SK`, `KC` and check `confirm`. If any check fails, show "Pairing did not work, try again" and start over with new keys.
+3. Initiator: read the reply from the slot with `GET /v1/pairing-slot/{slot_id}/reply`, signed with `IKsig_i` (polling until it arrives; the relay then erases the bundle and the reply). The reply can be read once: if that answer is lost, the attempt is lost and the initiator starts again with new keys. Verify `sig`, recompute `TH`, `SK`, `KC` and check `confirm`. If any check fails, show "Pairing did not work, try again" and start over with new keys.
 4. Both: allow the partner's `IKsig` on their own inbox (`POST /v1/inbox/{id}/allow`). Both show the safety number; comparing is recommended.
 5. Joiner sends the first ratchet envelope, a `device.hello` event (section 11), then both exchange `profile` events (first name, gender) inside the encrypted channel. The initiator cannot send until the joiner's first envelope arrives (a Double Ratchet property); anything it writes before then waits in its outbox.
 
@@ -172,7 +172,7 @@ Code path (fallback):
 
 Rules for both paths:
 - The initiator learns the path from the reply. A reply with `path = "code"` always makes the safety-number check required on the initiator's phone, even if the initiator expected a scan, so a relay that fakes a code-path reply is caught by the comparison.
-- A slot accepts one reply; the first one wins. The initiator checks one reply per attempt. A reply that fails the checks ends the attempt, and the initiator starts a new one (new keys, new slot).
+- A slot accepts one reply; the first one wins. The relay answers any other reply, and any later lookup of the slot, with `slot_used`. The initiator checks one reply per attempt. A reply that fails the checks ends the attempt, and the initiator starts a new one (new keys, new slot).
 - Anyone who learns the code, or photographs the QR, can answer first. On the code path this only blocks the attempt, because the safety-number check fails. On the QR path someone who photographed the QR could pair instead of the partner. The partner's phone then gets "This invitation was already used", and it must tell the person: "Ask your partner to check their screen and unpair if needed." Both phones show the safety number after a QR pairing too.
 - A third device cannot join: after pairing, each inbox allows exactly one sender key, and the app keeps one pair per installation.
 
@@ -330,6 +330,7 @@ The path line is the path and query **as the relay's runtime parses the URL**. C
 | `PROTOCOL_VERSION` / `MIN_SUPPORTED_PROTOCOL` | 1 / 1 |
 | QR secret `S` | 16 bytes |
 | Pairing slot lifetime, code | 10 minutes, single use, 6 digits |
+| Code lookups that find no open slot | at most 5 per IP address (IPv6: per /64) per sliding 10 minutes, then `429` |
 | Safety number | 20 digits, 5 groups of 4 |
 | `MAX_SKIP` / stored skipped keys / skipped-key lifetime | 1,000 / 1,000 / 30 days |
 | Envelope size | ≤ 65,536 bytes; plaintext padded to 256-byte blocks |
@@ -375,6 +376,8 @@ Stated plainly, so nobody relies on more than this gives:
 - **Not reviewed yet.** The implementation follows published specifications but has had no independent review; one is planned before v1.0.0.
 - **The relay sees metadata** (spec 4.3): inbox IDs and that two inboxes are linked, envelope and blob sizes (rounded to 256 bytes for envelopes), times, whether a wake-up was asked, push tokens, and IP addresses for at most 24 hours. Because ratchet headers are not encrypted, it can also count messages per ratchet step and see the sender's clock time in each envelope (including a phone whose clock is wrong). The envelope `counter` is in the clear too, so it shows how many envelopes each phone has sent since pairing.
 - **Code path without comparison is not safe:** a 6-digit code cannot authenticate keys. The app requires the safety-number comparison on that path; skipping it is not possible by design.
+- **Codes can be guessed, slowly:** a code lookup is unsigned, and each address gets 5 lookups per 10 minutes that find no open slot (a used slot counts as a miss). With `N` slots open at once, one guess finds some slot with probability `N`/10^6, so someone with many addresses can find codes. A found code only lets them answer first, which blocks that attempt: the code path requires the safety-number comparison, which then fails. The relay holds at most 100,000 open slots. The limit is per address, so phones behind one carrier-grade NAT share it: someone there who makes 5 wrong guesses blocks code lookups from that address for up to 10 minutes (the QR path is not affected).
+- **One slot store:** all open slots are in one Durable Object, so codes are unique among them. It handles pairing traffic for many couples, but it is a single point the relay depends on for pairing (not for messages).
 - **The QR is a one-time bearer secret:** someone who photographs it during its 10 minutes can answer first. The real partner's phone then reports the invitation as used (section 4.5); the people have to notice and unpair.
 - **Safety number strength** is about 66 bits and relies on fresh joiner keys revealed only after the bundle is received (section 5).
 - **No post-quantum protection.** Recorded traffic could be decrypted by a future large quantum computer.

@@ -1,8 +1,8 @@
 // Copyright 2026 The Mawaddah authors
 // SPDX-License-Identifier: Apache-2.0
 
-// Byte encodings used on the wire (PROTOCOL.md section 1): base64url without
-// padding, and lowercase hex for hashes.
+// Encodings used on the wire (PROTOCOL.md section 1): base64url without
+// padding, lowercase hex for hashes, and JSON objects in strict UTF-8.
 
 const B64URL = /^[A-Za-z0-9_-]*$/;
 
@@ -50,4 +50,16 @@ export async function inboxIdFor(signingKey: Uint8Array): Promise<string> {
   input.set(label);
   input.set(signingKey, label.length);
   return toBase64Url((await sha256(input)).subarray(0, 16));
+}
+
+/** The JSON object in [body] (strict UTF-8), or null for anything else. */
+export function jsonObject(body: Uint8Array): Record<string, unknown> | null {
+  let json: unknown;
+  try {
+    json = JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(body));
+  } catch {
+    return null;
+  }
+  if (typeof json !== 'object' || json === null || Array.isArray(json)) return null;
+  return json as Record<string, unknown>;
 }
