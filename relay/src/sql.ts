@@ -5,7 +5,8 @@
 // is a Durable Object's `ctx.storage.sql`; the unit tests use Node's
 // `node:sqlite`, so the same statements are tested with a controlled clock.
 
-export type SqlValue = string | number | null;
+/** A BLOB is a `Uint8Array` on this side (the Durable Object wrapper converts to and from `ArrayBuffer`). */
+export type SqlValue = string | number | null | Uint8Array;
 export type SqlRow = Record<string, SqlValue>;
 
 export interface Sql {

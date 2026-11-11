@@ -161,7 +161,7 @@ QR path (normal, D14):
 1. Initiator: generate identity keys, `EKi` and `S`; register its inbox (`POST /v1/inbox`); create the slot with the bundle; show the QR, and under it the code.
 2. Joiner: scan the QR. Generate identity keys and `EKj`. Register its inbox. Compute section 4.4 with `path = "qr"` and the QR's `S`. Post the reply.
 3. Initiator: read the reply from the slot with `GET /v1/pairing-slot/{slot_id}/reply`, signed with `IKsig_i` (polling until it arrives; the relay then erases the bundle and the reply). The reply can be read once: if that answer is lost, the attempt is lost and the initiator starts again with new keys. Verify `sig`, recompute `TH`, `SK`, `KC` and check `confirm`. If any check fails, show "Pairing did not work, try again" and start over with new keys.
-4. Both: allow the partner's `IKsig` on their own inbox (`POST /v1/inbox/{id}/allow`). Both show the safety number; comparing is recommended.
+4. Both: allow the partner's `IKsig` on their own inbox (`POST /v1/inbox/{id}/allow`). Both show the safety number; comparing is recommended. The joiner can reach this step before the initiator has read the reply, so its first deposit may get `sender_not_allowed`; it keeps it in the outbox and retries with the back-off of section 17.
 5. Joiner sends the first ratchet envelope, a `device.hello` event (section 11), then both exchange `profile` events (first name, gender) inside the encrypted channel. The initiator cannot send until the joiner's first envelope arrives (a Double Ratchet property); anything it writes before then waits in its outbox.
 
 Code path (fallback):
@@ -320,7 +320,7 @@ Headers:
 | `Maw-Nonce` | the nonce line |
 | `Maw-Signature` | Ed25519 signature over the signing input, base64url (64 bytes) |
 
-The relay rejects a request if the signature does not verify, the timestamp is more than 300 seconds from its own clock, the nonce was seen in the last 15 minutes (spec 4.5 asks for at least 10; the accepted timestamps span 10 minutes, so the memory must be longer than that), or (for inbox routes) the key does not own that inbox or is not on its allow-list. `POST /v1/inbox` is signed with the key it registers, which proves the device holds it. The string names no relay, but a key is registered on one relay only (keys are per pairing), so a request captured on staging fails on production. The relay checks the body size, then the headers, the timestamp, the signature and last the nonce, and answers a failure with a JSON error code (`auth_missing`, `auth_malformed`, `clock_skew` with the relay's `server_time`, `bad_signature`, `nonce_reused`).
+The relay rejects a request if the signature does not verify, the timestamp is more than 300 seconds from its own clock, the nonce was seen in the last 15 minutes (spec 4.5 asks for at least 10; the accepted timestamps span 10 minutes, so the memory must be longer than that), or (for inbox routes) the key does not own that inbox, or (for deposits) is not its allowed sender. The `Maw-Wake` header of a deposit (section 17) is not signed: TLS protects it, and the relay decides on pushes in any case. Flipping it can only cause a missed or an extra wake-up, never access to content. `POST /v1/inbox` is signed with the key it registers, which proves the device holds it. The string names no relay, but a key is registered on one relay only (keys are per pairing), so a request captured on staging fails on production. The relay checks the body size, then the headers, the timestamp, the signature and last the nonce, and answers a failure with a JSON error code (`auth_missing`, `auth_malformed`, `clock_skew` with the relay's `server_time`, `bad_signature`, `nonce_reused`).
 
 The path line is the path and query **as the relay's runtime parses the URL**. Clients therefore send only paths that URL parsing leaves unchanged: `/`, then base64url characters and `/`, then optionally `?` and a non-empty query of base64url characters, `=` and `&` (so no `.` segments, percent-escapes, `#`, `\` or empty `?`). The line they sign is then the line the relay rebuilds. Endpoints, bodies, limits and the full list of error codes are in [`relay/README.md`](relay/README.md).
 
@@ -340,6 +340,8 @@ The path line is the path and query **as the relay's runtime parses the URL**. C
 | Attachment chunk / blob size | 65,536 bytes plaintext / ≤ 10 MB |
 | Sealed envelope kept for resending | at most 1 day, then its events are sealed again (section 17) |
 | Raw envelopes kept unapplied | 100 per reason (unknown version, undecryptable, refused plaintext), oldest deleted first |
+| Relay fetch page | at most 100 envelopes and 1 MiB of envelope bytes (always at least one envelope) |
+| Envelopes waiting in one relay inbox | at most 100 MiB (then `inbox_full`) |
 | Sync retry back-off | 5 s, doubled after each unfinished run, at most 15 minutes; fetch pages per run: 100 |
 
 ## 15. Test vectors
@@ -384,6 +386,7 @@ Stated plainly, so nobody relies on more than this gives:
 - **A phone that is unlocked and compromised** exposes what is on it; the ratchet only limits what an attacker learns before and after (forward secrecy and post-compromise recovery).
 - **Clock trust:** HLC order depends on the phones' clocks within the windows above; a phone with a badly wrong clock delays its own envelopes until fixed.
 - **Push metadata:** the relay learns which deposits asked for a wake-up (section 17), so it can tell a chat message from a receipt by its timing and flag, though not its content.
+- **Inbox quota:** one inbox holds at most 100 MiB of waiting envelopes. If the receiving phone stays away long enough for its partner to fill that, further deposits wait in the partner's outbox until the receiver fetches and acknowledges.
 - **Registration limit per network:** the relay allows 5 new inboxes per IP address (IPv6: per /64) per hour. Phones behind one carrier-grade NAT address share that limit, so a busy mobile network could make a pairing attempt wait up to an hour.
 - **New keys cost the relay a little each:** any request signed with a fresh key (valid signature, no inbox) creates a small device object holding its nonce for 15 minutes, before any per-IP limit applies. This is an abuse and cost risk, not a privacy one; a Cloudflare rate-limiting rule at the edge is planned with the deployment (protocol #25).
 - **Relay refusals are not told apart yet:** until the Dart relay client (protocol #24) names its errors, every failed deposit is retried with back-off, including one the relay would refuse forever.
@@ -408,7 +411,7 @@ How a phone sends and fetches envelopes (spec 4.6 and 8.7). It adds no wire form
 3. The rest of the outbox, in order, is split into plaintexts of at most 65,279 bytes (section 7). For each: store the new counter; seal with the next HLC; in one transaction save the ratchet session, the HLC and the sealed envelope; deposit it; remove it and its events from the outbox. If saving fails, the envelope never leaves the phone, so the next run, which starts from the stored session, cannot expose two ciphertexts under one message key.
 4. Sending stops at the first deposit that fails, so at most one sealed envelope waits while the relay cannot be reached.
 
-**Wake-up flag.** The sender asks for a push (`wake: 1`) when any event of the envelope deserves a notification; otherwise `wake: 0`. One table, by `entity_type` and `op`; a type or op not listed does not wake:
+**Wake-up flag.** The sender asks for a push (deposit header `Maw-Wake: 1`) when any event of the envelope deserves a notification; otherwise `Maw-Wake: 0`. One table, by `entity_type` and `op`; a type or op not listed does not wake:
 
 | `entity_type` | Ops that wake |
 |---|---|

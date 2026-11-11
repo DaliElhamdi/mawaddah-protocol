@@ -11,7 +11,15 @@
 // Both are Cloudflare's clock, so the difference is negligible.
 
 import { DurableObject } from 'cloudflare:workers';
-import { DeviceState, type RegisterResult, type Registration } from './device_state';
+import {
+  type AllowResult,
+  type DepositResult,
+  DeviceState,
+  type AckResult,
+  type FetchResult,
+  type RegisterResult,
+  type Registration,
+} from './device_state';
 import {
   type CreateResult,
   type LookupResult,
@@ -29,13 +37,25 @@ export interface Env {
   PAIRING_SLOTS: DurableObjectNamespace<PairingSlotsObject>;
 }
 
+/** Durable Object SQL takes and returns BLOBs as `ArrayBuffer`; the state classes use `Uint8Array`. */
 function sqlOf(storage: DurableObjectStorage): Sql {
+  const toStorage = (v: SqlValue) =>
+    v instanceof Uint8Array ? v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength) : v;
+  const fromStorage = (row: Record<string, SqlStorageValue>): SqlRow => {
+    const out: SqlRow = {};
+    for (const [k, v] of Object.entries(row)) out[k] = v instanceof ArrayBuffer ? new Uint8Array(v) : v;
+    return out;
+  };
   return {
-    exec: (query: string, ...bindings: SqlValue[]) => storage.sql.exec(query, ...bindings).toArray() as SqlRow[],
+    exec: (query: string, ...bindings: SqlValue[]) =>
+      storage.sql
+        .exec(query, ...bindings.map(toStorage))
+        .toArray()
+        .map(fromStorage),
   };
 }
 
-/** One per device, named by its inbox ID: its nonces and its inbox. */
+/** One per device, named by its inbox ID: its nonces, its inbox, its allowed sender and its envelopes. */
 export class DeviceObject extends DurableObject<Env> {
   private cached: DeviceState | null = null;
 
@@ -59,6 +79,32 @@ export class DeviceObject extends DurableObject<Env> {
 
   async register(registration: Registration): Promise<RegisterResult> {
     return this.state.register(registration);
+  }
+
+  async allow(senderKey: string): Promise<AllowResult> {
+    return this.state.allow(senderKey);
+  }
+
+  async deposit(senderKey: string, body: Uint8Array, nowMs: number): Promise<DepositResult> {
+    return this.state.deposit(senderKey, body, nowMs);
+  }
+
+  async fetchEnvelopes(after: number | null): Promise<FetchResult> {
+    return this.state.fetchEnvelopes(after);
+  }
+
+  async ack(cursor: number): Promise<AckResult> {
+    return this.state.ack(cursor);
+  }
+
+  async setPushToken(pushToken: string | null): Promise<boolean> {
+    return this.state.setPushToken(pushToken);
+  }
+
+  async deleteInbox(): Promise<void> {
+    // The request that asked for this recorded a nonce, so an alarm is set:
+    // it deletes all of the object's storage once that nonce has expired.
+    this.state.deleteInbox();
   }
 
   override async alarm(): Promise<void> {
