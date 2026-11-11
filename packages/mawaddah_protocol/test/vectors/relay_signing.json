@@ -1,0 +1,99 @@
+{
+  "file": "relay_signing",
+  "protocol_version": 1,
+  "generated_by": "packages/mawaddah_protocol/tool/gen_vectors.dart",
+  "cases": [
+    {
+      "name": "POST /v1/inbox: registration, signed with the key it registers",
+      "input": {
+        "sig_seed": "a473ff7bb3cdc899a04dea0fbd30a72e95f0cf2f94e0e05034f24a1d899f196d",
+        "method": "POST",
+        "path": "/v1/inbox",
+        "body": "7b227369676e696e675f6b6579223a22356475416c5f48337a36313774765f5637386b5669706447314a647a674b6a6d5f5434636670306b68744d222c22707573685f746f6b656e223a226578616d706c652d66636d2d746f6b656e222c22706c6174666f726d223a22616e64726f6964227d",
+        "timestamp": 1762862400,
+        "nonce": "cb6839ed0a79a6428bed246c9a5e0d3f"
+      },
+      "output": {
+        "inbox_id": "qZtjve_ia3eg478GY12sfg",
+        "body_sha256": "ddc91ef6a1df23b3640ca8c2a29f5d097c0f6ea1ef6590c5a28791a81baf89ba",
+        "signing_input": "MAWADDAH-RELAY-V1\nPOST\n/v1/inbox\nddc91ef6a1df23b3640ca8c2a29f5d097c0f6ea1ef6590c5a28791a81baf89ba\n1762862400\ny2g57Qp5pkKL7SRsml4NPw",
+        "signature": "29aa6c709ac4529de9d24d3e7a52a80d85a621db06dfc66032e3b6f1f63b0620da01f139eebec72ab37538437753151ce40b5011973a044ec5427a53e5ac7406",
+        "headers": {
+          "Maw-Key": "5duAl_H3z617tv_V78kVipdG1JdzgKjm_T4cfp0khtM",
+          "Maw-Timestamp": "1762862400",
+          "Maw-Nonce": "y2g57Qp5pkKL7SRsml4NPw",
+          "Maw-Signature": "KapscJrEUp3p0k0-elKoDYWmIdsG38ZgMuO28fY7BiDaAfE57r7HKrN1OEN3UxUc5AtQEZc6BE7FQnpT5ax0Bg"
+        }
+      }
+    },
+    {
+      "name": "GET with a query and an empty body (hash of zero bytes)",
+      "input": {
+        "sig_seed": "a473ff7bb3cdc899a04dea0fbd30a72e95f0cf2f94e0e05034f24a1d899f196d",
+        "method": "GET",
+        "path": "/v1/inbox/qZtjve_ia3eg478GY12sfg/envelopes?after=17",
+        "body": "",
+        "timestamp": 1762862401,
+        "nonce": "3f3e231ad223ff6cd9e87f20659eae16"
+      },
+      "output": {
+        "inbox_id": "qZtjve_ia3eg478GY12sfg",
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "signing_input": "MAWADDAH-RELAY-V1\nGET\n/v1/inbox/qZtjve_ia3eg478GY12sfg/envelopes?after=17\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n1762862401\nPz4jGtIj_2zZ6H8gZZ6uFg",
+        "signature": "cf7c9385a40c6027a8ac20fcb86d7a31a9d44cd4617f5fdcde68ed0766e50ebfea715144b9168fc7c28689aa44bf66716eacebb0705b2fd9b5c5abe85eee0a01",
+        "headers": {
+          "Maw-Key": "5duAl_H3z617tv_V78kVipdG1JdzgKjm_T4cfp0khtM",
+          "Maw-Timestamp": "1762862401",
+          "Maw-Nonce": "Pz4jGtIj_2zZ6H8gZZ6uFg",
+          "Maw-Signature": "z3yThaQMYCeorCD8uG16ManUTNRhf1_c3mjtB2blDr_qcVFEuRaPx8KGiapEv2ZxbqzrsHBbL9m1xavoXu4KAQ"
+        }
+      }
+    },
+    {
+      "name": "PUT with a binary body, the other device",
+      "input": {
+        "sig_seed": "69713c142e721fb31689fc0db376c67aa672a31a038886090c59dad9c570deb0",
+        "method": "PUT",
+        "path": "/v1/inbox/DrJbPHbEIWcExzJ6OFzlRg/envelopes",
+        "body": "9a90b664bd63e7d2feece0b7b51c85eb0f712e585286f191f1fef54fb42d18227c1e4d466a70493ec3666af670bf4e197128df68481e5705a18fe5ed36aad6666819e9a2d6b123929a524a29d7d0b197f602980839658e43028fb14b6ddea72916d085b0ef34bbf67eadc28822facff9ba63ff728f2f84843d16afd0f326b230a89030d8284c691f2d6ab00f37068cdd0d4d3728927bfd7736e8c7af388c1e87ba39e38f08ffb33b32e5ff65b4773d87f87c1926162a73f7996e39b380b1cb4f8dfc6af86c7fc86e847c3f9e66c982925712e39fbceb4840935f9ddd99be018015b6f9bd1b86c7d1145900c5b334eec5fa10b2c2c8dcbad8c6766d72c7736a79866a831f39bd676de5385a8128fae1b4013444e6f23fe9a2b0cce3a14b06601aee080b7af507c7df6965c471",
+        "timestamp": 1762862699,
+        "nonce": "58b97ef30a3caacfbc7948f4c47c67e1"
+      },
+      "output": {
+        "inbox_id": "DrJbPHbEIWcExzJ6OFzlRg",
+        "body_sha256": "13fd51d4bec643350cd6ed7347f0c8d0acaf65097190a5b17b5800d9d18fd9b1",
+        "signing_input": "MAWADDAH-RELAY-V1\nPUT\n/v1/inbox/DrJbPHbEIWcExzJ6OFzlRg/envelopes\n13fd51d4bec643350cd6ed7347f0c8d0acaf65097190a5b17b5800d9d18fd9b1\n1762862699\nWLl-8wo8qs-8eUj0xHxn4Q",
+        "signature": "6dcf433b63c71b96d891cd61d6ba25f2959b465fa234d2c52c462a4c09ad8429c230466d7d16dea46cb56c534b4577a611f505ccf0c0708a4e4ec14c16dd440d",
+        "headers": {
+          "Maw-Key": "eGQXcKI12GKT7usMQ9Aq8cB0rodo1hzVBSc88EWX5wY",
+          "Maw-Timestamp": "1762862699",
+          "Maw-Nonce": "WLl-8wo8qs-8eUj0xHxn4Q",
+          "Maw-Signature": "bc9DO2PHG5bYkc1h1rol8pWbRl-iNNLFLEYqTAmthCnCMEZtfRbepGy1bFNLRXemEfUFzPDAcIpOTsFMFt1EDQ"
+        }
+      }
+    },
+    {
+      "name": "DELETE at timestamp 0 (written \"0\")",
+      "input": {
+        "sig_seed": "69713c142e721fb31689fc0db376c67aa672a31a038886090c59dad9c570deb0",
+        "method": "DELETE",
+        "path": "/v1/inbox/DrJbPHbEIWcExzJ6OFzlRg",
+        "body": "",
+        "timestamp": 0,
+        "nonce": "1a7b62d39221f95d8cede338bb3be0de"
+      },
+      "output": {
+        "inbox_id": "DrJbPHbEIWcExzJ6OFzlRg",
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "signing_input": "MAWADDAH-RELAY-V1\nDELETE\n/v1/inbox/DrJbPHbEIWcExzJ6OFzlRg\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n0\nGnti05Ih-V2M7eM4uzvg3g",
+        "signature": "f02e77394fb2e116d7194349451b408735fe4525cfc4bf53b9beac39f5a961372ff2ba4461cdd11c59aed65f454110ae315db24cc39b1922cda7137b532cf607",
+        "headers": {
+          "Maw-Key": "eGQXcKI12GKT7usMQ9Aq8cB0rodo1hzVBSc88EWX5wY",
+          "Maw-Timestamp": "0",
+          "Maw-Nonce": "Gnti05Ih-V2M7eM4uzvg3g",
+          "Maw-Signature": "8C53OU-y4RbXGUNJRRtAhzX-RSXPxL9Tub6sOfWpYTcv8rpEYc3RHFmu1l9FQRCuMV2yTMObGSLNpxN7Uyz2Bw"
+        }
+      }
+    }
+  ]
+}

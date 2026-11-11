@@ -1,27 +1,29 @@
 // Copyright 2026 The Mawaddah authors
 // SPDX-License-Identifier: Apache-2.0
 
-// Blind relay skeleton (Phase 0): only a health route. The real endpoints
-// (spec 4.5) arrive in Phase 1. Nothing here logs requests, bodies or IPs.
+// Blind relay (spec 4.5): the Worker entry point. It wires the request
+// handler to the Durable Objects and the clock. Nothing here logs requests,
+// bodies or IP addresses.
 
-const JSON_HEADERS = { 'content-type': 'application/json', 'cache-control': 'no-store' };
+import { type Env } from './durable_objects';
+import { handleRequest, type RelayDeps } from './handler';
+import { bucketObjectName } from './rate_limit';
 
-export function handleRequest(request: Request): Response {
-  const url = new URL(request.url);
-  if (url.pathname === '/health') {
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
-      return new Response(null, { status: 405, headers: { allow: 'GET, HEAD' } });
-    }
-    return new Response(request.method === 'HEAD' ? null : JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: JSON_HEADERS,
-    });
-  }
-  return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers: JSON_HEADERS });
+export { DeviceObject, RegistrationLimitObject } from './durable_objects';
+
+function depsFor(env: Env): RelayDeps {
+  return {
+    device: (inboxId) => env.DEVICES.get(env.DEVICES.idFromName(inboxId)),
+    registrationLimiter: (bucket) => ({
+      hit: async (nowMs) =>
+        env.REGISTRATION_LIMITS.get(env.REGISTRATION_LIMITS.idFromName(await bucketObjectName(bucket))).hit(nowMs),
+    }),
+    now: () => Date.now(),
+  };
 }
 
 export default {
-  fetch(request: Request): Response {
-    return handleRequest(request);
+  fetch(request, env): Promise<Response> {
+    return handleRequest(request, depsFor(env));
   },
-};
+} satisfies ExportedHandler<Env>;

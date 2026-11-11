@@ -5,3 +5,18 @@ compatibility_date = "2026-01-01"
 # The relay keeps no request logs (spec 8.5): keep Workers observability off.
 [observability]
 enabled = false
+
+# One object per device (named by its inbox ID): nonces and inbox.
+[[durable_objects.bindings]]
+name = "DEVICES"
+class_name = "DeviceObject"
+
+# One object per IP bucket (named by a hash): registrations of the last hour.
+[[durable_objects.bindings]]
+name = "REGISTRATION_LIMITS"
+class_name = "RegistrationLimitObject"
+
+# SQLite-backed Durable Objects (spec 4.5). Migrations are append-only.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DeviceObject", "RegistrationLimitObject"]

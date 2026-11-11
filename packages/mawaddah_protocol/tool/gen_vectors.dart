@@ -29,6 +29,7 @@ Future<void> main() async {
   _write('hlc', _hlcCases());
   _write('uuid7', _uuid7Cases());
   _write('event', await _eventCases());
+  _write('relay_signing', _relaySigningCases(crypto));
 }
 
 void _write(String file, List<Map<String, Object?>> cases) {
@@ -1753,4 +1754,106 @@ Future<List<Map<String, Object?>>> _eventCases() async {
     ]),
   );
   return cases;
+}
+
+// --- relay_signing.json ----------------------------------------------------------
+
+List<Map<String, Object?>> _relaySigningCases(Crypto crypto) {
+  final noise = SeededRandom(1900);
+  Map<String, Object?> one(
+    String name, {
+    required int seed,
+    required String method,
+    required String Function(String inbox, String key) path,
+    required Uint8List Function(String inbox, String key) body,
+    required int timestamp,
+  }) {
+    final identity = _identity(crypto, seed);
+    final key = base64Url
+        .encode(identity.publicIdentity.signingKey.bytes)
+        .replaceAll('=', '');
+    final inbox = identity.deviceId.toBase64Url();
+    final nonce = noise.nextBytes(RelayRequestSigner.nonceLength);
+    final p = path(inbox, key);
+    final b = body(inbox, key);
+    final headers = RelayRequestSigner(
+      crypto: crypto,
+      identity: identity,
+      clock: _MsClock(() => timestamp * 1000 + 999),
+      random: _FixedRandom(nonce),
+    ).sign(method: method, pathAndQuery: p, body: b);
+    final input = RelayRequestSigner.signingInput(
+      method: method,
+      pathAndQuery: p,
+      body: b,
+      timestamp: timestamp,
+      nonce: headers[RelayRequestSigner.nonceHeader]!,
+    );
+    final signature = base64Url.decode(
+      '${headers[RelayRequestSigner.signatureHeader]!}==',
+    );
+    identity.dispose();
+    return {
+      'name': name,
+      'input': {
+        'sig_seed': _hex(_secrets(seed).sigSeed),
+        'method': method,
+        'path': p,
+        'body': _hex(b),
+        'timestamp': timestamp,
+        'nonce': _hex(nonce),
+      },
+      'output': {
+        'inbox_id': inbox,
+        'body_sha256': ascii.decode(input).split('\n')[3],
+        'signing_input': ascii.decode(input),
+        'signature': _hex(signature),
+        'headers': headers,
+      },
+    };
+  }
+
+  const t = 1762862400;
+  return [
+    one(
+      'POST /v1/inbox: registration, signed with the key it registers',
+      seed: 1,
+      method: 'POST',
+      path: (_, _) => '/v1/inbox',
+      body: (_, key) => Uint8List.fromList(
+        utf8.encode(
+          jsonEncode({
+            'signing_key': key,
+            'push_token': 'example-fcm-token',
+            'platform': 'android',
+          }),
+        ),
+      ),
+      timestamp: t,
+    ),
+    one(
+      'GET with a query and an empty body (hash of zero bytes)',
+      seed: 1,
+      method: 'GET',
+      path: (inbox, _) => '/v1/inbox/$inbox/envelopes?after=17',
+      body: (_, _) => Uint8List(0),
+      timestamp: t + 1,
+    ),
+    one(
+      'PUT with a binary body, the other device',
+      seed: 2,
+      method: 'PUT',
+      path: (inbox, _) => '/v1/inbox/$inbox/envelopes',
+      body: (_, _) => noise.nextBytes(300),
+      timestamp: t + 299,
+    ),
+    one(
+      'DELETE at timestamp 0 (written "0")',
+      seed: 2,
+      method: 'DELETE',
+      path: (inbox, _) => '/v1/inbox/$inbox',
+      body: (_, _) => Uint8List(0),
+      timestamp: 0,
+    ),
+  ];
 }

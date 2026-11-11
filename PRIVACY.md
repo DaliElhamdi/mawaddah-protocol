@@ -11,7 +11,9 @@ No one can read your private moments. Your data lives on your two phones. What t
 | Inbox IDs (random, derived from device public keys) and that two inboxes are linked | Names, profile data, dates, mode |
 | Ciphertext sizes, timestamps, whether an envelope asked for a wake-up | Any message, answer, task, photo, voice note or setting |
 | FCM push tokens | Keys (it never holds them) |
-| IP addresses, transiently (abuse protection, up to 24 hours) | |
+| IP addresses, transiently: as a hash of the address (or of the IPv6 network) for the limit on new inboxes, kept about an hour and never more than 24 hours | |
+
+What the relay stores for each inbox: the device's public signing key, its push token and its platform (Android or iOS). It also remembers each device's recent request nonces for 15 minutes, to refuse replayed requests. For the limit on new inboxes (5 per network per hour) it keeps the times of recent registrations under a hash of the IP address (or of the IPv6 /64 network), and deletes them about one hour after the last one (a scheduled clean-up does it; it can run late, never beyond 24 hours). The hash is not anonymous: anyone who sees the stored names and tries every IPv4 address can find the address. Only Cloudflare and the relay operator can see those names, and Cloudflare sees IP addresses at its edge anyway. The relay keeps no request logs. Details: `relay/README.md`.
 
 ## Third parties
 - **Cloudflare** hosts the relay and sees IP addresses at its edge.
