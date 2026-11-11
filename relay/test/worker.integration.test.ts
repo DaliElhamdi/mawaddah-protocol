@@ -9,6 +9,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { unstable_startWorker } from 'wrangler';
 import { inboxIdFor } from '../src/encoding';
+import { wakeMessage } from '../src/fcm';
+import { FakeGoogle, testServiceAccount } from './support/fake_google';
 import {
   freshNonce,
   fromHex,
@@ -22,12 +24,31 @@ import {
 
 type Worker = Awaited<ReturnType<typeof unstable_startWorker>>;
 let worker: Worker;
+/** Google as the Worker sees it: every outbound `fetch` of the Worker goes here, nowhere else. */
+let google: FakeGoogle;
 
 beforeAll(async () => {
   process.env.WRANGLER_SEND_METRICS = 'false';
+  // A throwaway service account, set as the secret the way `wrangler secret put` would.
+  const { account, json, publicKey } = await testServiceAccount();
+  google = new FakeGoogle(publicKey, account);
+  const outboundService = async (request: Request): Promise<Response> =>
+    google.fetch(request.url, {
+      method: request.method,
+      headers: Object.fromEntries(request.headers),
+      body: await request.text(),
+    });
   worker = await unstable_startWorker({
     config: new URL('../wrangler.toml', import.meta.url).pathname,
-    dev: { server: { hostname: '127.0.0.1', port: 0 }, inspector: false, persist: false, logLevel: 'none' },
+    bindings: { FCM_SERVICE_ACCOUNT: { type: 'secret_text', value: json } },
+    dev: {
+      server: { hostname: '127.0.0.1', port: 0 },
+      inspector: false,
+      persist: false,
+      logLevel: 'none',
+      // Not in wrangler's types, but passed to Miniflare: intercepts the Worker's outbound fetch.
+      ...({ outboundService } as object),
+    },
   });
   await worker.ready;
 }, 120_000);
@@ -52,6 +73,15 @@ async function register(key: TestKey, o: { nonce?: string; ip?: string; signatur
     headers: { ...headers, 'cf-connecting-ip': o.ip ?? '192.0.2.10' },
   });
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+}
+
+/** Waits (up to 10 s) for [check], which runs after the Worker's `waitUntil` work. */
+async function until(check: () => boolean | Promise<boolean>): Promise<void> {
+  const end = Date.now() + 10_000;
+  while (!(await check())) {
+    if (Date.now() > end) throw new Error('timed out');
+    await new Promise((r) => setTimeout(r, 20));
+  }
 }
 
 async function signed(
@@ -259,6 +289,66 @@ describe('relay Worker (local runtime)', () => {
       status: 404,
       body: { error: 'blob_not_found' },
     });
+  });
+
+  it('sends a content-free FCM wake-up for Maw-Wake: 1, and forgets an unregistered token', async () => {
+    const owner = await testKey(seedOf(600));
+    const partner = await testKey(seedOf(601));
+    const ip = '192.0.2.60';
+    for (const k of [owner, partner]) expect((await register(k, { ip })).status).toBe(201);
+    const inbox = await inboxIdFor(owner.publicKey);
+    const base = `/v1/inbox/${inbox}`;
+    const token = 'wake-test-token';
+    await signed(owner, 'POST', `${base}/push-token`, JSON.stringify({ push_token: token }), ip);
+    await signed(owner, 'POST', `${base}/allow`, JSON.stringify({ sender_key: partner.keyText }), ip);
+    const sendsTo = () => google.sends.filter((s) => s.body === wakeMessage(token));
+    const envelope = new Uint8Array(426).fill(0x5a);
+
+    // Maw-Wake: 0 sends nothing; Maw-Wake: 1 sends exactly one message, after the answer.
+    for (const wake of ['0', '1']) {
+      expect(await signed(partner, 'PUT', `${base}/envelopes`, envelope, ip, { 'maw-wake': wake })).toEqual({
+        status: 201,
+        body: {},
+      });
+    }
+    await until(() => sendsTo().length === 1);
+    const [send] = sendsTo();
+    expect(send?.url).toBe('https://fcm.googleapis.com/v1/projects/mawaddah-test/messages:send');
+    expect(JSON.parse(send?.body ?? '')).toStrictEqual({
+      message: { token, data: { t: 's' }, android: { priority: 'HIGH', collapse_key: 's' } },
+    });
+    // The Worker signed its own assertion; the fake Google checked it with the public key.
+    expect(google.assertions.length).toBeGreaterThan(0);
+    for (const secret of [inbox, partner.keyText, Buffer.from(envelope).toString('base64')]) {
+      expect(JSON.stringify(google.requests)).not.toContain(secret);
+    }
+
+    // FCM says the token is gone: the relay forgets it and sends no more wake-ups.
+    google.fcmAnswers.push({
+      status: 404,
+      body: {
+        error: {
+          code: 404,
+          status: 'NOT_FOUND',
+          details: [{ '@type': 'type.googleapis.com/google.firebase.fcm.v1.FcmError', errorCode: 'UNREGISTERED' }],
+        },
+      },
+    });
+    await signed(partner, 'PUT', `${base}/envelopes`, envelope, ip, { 'maw-wake': '1' });
+    await until(() => sendsTo().length === 2);
+    // The clear happens after FCM's answer: give it a moment, then show no third send.
+    await until(async () => {
+      await signed(partner, 'PUT', `${base}/envelopes`, envelope, ip, { 'maw-wake': '1' });
+      await new Promise((r) => setTimeout(r, 100));
+      const before = sendsTo().length;
+      await signed(partner, 'PUT', `${base}/envelopes`, envelope, ip, { 'maw-wake': '1' });
+      await new Promise((r) => setTimeout(r, 200));
+      return sendsTo().length === before;
+    });
+    // A new token from the phone brings the wake-ups back.
+    await signed(owner, 'POST', `${base}/push-token`, JSON.stringify({ push_token: 'wake-test-token-2' }), ip);
+    await signed(partner, 'PUT', `${base}/envelopes`, envelope, ip, { 'maw-wake': '1' });
+    await until(() => google.sends.some((s) => s.body === wakeMessage('wake-test-token-2')));
   });
 
   it('returns JSON errors with stable codes elsewhere', async () => {

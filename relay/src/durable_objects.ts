@@ -39,6 +39,11 @@ export interface Env {
   REGISTRATION_LIMITS: DurableObjectNamespace<RegistrationLimitObject>;
   LOOKUP_LIMITS: DurableObjectNamespace<LookupLimitObject>;
   PAIRING_SLOTS: DurableObjectNamespace<PairingSlotsObject>;
+  /**
+   * The Google service-account key (JSON) for FCM wake-ups, set with
+   * `wrangler secret put FCM_SERVICE_ACCOUNT`. Unset: no wake-ups are sent.
+   */
+  FCM_SERVICE_ACCOUNT?: string;
 }
 
 /** Durable Object SQL takes and returns BLOBs as `ArrayBuffer`; the state classes use `Uint8Array`. */
@@ -137,6 +142,10 @@ export class DeviceObject extends DurableObject<Env> {
 
   async setPushToken(pushToken: string | null): Promise<boolean> {
     return this.state.setPushToken(pushToken);
+  }
+
+  async clearPushToken(pushToken: string): Promise<boolean> {
+    return this.state.clearPushToken(pushToken);
   }
 
   async deleteInbox(): Promise<void> {

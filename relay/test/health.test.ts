@@ -17,6 +17,10 @@ const noState: RelayDeps = {
   pairingSlots: () => {
     throw new Error('not used');
   },
+  push: null,
+  background: () => {
+    throw new Error('not used');
+  },
   now: () => 0,
 };
 
