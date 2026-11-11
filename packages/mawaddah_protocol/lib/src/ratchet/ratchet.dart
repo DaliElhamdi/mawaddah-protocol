@@ -113,7 +113,10 @@ enum RatchetFailure {
   /// The header's ratchet key is unusable (small order: all-zero X25519).
   invalidKey,
 
-  /// The message comes after one that has not arrived yet. Handled by
+  /// The message comes after one that has not arrived yet.
+  ///
+  /// This and [oldMessage] are decided from the header before the AEAD
+  /// check, so they say nothing about whether the message is genuine. Handled by
   /// skipped message keys in issue #14; until then it is rejected.
   skippedMessage,
 
@@ -298,7 +301,10 @@ final class RatchetSession {
   bool get canSend => !_disposed && _cks != null;
 
   /// This side's current ratchet public key (`DHs`).
-  X25519PublicKey get ratchetPublicKey => _live._dhs.publicKey;
+  X25519PublicKey get ratchetPublicKey {
+    _ensureLive();
+    return _dhs.publicKey;
+  }
 
   /// Signal 3.4 `RatchetEncrypt(state, plaintext, AD)`.
   ///
@@ -309,7 +315,8 @@ final class RatchetSession {
     required Uint8List envelopePrefix,
   }) {
     _checkPrefix(envelopePrefix);
-    final cks = _live._cks;
+    _ensureLive();
+    final cks = _cks;
     if (cks == null) {
       throw StateError('cannot send before the first message from the joiner');
     }
@@ -348,7 +355,7 @@ final class RatchetSession {
     required Uint8List envelopePrefix,
   }) {
     _checkPrefix(envelopePrefix);
-    _live;
+    _ensureLive();
     final crypto = _crypto;
     final turn = header.dhPub != _dhr;
 
@@ -403,7 +410,8 @@ final class RatchetSession {
         _concat(envelopePrefix, header),
       );
 
-      // Commit (Signal 3.5: the state changes only on success).
+      // Commit (Signal 3.5: the state changes only on success). Nothing
+      // below can throw: `dispose` on a live secret does not fail.
       if (turn) {
         _pn = _ns;
         _ns = 0;
@@ -443,9 +451,8 @@ final class RatchetSession {
     _ckr = null;
   }
 
-  RatchetSession get _live {
+  void _ensureLive() {
     if (_disposed) throw StateError('RatchetSession used after dispose()');
-    return this;
   }
 
   void _checkPrefix(Uint8List prefix) {
@@ -515,7 +522,13 @@ SecretBytes _dh(Crypto crypto, X25519KeyPair pair, X25519PublicKey pub) =>
     dhOut.dispose();
   }
   try {
-    return (out.slice(0, 32), out.slice(32, 64));
+    final rkOut = out.slice(0, 32);
+    try {
+      return (rkOut, out.slice(32, 64));
+    } catch (_) {
+      rkOut.dispose();
+      rethrow;
+    }
   } finally {
     out.dispose();
   }
@@ -539,6 +552,8 @@ SecretBytes _dh(Crypto crypto, X25519KeyPair pair, X25519PublicKey pub) =>
 (AeadKey, AeadNonce) _aeadKeyNonce(Crypto crypto, SecretBytes mk) {
   final km = crypto.hkdfExpand(prk: mk, info: _aeadInfo, length: 56);
   try {
+    // The nonce is not secret (it would be sent if it were random); it is
+    // only taken out of the derived key material here.
     final nonceSecret = km.slice(32, 56);
     final nonceBytes = nonceSecret.extractBytes();
     nonceSecret.dispose();
