@@ -109,19 +109,24 @@ export class RegistrationLimitObject extends WindowLimitObject {
   }
 }
 
-/** One per IP bucket, named by a hash of it: failed code lookups of the last 10 minutes. */
+/**
+ * One per IP bucket, named by a hash of it: code lookups of the last
+ * 10 minutes that found no open slot. Every counted lookup sets the alarm,
+ * also when it is refunded, so the object always deletes itself.
+ */
 export class LookupLimitObject extends WindowLimitObject {
   protected makeCounter(sql: Sql): WindowCounter {
     return new LookupFailureCounter(sql);
   }
 
-  async check(nowMs: number): Promise<RateLimitResult> {
-    return this.counter.check(nowMs);
-  }
-
-  async fail(nowMs: number): Promise<void> {
+  async reserve(nowMs: number): Promise<RateLimitResult> {
     const result = this.counter.hit(nowMs);
     if (result.allowed) await this.ctx.storage.setAlarm(result.clearAt);
+    return result;
+  }
+
+  async refund(atMs: number): Promise<void> {
+    this.counter.refund(atMs);
   }
 }
 

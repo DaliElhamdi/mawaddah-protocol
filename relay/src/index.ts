@@ -24,8 +24,8 @@ function depsFor(env: Env): RelayDeps {
     lookupLimiter: (bucket) => {
       const stub = async () => env.LOOKUP_LIMITS.get(env.LOOKUP_LIMITS.idFromName(await bucketObjectName(bucket)));
       return {
-        check: async (nowMs) => (await stub()).check(nowMs),
-        fail: async (nowMs) => (await stub()).fail(nowMs),
+        reserve: async (nowMs) => (await stub()).reserve(nowMs),
+        refund: async (atMs) => (await stub()).refund(atMs),
       };
     },
     pairingSlots: () => env.PAIRING_SLOTS.get(env.PAIRING_SLOTS.idFromName(PAIRING_SLOTS_NAME)),

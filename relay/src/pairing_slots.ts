@@ -111,11 +111,11 @@ export class PairingSlots {
       return { kind: 'conflict' };
     }
     if (this.count() >= this.maxLiveSlots) return { kind: 'full' };
-    const slotId = toBase64Url(this.random(16));
-    if (this.rowWhere('slot_id = ?', slotId) !== null) return { kind: 'full' }; // 128-bit IDs: not by chance
     for (let i = 0; i < CODE_ATTEMPTS; i++) {
       const code = this.randomCode();
       if (code === null || this.rowWhere('code = ?', code) !== null) continue;
+      const slotId = toBase64Url(this.random(16));
+      if (this.rowWhere('slot_id = ?', slotId) !== null) continue; // 128-bit IDs: not by chance
       const expiresAt = nowMs + SLOT_LIFETIME_MS;
       this.sql.exec(
         "INSERT INTO slots (slot_id, code, creator, bundle, state, expires_at) VALUES (?, ?, ?, ?, 'open', ?)",

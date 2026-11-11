@@ -37,7 +37,12 @@ export async function parseBundle(body: Uint8Array): Promise<Bundle | null> {
   const sig = bytesField(fields, 'sig', 64);
   if (sigPub === null || dhPub === null || ekPub === null || sig === null) return null;
   const label = new TextEncoder().encode(BUNDLE_LABEL);
-  const signed = new Uint8Array([...label, PAIRING_FORMAT_VERSION, ...sigPub, ...dhPub, ...ekPub]);
+  const signed = new Uint8Array(label.length + 1 + 96);
+  signed.set(label);
+  signed[label.length] = PAIRING_FORMAT_VERSION;
+  signed.set(sigPub, label.length + 1);
+  signed.set(dhPub, label.length + 33);
+  signed.set(ekPub, label.length + 65);
   if (!(await verifyEd25519(sigPub, sig, signed))) return null;
   const { sig_pub, dh_pub, ek_pub, sig: sigText } = fields as Record<string, string>;
   return {

@@ -72,6 +72,19 @@ describe('LookupFailureCounter', () => {
     expect(c.prune(t0 + 14 * minute)).toBeNull();
     expect(sql.exec('SELECT at FROM hits')).toEqual([]);
   });
+
+  it('refunds one event counted at a given time, and nothing else', () => {
+    const sql = memorySql();
+    close = sql.close;
+    const c = new LookupFailureCounter(sql);
+    c.hit(t0);
+    c.hit(t0);
+    c.hit(t0 + minute);
+    c.refund(t0);
+    expect(sql.exec('SELECT at FROM hits ORDER BY at')).toEqual([{ at: t0 }, { at: t0 + minute }]);
+    c.refund(t0 + 2 * minute);
+    expect(sql.exec('SELECT at FROM hits')).toHaveLength(2);
+  });
 });
 
 describe('ipBucket', () => {

@@ -4,7 +4,7 @@
 // Per-IP limits (spec 4.5), one Durable Object per IP bucket, named by a
 // hash of the bucket:
 // - inbox registrations: 5 per IP per hour;
-// - failed pairing-code lookups: 5 per IP per 10 minutes.
+// - pairing-code lookups that find no open slot: 5 per IP per 10 minutes.
 // Each object stores only the times of counted events; when the last one has
 // left the window the object deletes all its storage (an alarm does it), so
 // nothing about an IP is kept longer than its window.
@@ -59,6 +59,14 @@ export class WindowCounter {
     return { allowed: true, clearAt: this.clearAt() ?? nowMs + this.windowMs };
   }
 
+  /**
+   * Takes back one event counted at exactly [atMs] (a code lookup that found
+   * an open slot). Does nothing if there is none.
+   */
+  refund(atMs: number): void {
+    this.sql.exec('DELETE FROM hits WHERE rowid = (SELECT rowid FROM hits WHERE at = ? LIMIT 1)', atMs);
+  }
+
   /** Drops expired times. Returns when the rest expire (ms), or null if none is left. */
   prune(nowMs: number): number | null {
     this.sql.exec('DELETE FROM hits WHERE at <= ?', nowMs - this.windowMs);
@@ -78,7 +86,7 @@ export class RegistrationCounter extends WindowCounter {
   }
 }
 
-/** Failed pairing-code lookups from one IP bucket: 5 per sliding 10 minutes. */
+/** Pairing-code lookups that find no open slot, from one IP bucket: 5 per sliding 10 minutes. */
 export class LookupFailureCounter extends WindowCounter {
   constructor(sql: Sql) {
     super(sql, LOOKUP_FAILURE_LIMIT, LOOKUP_FAILURE_WINDOW_MS);

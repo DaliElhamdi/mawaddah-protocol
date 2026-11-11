@@ -34,12 +34,12 @@ export interface PairingSlotsApi {
   readReply(slotId: string, creator: string, nowMs: number): Promise<ReadReplyResult>;
 }
 
-/** The failed-code-lookup counter of one IP bucket. */
+/** The code-lookup counter of one IP bucket. */
 export interface LookupLimiterApi {
-  /** Whether this bucket may look up a code now (without counting it). */
-  check(nowMs: number): Promise<RateLimitResult>;
-  /** Counts one failed code lookup. */
-  fail(nowMs: number): Promise<void>;
+  /** Counts one code lookup at [nowMs] if the bucket is under the limit. */
+  reserve(nowMs: number): Promise<RateLimitResult>;
+  /** Takes back the lookup counted at [atMs] (it found an open slot). */
+  refund(atMs: number): Promise<void>;
 }
 
 export interface RelayDeps {
@@ -47,7 +47,7 @@ export interface RelayDeps {
   device(inboxId: string): DeviceApi;
   /** The registration rate limiter of the IP bucket [bucket] (see `ipBucket`). */
   registrationLimiter(bucket: string): RateLimiterApi;
-  /** The failed-code-lookup limiter of the IP bucket [bucket]. */
+  /** The code-lookup limiter of the IP bucket [bucket]. */
   lookupLimiter(bucket: string): LookupLimiterApi;
   pairingSlots(): PairingSlotsApi;
   /** The relay clock, in milliseconds since the Unix epoch. */
@@ -275,20 +275,23 @@ async function createSlot(request: Request, url: URL, deps: RelayDeps): Promise<
 
 /**
  * `GET /v1/pairing-slot/{slot_id or code}`: the one unsigned route. The
- * joiner reads the bundle. Failed code lookups are limited per IP bucket; a
- * bucket over the limit is refused before the code is looked up, so it
+ * joiner reads the bundle. Code lookups that find no open slot are limited
+ * per IP bucket. Each code lookup is counted **before** the code is looked
+ * up, in one call to the bucket's object, and given back only when it finds
+ * an open slot: parallel guesses cannot pass the limit, and a bucket over it
  * learns nothing more until the window has passed.
  */
 async function lookupSlot(request: Request, handle: string, deps: RelayDeps): Promise<Response> {
   let result: LookupResult;
   if (CODE.test(handle)) {
     const limiter = deps.lookupLimiter(ipBucket(request.headers.get('cf-connecting-ip')));
-    const limit = await limiter.check(deps.now());
+    const countedAt = deps.now();
+    const limit = await limiter.reserve(countedAt);
     if (!limit.allowed) return rateLimited(limit.retryAfterSeconds);
     result = await deps.pairingSlots().lookup({ code: handle }, deps.now());
-    if (result.kind === 'not_found') await limiter.fail(deps.now());
+    if (result.kind === 'found') await limiter.refund(countedAt);
   } else if (isSlotId(handle)) {
-    // 128-bit IDs cannot be guessed, so failed ID lookups are not counted.
+    // 128-bit IDs cannot be guessed, so ID lookups are not counted.
     result = await deps.pairingSlots().lookup({ slotId: handle }, deps.now());
   } else {
     return errorResponse(404, 'slot_not_found');

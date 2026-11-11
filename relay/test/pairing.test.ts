@@ -268,7 +268,7 @@ describe('GET /v1/pairing-slot/{slot_id or code}', () => {
     expect((await lookup('999999', '2001:db8:5:7::1')).status).toBe(404);
   });
 
-  it('does not count successful lookups, used slots, slot IDs or malformed handles', async () => {
+  it('does not count lookups that find an open slot, slot IDs or malformed handles', async () => {
     const { initiator, joiner, bundle, reply } = await parties(vector('code path'));
     await register(initiator);
     const slot = await openSlot(initiator, bundle);
@@ -280,15 +280,35 @@ describe('GET /v1/pairing-slot/{slot_id or code}', () => {
       expect(res.status, h).toBe(404);
       expect(await json(res)).toEqual({ error: 'slot_not_found' });
     }
+    // No lookup is left counted for this address.
+    expect(relay.lookupBuckets.get('v4:192.0.2.60')?.prune(relay.nowMs)).toBeNull();
+    // A used slot gives nothing, so looking it up counts like a wrong code.
     await register(joiner);
     await signed(joiner, 'POST', `/v1/pairing-slot/${slot.slot_id}/reply`, JSON.stringify(reply));
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 5; i++) {
       const used = await lookup(slot.code, ip);
       expect(used.status).toBe(409);
       expect(await json(used)).toEqual({ error: 'slot_used' });
     }
-    // No failure was stored for this address.
-    expect(relay.lookupBuckets.get('v4:192.0.2.60')?.prune(relay.nowMs)).toBeNull();
+    expect((await lookup(slot.code, ip)).status).toBe(429);
+  });
+
+  it('holds the limit against parallel guesses', async () => {
+    const { initiator, bundle } = await parties(vector('code path'));
+    await register(initiator);
+    const slot = await openSlot(initiator, bundle);
+    const wrong = slot.code === '000000' ? '000001' : '000000';
+    const statuses = (await Promise.all(Array.from({ length: 20 }, () => lookup(wrong, '192.0.2.70')))).map(
+      (r) => r.status,
+    );
+    expect(statuses.filter((s) => s === 404)).toHaveLength(5);
+    expect(statuses.filter((s) => s === 429)).toHaveLength(15);
+    // Each lookup is counted before it runs, so even with the right code at
+    // most 5 can be in flight at once; once they finish nothing stays counted.
+    const right = await Promise.all(Array.from({ length: 8 }, () => lookup(slot.code, '192.0.2.71')));
+    expect(right.map((r) => r.status)).toEqual([200, 200, 200, 200, 200, 429, 429, 429]);
+    expect(relay.lookupBuckets.get('v4:192.0.2.71')?.prune(relay.nowMs)).toBeNull();
+    expect((await lookup(slot.code, '192.0.2.71')).status).toBe(200);
   });
 
   it('does not serve an expired slot, which is deleted', async () => {

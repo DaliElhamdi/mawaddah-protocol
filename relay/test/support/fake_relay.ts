@@ -55,8 +55,8 @@ export class FakeRelay implements RelayDeps {
     }
     const c = counter;
     return {
-      check: async (now) => c.check(now),
-      fail: async (now) => void c.hit(now),
+      reserve: async (now) => c.hit(now),
+      refund: async (at) => c.refund(at),
     };
   }
 

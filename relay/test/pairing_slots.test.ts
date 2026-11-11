@@ -71,6 +71,22 @@ describe('PairingSlots.create', () => {
     expect(created(slots.create('key-b', bundle, t0)).code).toBe('654321');
   });
 
+  it('draws again when a slot ID is taken', () => {
+    let calls = 0;
+    // Slot IDs: the same 16 bytes twice, then different ones. Codes: 1, 2, 3.
+    const random: RandomBytes = (length) => {
+      const out = new Uint8Array(length);
+      if (length === 4) new DataView(out.buffer).setUint32(0, ++calls);
+      else if (calls >= 3) out[0] = 0xff;
+      return out;
+    };
+    const { slots } = fresh(random);
+    const a = created(slots.create('key-a', bundle, t0));
+    const b = created(slots.create('key-b', bundle, t0));
+    expect([a.code, b.code]).toEqual(['000001', '000003']);
+    expect(b.slotId).not.toBe(a.slotId);
+  });
+
   it('answers full when no free code is found', () => {
     const { slots, rows } = fresh(scripted([7, ...new Array<number>(32).fill(7)]));
     created(slots.create('key-a', bundle, t0));
