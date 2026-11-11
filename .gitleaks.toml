@@ -16,6 +16,7 @@ paths = [
   '''^packages/mawaddah_protocol/test/vectors/identity\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/safety_number\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/pairing\.json$''',
+  '''^packages/mawaddah_protocol/test/vectors/ratchet\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/rfc4231_hmac\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/rfc5869_hkdf\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/rfc7693_blake2b\.json$''',

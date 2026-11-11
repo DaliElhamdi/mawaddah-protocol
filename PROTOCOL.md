@@ -206,6 +206,9 @@ The Double Ratchet as specified by Signal (section 2), without header encryption
 - **Initialisation** (Signal section 3.3): the joiner calls `RatchetInitAlice(SK, EKi_pub)`; the initiator calls `RatchetInitBob(SK, EKi_pair)`.
 - **Skipped message keys:** one received message may create at most `MAX_SKIP = 1000` skipped keys in total, counting both `SkipMessageKeys` calls of a DH ratchet step (a header that would need more is rejected). At most 1,000 skipped keys are stored in total; when full, the oldest is deleted. A skipped key older than 30 days is deleted. Keys are stored by (`dh_pub`, `n`).
 - Both people can send at the same time: the ratchet handles crossing messages by design.
+- **Failure leaves the state unchanged** (Signal section 3.5): a receiver computes the DH ratchet step and the next chain key on copies, and keeps them only if the AEAD tag checks. A rejected message (bad tag, small-order `dh_pub`, a message number already used, or one that would need more skipped keys than allowed) changes nothing, so the next genuine message still opens.
+- **Header and associated data:** `dh_pub`, `pn` and `n` are envelope bytes 50 to 90 (section 7). The ratchet authenticates the whole of bytes 0 to 90, so the version, type, device IDs, counter and HLC are bound to the ciphertext as well as signed.
+- **Implementation status (before v0.1.0):** the package currently implements in-order delivery per direction (including crossing messages); skipped message keys and saving the state come next (protocol issue #14). Until then a message that would need a skipped key is refused without changing the state.
 - Ratchet state lives only in the encrypted database. It is never put in a backup; a restored phone pairs again (spec 4.4).
 
 ## 7. Envelope
@@ -338,7 +341,7 @@ Committed in `packages/mawaddah_protocol/test/vectors/`, used by the package tes
 | `identity.json` | seeds → `IKsig`, `IKdh`, `device_id` |
 | `pairing.json` | both paths: the random bytes each side draws (initiator: identity 64, `EKi` 32, `S` 16; joiner: identity 64, `EKj` 32) and the slot ID → bundle, QR text, reply, DH1–3, `SK`, `KC`, `TH`, `confirm`, `AD`, safety number; failing cases (wrong `S`, changed `confirm`, reply for another initiator, relabelled path, second reply, bad bundle signature, malformed QR texts) with the error name |
 | `safety_number.json` | key pairs (both orders) → 20 digits |
-| `ratchet.json` | a scripted conversation: each step's sender, plaintext, header, `mk`, root and chain keys; includes out-of-order, skipped and crossing messages |
+| `ratchet.json` | a scripted conversation from `SK`, `AD`, the initiator's `EKi` secret and each side's random bytes (32 per new ratchet key): each step's side, plaintext, envelope bytes 0..50, header, chain key, `mk`, AEAD key and nonce, ciphertext, and at each DH ratchet step the new ratchet key, root key and both chain keys; turn changes and crossing messages (out-of-order and skipped messages added with #14) |
 | `envelope.json` | header fields and plaintext → padded plaintext, envelope bytes, signature; rejected cases (tampered byte, replayed counter, time out of window, wrong recipient) with the expected error |
 | `hlc.json`, `uuid7.json` | clock readings → HLC values; clock and random bytes → UUID v7 |
 | `relay_signing.json` | method, path, body, timestamp, nonce, key seed → signing input and signature |
