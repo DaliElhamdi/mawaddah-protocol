@@ -274,7 +274,7 @@ Registry (v1). Each feature issue adds its types here, with the payload fields, 
 | `entity_type` | Ops | Rule | Introduced by |
 |---|---|---|---|
 | `device` | `update` | LWW; first event after pairing and after every app update is the `hello` (section 11) | protocol #16 |
-| `profile` | `update` | LWW (first name, gender) | app pairing work |
+| `profile` | `update` | LWW. Payload: `first_name` (1–50 characters, trimmed, no control characters), `gender` (`male` or `female`), `mode` (`engaged`, `contracted`, `married_cohab` or `married_remote`); `PairingProfile` in the package | protocol #12 (type), app pairing work |
 | `message` | `create`, `delete` | append-only + tombstone | chat |
 | `reaction` | `update` | LWW per (message, author) | chat |
 | `receipt` | `update` | LWW, highest delivered/read HLC | chat |
@@ -334,9 +334,9 @@ Committed in `packages/mawaddah_protocol/test/vectors/`, used by the package tes
 
 | File | Contents |
 |---|---|
-| `rfc5869_hkdf.json`, `rfc7748_x25519.json`, `rfc8032_ed25519.json`, `rfc7693_blake2b.json`, `xchacha20poly1305.json` | published test cases (the RFCs, draft-irtf-cfrg-xchacha-03 and libsodium's own test), to check the libsodium bindings; these files name their `source` instead of `generated_by` |
+| `rfc4231_hmac.json`, `rfc5869_hkdf.json`, `rfc7748_x25519.json`, `rfc8032_ed25519.json`, `rfc7693_blake2b.json`, `xchacha20poly1305.json` | published test cases (the RFCs, draft-irtf-cfrg-xchacha-03 and libsodium's own test), to check the libsodium bindings; these files name their `source` instead of `generated_by` |
 | `identity.json` | seeds → `IKsig`, `IKdh`, `device_id` |
-| `pairing.json` | both paths: seeds and `S` → bundle, QR text, reply, DH1–3, `SK`, `KC`, `TH`, `confirm`, `AD`; failing cases (bad signature, wrong `S`, tampered `confirm`) |
+| `pairing.json` | both paths: the random bytes each side draws (initiator: identity 64, `EKi` 32, `S` 16; joiner: identity 64, `EKj` 32) and the slot ID → bundle, QR text, reply, DH1–3, `SK`, `KC`, `TH`, `confirm`, `AD`, safety number; failing cases (wrong `S`, changed `confirm`, reply for another initiator, relabelled path, second reply, bad bundle signature, malformed QR texts) with the error name |
 | `safety_number.json` | key pairs (both orders) → 20 digits |
 | `ratchet.json` | a scripted conversation: each step's sender, plaintext, header, `mk`, root and chain keys; includes out-of-order, skipped and crossing messages |
 | `envelope.json` | header fields and plaintext → padded plaintext, envelope bytes, signature; rejected cases (tampered byte, replayed counter, time out of window, wrong recipient) with the expected error |

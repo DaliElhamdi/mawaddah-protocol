@@ -11,6 +11,7 @@ export 'src/fakes/fake_relay_client.dart';
 export 'src/fakes/in_memory_storage.dart';
 export 'src/fakes/seeded_random.dart';
 export 'src/identity/identity.dart';
+export 'src/pairing/pairing.dart';
 export 'src/random_source.dart';
 export 'src/relay_client.dart';
 export 'src/storage.dart';
