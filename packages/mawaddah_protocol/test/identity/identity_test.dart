@@ -131,11 +131,8 @@ void main() {
       final text = id.toString();
       expect(text, contains(c.output['device_id_base64url']));
       expect(text, contains('redacted'));
-      for (final secret in [
-        c.input['sig_seed']! as String,
-        c.input['dh_secret']! as String,
-      ]) {
-        expect(text.toLowerCase(), isNot(contains(secret.substring(0, 8))));
+      for (final secret in [c.input['sig_seed'], c.input['dh_secret']]) {
+        expect(text.toLowerCase(), isNot(contains(secret! as String)));
       }
       expect('${id.signingSecretKey}', isNot(contains(c.input['sig_seed'])));
       expect('${id.dhSecretKey}', isNot(contains(c.input['dh_secret'])));

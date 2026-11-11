@@ -25,7 +25,7 @@ final class PublicIdentity {
   final X25519PublicKey dhKey;
 
   /// This device's ID (also its relay inbox ID), computed from [signingKey].
-  DeviceId get deviceId => DeviceId.fromSigningKey(signingKey);
+  late final DeviceId deviceId = DeviceId.fromSigningKey(signingKey);
 
   /// `IKsig || IKdh`, 64 bytes: the per-device input of the safety number.
   Uint8List get _safetyNumberInput => Uint8List(64)
@@ -140,18 +140,27 @@ final class DeviceIdentity {
   /// is stored.
   Uint8List toStorageBytes() {
     final out = Uint8List(storageLength)..[0] = storageFormatVersion;
-    final seed = _signing.secretKey.extractBytes();
-    final dh = _dh.secretKey.extractBytes();
-    out
-      ..setAll(1, seed)
-      ..setAll(33, dh);
-    seed.fillRange(0, seed.length, 0);
-    dh.fillRange(0, dh.length, 0);
-    return out;
+    Uint8List? seed;
+    Uint8List? dh;
+    try {
+      seed = _signing.secretKey.extractBytes();
+      dh = _dh.secretKey.extractBytes();
+      out
+        ..setAll(1, seed)
+        ..setAll(33, dh);
+      return out;
+    } catch (_) {
+      out.fillRange(0, out.length, 0);
+      rethrow;
+    } finally {
+      seed?.fillRange(0, seed.length, 0);
+      dh?.fillRange(0, dh.length, 0);
+    }
   }
 
-  /// Whether [dispose] was called.
-  bool get isDisposed => _signing.secretKey.isDisposed;
+  /// Whether [dispose] was called (both private keys are then wiped).
+  bool get isDisposed =>
+      _signing.secretKey.isDisposed && _dh.secretKey.isDisposed;
 
   /// Wipes both private keys. Safe to call more than once.
   void dispose() {
@@ -279,7 +288,8 @@ const safetyNumberGroupCount = 5;
 
 final _safetyNumberLabel = ascii.encode('mawaddah/v1/safety-number');
 
-/// Unsigned lexicographic order of two equal-length byte strings.
+/// Unsigned lexicographic order of two equal-length byte strings (always
+/// 64 bytes here: the key types fix each half at 32).
 int _compareBytes(Uint8List x, Uint8List y) {
   for (var i = 0; i < x.length; i++) {
     if (x[i] != y[i]) return x[i] - y[i];
