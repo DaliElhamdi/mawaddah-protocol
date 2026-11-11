@@ -23,6 +23,7 @@ Mawaddah connects exactly two phones (one pair). Each phone keeps its data in an
 14. [Constants](#14-constants)
 15. [Test vectors](#15-test-vectors)
 16. [Known limits](#16-known-limits)
+17. [Outbox and sync loop](#17-outbox-and-sync-loop)
 
 ## 1. Conventions
 - `||` is byte concatenation. `X[a..b]` is bytes `a` (inclusive) to `b` (exclusive) of `X`.
@@ -334,6 +335,9 @@ The relay rejects a request if the signature does not verify, the timestamp is m
 | HLC time window | at most 1 hour ahead, at most 31 days behind |
 | Relay request time window / nonce memory | ±300 s / 15 minutes |
 | Attachment chunk / blob size | 65,536 bytes plaintext / ≤ 10 MB |
+| Sealed envelope kept for resending | at most 1 day, then its events are sealed again (section 17) |
+| Raw envelopes kept unapplied | 100 per reason (unknown version, undecryptable, refused plaintext), oldest deleted first |
+| Sync retry back-off | 5 s, doubled after each unfinished run, at most 15 minutes; fetch pages per run: 100 |
 
 ## 15. Test vectors
 Committed in `packages/mawaddah_protocol/test/vectors/`, used by the package tests, the app's tests and the partner bot, and (for relay signing) by the relay tests. One JSON file per area:
@@ -374,3 +378,34 @@ Stated plainly, so nobody relies on more than this gives:
 - **No post-quantum protection.** Recorded traffic could be decrypted by a future large quantum computer.
 - **A phone that is unlocked and compromised** exposes what is on it; the ratchet only limits what an attacker learns before and after (forward secrecy and post-compromise recovery).
 - **Clock trust:** HLC order depends on the phones' clocks within the windows above; a phone with a badly wrong clock delays its own envelopes until fixed.
+- **Push metadata:** the relay learns which deposits asked for a wake-up (section 17), so it can tell a chat message from a receipt by its timing and flag, though not its content.
+- **Relay refusals are not told apart yet:** until the Dart relay client (protocol #24) names its errors, every failed deposit is retried with back-off, including one the relay would refuse forever.
+
+## 17. Outbox and sync loop
+How a phone sends and fetches envelopes (spec 4.6 and 8.7). It adds no wire format; it fixes the order of steps so that a crash, a lost answer or a week offline loses nothing and never reuses a key.
+
+**Local changes.** A change becomes events (section 10) that are applied locally and added to the **outbox** in one database transaction, together with the HLC. The app works fully offline; only sending waits for the network. An event already stored (a repeated **Done** tap) is neither applied nor queued again.
+
+**One run** (`SyncEngine.syncOnce`) first receives, then sends: the initiator can send only after the joiner's first message has arrived (section 6), and receiving first shows the partner's news sooner. Only one run happens at a time; a call during a run waits for it and then starts one more run, shared by all calls made meanwhile. A relay failure stops that half of the run and is retried later with the back-off of section 14; a database failure stops the run and keeps nothing of the step that failed. The back-off only says when to try again: the app schedules that try, and also syncs on every push, when it opens and after a local change. A run is unfinished (and gives a retry time) after a relay failure, an envelope left on the relay, or 100 fetched pages with more possibly waiting; an initiator waiting for the joiner's first message needs no retry, because that message comes with a push.
+
+**Receiving.**
+1. If the stored cursor has not been acknowledged in this app session (an ACK lost, or the app stopped before it), acknowledge it again. If that fails, fetch all the same: the next ACK covers it.
+2. Fetch the envelopes after the stored cursor. Handle each in order as in section 8, and store its cursor in the same transaction as its events, session, replay window and HLC (or alone, for an envelope that is discarded).
+3. After each page, acknowledge the last cursor handled. An ACK is cumulative: the relay deletes every envelope up to and including that cursor.
+4. An envelope whose time is ahead of the clock (section 8 step 5) stops the run's receiving: neither it nor anything after it is acknowledged, so it is fetched again next time. The phone stores when this first happened and shows the wrong-time card after 24 hours; the date is cleared once the envelope opens.
+5. Kept raw envelopes (unknown version, undecryptable, refused plaintext) are stored by their cursor; at most 100 per reason, the oldest deleted first (section 8 asks this for unknown versions; the others are capped too so the database cannot grow without limit).
+
+**Sending.**
+1. Envelopes already sealed go first, as **the same bytes**, in counter order. A deposit that failed is therefore repeated without using up another counter or ratchet key, however long the phone stays offline. If the relay did take it but its answer was lost, the copy is refused as a replay (section 8 step 4).
+2. A sealed envelope older than 1 day is not deposited any more; its events stay in the outbox and are sealed again in step 3. The relay keeps an envelope at most 30 days, so the partner never receives one more than 31 days old (section 8 step 5). The dropped ratchet message only leaves a skipped key (section 6).
+3. The rest of the outbox, in order, is split into plaintexts of at most 65,279 bytes (section 7). For each: store the new counter; seal with the next HLC; in one transaction save the ratchet session, the HLC and the sealed envelope; deposit it; remove it and its events from the outbox. If saving fails, the envelope never leaves the phone, so the next run, which starts from the stored session, cannot expose two ciphertexts under one message key.
+4. Sending stops at the first deposit that fails, so at most one sealed envelope waits while the relay cannot be reached.
+
+**Wake-up flag.** The sender asks for a push (`wake: 1`) when any event of the envelope deserves a notification; otherwise `wake: 0`. One table, by `entity_type` and `op`; a type or op not listed does not wake:
+
+| `entity_type` | Ops that wake |
+|---|---|
+| `message` | `create` |
+| `device`, `profile`, `reaction`, `receipt` | none |
+
+Each feature that adds an entity type adds its row here and in `WakePolicy`, in the same pull request (invitations and reveal-ready wake; settings do not).
