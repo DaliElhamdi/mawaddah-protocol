@@ -24,6 +24,7 @@ Future<void> main() async {
   _write('identity', _identityCases(crypto));
   _write('safety_number', _safetyNumberCases(crypto));
   _write('pairing', _pairingCases(crypto));
+  _write('ratchet', _ratchetCases(crypto));
 }
 
 void _write(String file, List<Map<String, Object?>> cases) {
@@ -500,3 +501,329 @@ List<Map<String, Object?>> _pairingCases(Crypto crypto) {
 }
 
 String _pad(String b64) => b64 + '=' * ((4 - b64.length % 4) % 4);
+
+// --- ratchet.json --------------------------------------------------------------
+//
+// A scripted conversation (in order per direction, with turn changes and
+// crossing messages). Out-of-order and skipped cases are added with #14.
+// Every output is derived twice: by RatchetSession, and by the reference
+// below written straight from PROTOCOL.md section 6 on raw bytes; the
+// generator stops if they differ.
+
+/// Random bytes one side's RandomSource hands out, 32 per GENERATE_DH.
+class _Draws implements RandomSource {
+  _Draws(int seed) : _random = SeededRandom(seed);
+  final SeededRandom _random;
+  final drawn = <Uint8List>[];
+
+  @override
+  Uint8List nextBytes(int length) {
+    final b = _random.nextBytes(length);
+    drawn.add(Uint8List.fromList(b));
+    return b;
+  }
+}
+
+/// PROTOCOL.md section 6 on plain byte lists, one side.
+class _RefSide {
+  _RefSide(this.crypto, this.ad);
+  final Crypto crypto;
+  final Uint8List ad;
+  late Uint8List dhsSecret;
+  late Uint8List dhsPub;
+  Uint8List? dhr;
+  late Uint8List rk;
+  Uint8List? cks;
+  Uint8List? ckr;
+  var ns = 0, nr = 0, pn = 0;
+
+  Uint8List _s(SecretBytes b) {
+    final out = b.extractBytes();
+    b.dispose();
+    return out;
+  }
+
+  SecretBytes _imp(Uint8List b) => crypto.importSecret(Uint8List.fromList(b));
+
+  Uint8List pub(Uint8List secret) =>
+      crypto.importX25519KeyPair(Uint8List.fromList(secret)).publicKey.bytes;
+
+  Uint8List dh(Uint8List secret, Uint8List pub) {
+    final pair = crypto.importX25519KeyPair(Uint8List.fromList(secret));
+    final out = _s(crypto.x25519(pair.secretKey, X25519PublicKey(pub)));
+    pair.dispose();
+    return out;
+  }
+
+  (Uint8List, Uint8List) kdfRk(Uint8List rk, Uint8List dhOut) {
+    final out = _s(
+      crypto.hkdf(
+        salt: _imp(rk),
+        ikm: _imp(dhOut),
+        info: 'mawaddah/v1/ratchet/rk',
+        length: 64,
+      ),
+    );
+    return (out.sublist(0, 32), out.sublist(32));
+  }
+
+  (Uint8List, Uint8List) kdfCk(Uint8List ck) => (
+    _s(
+      crypto.hkdfExpand(
+        prk: _imp(ck),
+        info: 'mawaddah/v1/ratchet/ck',
+        length: 32,
+      ),
+    ),
+    _s(
+      crypto.hkdfExpand(
+        prk: _imp(ck),
+        info: 'mawaddah/v1/ratchet/mk',
+        length: 32,
+      ),
+    ),
+  );
+
+  Uint8List aeadKm(Uint8List mk) => _s(
+    crypto.hkdfExpand(
+      prk: _imp(mk),
+      info: 'mawaddah/v1/ratchet/aead',
+      length: 56,
+    ),
+  );
+
+  Uint8List header(int pn, int n) {
+    final h = Uint8List(40)..setAll(0, dhsPub);
+    ByteData.sublistView(h)
+      ..setUint32(32, pn)
+      ..setUint32(36, n);
+    return h;
+  }
+
+  Uint8List aead(
+    Uint8List km,
+    Uint8List data,
+    Uint8List fullAd, {
+    required bool seal,
+  }) {
+    final key = crypto.importAeadKey(km.sublist(0, 32));
+    final nonce = AeadNonce(km.sublist(32, 56));
+    final out = seal
+        ? crypto.encrypt(
+            key: key,
+            nonce: nonce,
+            plaintext: data,
+            associatedData: fullAd,
+          )
+        : crypto.decrypt(
+            key: key,
+            nonce: nonce,
+            ciphertext: data,
+            associatedData: fullAd,
+          );
+    key.dispose();
+    return out;
+  }
+}
+
+Map<String, Object?> _ratchetConversation(Crypto crypto) {
+  final setup = SeededRandom(100);
+  final sk = setup.nextBytes(32);
+  final ad = setup.nextBytes(128);
+  final bobSecret = setup.nextBytes(32);
+
+  final aliceDraws = _Draws(101);
+  final bobDraws = _Draws(102);
+  final bobPair = crypto.importX25519KeyPair(Uint8List.fromList(bobSecret));
+  final bobPub = bobPair.publicKey.bytes;
+  final alice = RatchetSession.initAlice(
+    crypto: crypto,
+    random: aliceDraws,
+    rootKey: crypto.importSecret(Uint8List.fromList(sk)),
+    associatedData: ad,
+    remoteRatchetKey: X25519PublicKey(bobPub),
+  );
+  final bob = RatchetSession.initBob(
+    crypto: crypto,
+    random: bobDraws,
+    rootKey: crypto.importSecret(Uint8List.fromList(sk)),
+    associatedData: ad,
+    ratchetKeyPair: bobPair,
+  );
+
+  // Reference sides (Signal 3.3 init), drawing the same bytes.
+  final refRandom = {'alice': SeededRandom(101), 'bob': SeededRandom(102)};
+  final ra = _RefSide(crypto, ad)
+    ..dhsSecret = refRandom['alice']!.nextBytes(32);
+  ra
+    ..dhsPub = ra.pub(ra.dhsSecret)
+    ..dhr = bobPub;
+  final (rk0, cks0) = ra.kdfRk(sk, ra.dh(ra.dhsSecret, bobPub));
+  ra
+    ..rk = rk0
+    ..cks = cks0;
+  final rb = _RefSide(crypto, ad)
+    ..dhsSecret = bobSecret
+    ..rk = sk;
+  rb.dhsPub = rb.pub(bobSecret);
+  final ref = {'alice': ra, 'bob': rb};
+  final real = {'alice': alice, 'bob': bob};
+
+  // Script: (op, side, message id). Messages are delivered in order per
+  // direction; a2/b2 cross (both are sent before either is read).
+  const script = [
+    ('send', 'alice', 'a0'),
+    ('send', 'alice', 'a1'),
+    ('recv', 'bob', 'a0'),
+    ('recv', 'bob', 'a1'),
+    ('send', 'bob', 'b0'),
+    ('send', 'bob', 'b1'),
+    ('recv', 'alice', 'b0'),
+    ('recv', 'alice', 'b1'),
+    ('send', 'alice', 'a2'),
+    ('send', 'bob', 'b2'),
+    ('recv', 'bob', 'a2'),
+    ('recv', 'alice', 'b2'),
+    ('send', 'bob', 'b3'),
+    ('recv', 'alice', 'b3'),
+    ('send', 'alice', 'a3'),
+    ('recv', 'bob', 'a3'),
+  ];
+
+  final sent = <String, ({Uint8List prefix, Uint8List header, Uint8List ct})>{};
+  final counters = {'alice': 0, 'bob': 0};
+  final steps = <Map<String, Object?>>[];
+  String h(List<int> b) => _hex(b);
+  void same(List<int> a, List<int> b, String what) {
+    if (_hex(a) != _hex(b)) {
+      throw StateError('ratchet reference differs: $what');
+    }
+  }
+
+  for (final (op, side, id) in script) {
+    final r = ref[side]!;
+    if (op == 'send') {
+      final counter = counters[side]! + 1;
+      counters[side] = counter;
+      final prefix = Uint8List(50)
+        ..[0] = 1
+        ..[1] = 1;
+      ByteData.sublistView(prefix)
+        ..setUint64(34, counter)
+        ..setUint64(42, 1000 + steps.length);
+      final plaintext = Uint8List.fromList(utf8.encode('message $id'));
+      // Reference RatchetEncrypt (Signal 3.4).
+      final (ck, mk) = r.kdfCk(r.cks!);
+      final header = r.header(r.pn, r.ns);
+      final km = r.aeadKm(mk);
+      final fullAd = _bytes([ad, prefix, header]);
+      final ct = r.aead(km, plaintext, fullAd, seal: true);
+      r
+        ..cks = ck
+        ..ns += 1;
+
+      final m = real[side]!.encrypt(plaintext, envelopePrefix: prefix);
+      same(m.header.encode(), header, '$id header');
+      same(m.ciphertext, ct, '$id ciphertext');
+      sent[id] = (prefix: prefix, header: header, ct: ct);
+      steps.add({
+        'op': 'send',
+        'side': side,
+        'message': id,
+        'plaintext': h(plaintext),
+        'envelope_prefix': h(prefix),
+        'header': h(header),
+        'chain_key': h(ck),
+        'message_key': h(mk),
+        'aead_key': h(km.sublist(0, 32)),
+        'aead_nonce': h(km.sublist(32)),
+        'ciphertext': h(ct),
+      });
+    } else {
+      final s = sent[id]!;
+      final hdrPub = s.header.sublist(0, 32);
+      final hdrPn = ByteData.sublistView(s.header).getUint32(32);
+      final step = <String, Object?>{
+        'op': 'receive',
+        'side': side,
+        'message': id,
+      };
+      // Reference RatchetDecrypt without skipped keys (Signal 3.4/3.5).
+      if (r.dhr == null || _hex(hdrPub) != _hex(r.dhr!)) {
+        if (r.ckr != null && hdrPn != r.nr) {
+          throw StateError('script needs skipped keys at $id');
+        }
+        r
+          ..pn = r.ns
+          ..ns = 0
+          ..nr = 0
+          ..dhr = hdrPub;
+        final (rk1, ckr1) = r.kdfRk(r.rk, r.dh(r.dhsSecret, hdrPub));
+        r
+          ..ckr = ckr1
+          ..dhsSecret = refRandom[side]!.nextBytes(32);
+        r.dhsPub = r.pub(r.dhsSecret);
+        final (rk2, cks2) = r.kdfRk(rk1, r.dh(r.dhsSecret, hdrPub));
+        r
+          ..rk = rk2
+          ..cks = cks2;
+        step['dh_ratchet'] = {
+          'new_ratchet_secret': h(r.dhsSecret),
+          'new_ratchet_pub': h(r.dhsPub),
+          'root_key': h(r.rk),
+          'receiving_chain_key': h(r.ckr!),
+          'sending_chain_key': h(r.cks!),
+        };
+      }
+      final (ck, mk) = r.kdfCk(r.ckr!);
+      final km = r.aeadKm(mk);
+      final pt = r.aead(
+        km,
+        s.ct,
+        _bytes([ad, s.prefix, s.header]),
+        seal: false,
+      );
+      r
+        ..ckr = ck
+        ..nr += 1;
+
+      final got = real[side]!.decrypt(
+        RatchetHeader.decode(s.header),
+        s.ct,
+        envelopePrefix: s.prefix,
+      );
+      same(got, pt, '$id plaintext');
+      step
+        ..['chain_key'] = h(ck)
+        ..['message_key'] = h(mk)
+        ..['plaintext'] = h(pt);
+      steps.add(step);
+    }
+  }
+  alice.dispose();
+  bob.dispose();
+
+  return {
+    'name': 'conversation in order with turn changes and crossing messages',
+    'input': {
+      'root_key': h(sk),
+      'associated_data': h(ad),
+      'bob_ratchet_secret': h(bobSecret),
+      'alice_random': [for (final d in aliceDraws.drawn) h(d)],
+      'bob_random': [for (final d in bobDraws.drawn) h(d)],
+      'script': [
+        for (final (op, side, id) in script)
+          {'op': op, 'side': side, 'message': id},
+      ],
+    },
+    'output': {
+      'bob_ratchet_pub': h(bobPub),
+      'alice_initial_ratchet_pub': h(ra.pub(aliceDraws.drawn.first)),
+      'steps': steps,
+    },
+  };
+}
+
+List<Map<String, Object?>> _ratchetCases(Crypto crypto) => [
+  _ratchetConversation(crypto),
+];
