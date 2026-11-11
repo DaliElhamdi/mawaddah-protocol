@@ -227,6 +227,27 @@ final class SodiumCrypto implements Crypto {
     }
   }
 
+  // --- Padding -----------------------------------------------------------
+
+  @override
+  Uint8List pad(Uint8List data, int blockSize) {
+    RangeError.checkValueInInterval(blockSize, 1, 1 << 16, 'blockSize');
+    return Uint8List.fromList(_sodium.pad(data, blockSize));
+  }
+
+  @override
+  Uint8List unpad(Uint8List data, int blockSize) {
+    RangeError.checkValueInInterval(blockSize, 1, 1 << 16, 'blockSize');
+    if (data.isEmpty || data.length % blockSize != 0) {
+      throw const InvalidPaddingException();
+    }
+    try {
+      return Uint8List.fromList(_sodium.unpad(data, blockSize));
+    } on na.SodiumException {
+      throw const InvalidPaddingException();
+    }
+  }
+
   // --- BLAKE2b -----------------------------------------------------------
 
   @override

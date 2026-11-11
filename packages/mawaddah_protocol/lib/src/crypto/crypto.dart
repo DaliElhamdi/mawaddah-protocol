@@ -136,6 +136,18 @@ abstract interface class Crypto {
   /// error.
   bool verifyHmac(SecretBytes key, Uint8List message, Uint8List tag);
 
+  // --- Padding -----------------------------------------------------------
+
+  /// ISO/IEC 7816-4 padding (libsodium `sodium_pad`): appends `0x80` and
+  /// then zeros up to the next multiple of [blockSize]. Always adds at least
+  /// one byte. Returns a new list; [data] is not changed.
+  Uint8List pad(Uint8List data, int blockSize);
+
+  /// Removes [pad]'s padding (libsodium `sodium_unpad`). Throws
+  /// [InvalidPaddingException] when [data] is empty, not a multiple of
+  /// [blockSize] long, or does not end with valid padding.
+  Uint8List unpad(Uint8List data, int blockSize);
+
   // --- Secret bytes ------------------------------------------------------
 
   /// Copies [bytes] into guarded memory and zeroes [bytes].
@@ -174,4 +186,9 @@ final class DecryptionFailedException extends CryptoException {
 /// An X25519 public key gave the all-zero shared secret (small order).
 final class InvalidPublicKeyException extends CryptoException {
   const InvalidPublicKeyException() : super('X25519 result is all zeros');
+}
+
+/// [Crypto.unpad] found no valid ISO/IEC 7816-4 padding.
+final class InvalidPaddingException extends CryptoException {
+  const InvalidPaddingException() : super('invalid padding');
 }
