@@ -5,6 +5,7 @@
 library;
 
 export 'src/clock.dart';
+export 'src/crypto/crypto.dart';
 export 'src/fakes/fake_clock.dart';
 export 'src/fakes/fake_relay_client.dart';
 export 'src/fakes/in_memory_storage.dart';

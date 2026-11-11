@@ -59,6 +59,8 @@ Constructions followed:
 - **UUID version 7** — RFC 9562. Section 10.
 - **Safety-number digits** — the 5-bytes-to-digits mapping of Signal's numeric fingerprint (libsignal `NumericFingerprintGenerator`). Section 5.
 
+HKDF `info` is always one of this document's ASCII labels: the Dart `sodium` API passes `info` as a string, and for ASCII the bytes are exactly the label.
+
 Random values (keys, nonces, secrets) come from the injected `RandomSource`; the app backs it with a cryptographically secure generator. The deterministic `SeededRandom` is used only to generate test vectors.
 
 ## 3. Identity keys and device ID
@@ -332,7 +334,7 @@ Committed in `packages/mawaddah_protocol/test/vectors/`, used by the package tes
 
 | File | Contents |
 |---|---|
-| `rfc5869_hkdf.json`, `rfc7748_x25519.json`, `rfc8032_ed25519.json` | published RFC test cases, to check the libsodium bindings |
+| `rfc5869_hkdf.json`, `rfc7748_x25519.json`, `rfc8032_ed25519.json`, `rfc7693_blake2b.json`, `xchacha20poly1305.json` | published test cases (the RFCs, draft-irtf-cfrg-xchacha-03 and libsodium's own test), to check the libsodium bindings; these files name their `source` instead of `generated_by` |
 | `identity.json` | seeds → `IKsig`, `IKdh`, `device_id` |
 | `pairing.json` | both paths: seeds and `S` → bundle, QR text, reply, DH1–3, `SK`, `KC`, `TH`, `confirm`, `AD`; failing cases (bad signature, wrong `S`, tampered `confirm`) |
 | `safety_number.json` | key pairs (both orders) → 20 digits |
