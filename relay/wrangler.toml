@@ -1,4 +1,6 @@
-name = "mawaddah-protocol"
+# Chosen by the owner (2026-11-11). It becomes the public hostname
+# mawaddah-relay.<account>.workers.dev; the environments added in #25 get their own suffix.
+name = "mawaddah-relay"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
 
