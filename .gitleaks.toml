@@ -1,0 +1,18 @@
+# gitleaks configuration (read automatically by `gitleaks detect` in CI).
+# Keep every default rule; only skip the files of PUBLISHED known-answer test
+# vectors, whose "secret" keys are printed in the RFCs themselves
+# (for example RFC 7748 section 6.1). Never add other paths here: a real
+# secret must never be committed to this public repository.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Published RFC / draft / libsodium test vectors (public values, not secrets)"
+paths = [
+  '''^packages/mawaddah_protocol/test/vectors/rfc5869_hkdf\.json$''',
+  '''^packages/mawaddah_protocol/test/vectors/rfc7693_blake2b\.json$''',
+  '''^packages/mawaddah_protocol/test/vectors/rfc7748_x25519\.json$''',
+  '''^packages/mawaddah_protocol/test/vectors/rfc8032_ed25519\.json$''',
+  '''^packages/mawaddah_protocol/test/vectors/xchacha20poly1305\.json$''',
+]

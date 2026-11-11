@@ -12,7 +12,9 @@ void main() {
   group('FakeClock', () {
     test('starts at the given time, in UTC', () {
       expect(
-          FakeClock(DateTime.utc(2026, 3, 1)).now(), DateTime.utc(2026, 3, 1));
+        FakeClock(DateTime.utc(2026, 3, 1)).now(),
+        DateTime.utc(2026, 3, 1),
+      );
     });
     test('only moves when told to', () {
       final c = FakeClock(DateTime.utc(2026, 3, 1));
@@ -30,7 +32,9 @@ void main() {
     });
     test('different seeds differ', () {
       expect(
-          SeededRandom(1).nextBytes(32), isNot(SeededRandom(2).nextBytes(32)));
+        SeededRandom(1).nextBytes(32),
+        isNot(SeededRandom(2).nextBytes(32)),
+      );
     });
     test('returns the requested length and rejects negatives', () {
       expect(SeededRandom(1).nextBytes(0), isEmpty);
@@ -76,11 +80,11 @@ void main() {
       final all = await r.fetch('i');
       expect(all.map((e) => e.body), [
         b([1]),
-        b([2])
+        b([2]),
       ]);
       final rest = await r.fetch('i', after: all.first.cursor);
       expect(rest.map((e) => e.body), [
-        b([2])
+        b([2]),
       ]);
       expect(r.wakesFor('i'), [false, true]);
     });
@@ -92,10 +96,10 @@ void main() {
       final all = await r.fetch('i');
       await r.ack('i', all.first.cursor);
       expect((await r.fetch('i')).map((e) => e.body), [
-        b([2])
+        b([2]),
       ]);
       expect((await r.fetch('j')).map((e) => e.body), [
-        b([3])
+        b([3]),
       ]);
       expect(await r.fetch('unknown'), isEmpty);
     });

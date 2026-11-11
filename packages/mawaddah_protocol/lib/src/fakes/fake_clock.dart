@@ -6,7 +6,7 @@ import '../clock.dart';
 /// A [Clock] that only moves when told to.
 class FakeClock implements Clock {
   FakeClock([DateTime? start])
-      : _now = (start ?? DateTime.utc(2026, 1, 1)).toUtc();
+    : _now = (start ?? DateTime.utc(2026, 1, 1)).toUtc();
 
   DateTime _now;
 
