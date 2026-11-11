@@ -124,6 +124,18 @@ abstract interface class Crypto {
     required int length,
   });
 
+  // --- HMAC-SHA-512-256 (libsodium crypto_auth) ---------------------------
+
+  /// HMAC-SHA-512 truncated to 256 bits (libsodium `crypto_auth`; RFC 2104
+  /// over SHA-512). [key] must be [hmacKeyLength] bytes. Returns
+  /// [hmacLength] bytes.
+  Uint8List hmac(SecretBytes key, Uint8List message);
+
+  /// Constant-time check of an [hmac] tag. A tag of the wrong length is
+  /// simply not valid (`false`); a key of the wrong size is a programming
+  /// error.
+  bool verifyHmac(SecretBytes key, Uint8List message, Uint8List tag);
+
   // --- Secret bytes ------------------------------------------------------
 
   /// Copies [bytes] into guarded memory and zeroes [bytes].
@@ -135,6 +147,10 @@ abstract interface class Crypto {
 
 /// Size of an HKDF-SHA-256 pseudorandom key (the SHA-256 output length).
 const hkdfPrkLength = 32;
+
+/// Key and tag size of [Crypto.hmac] (libsodium `crypto_auth`).
+const hmacKeyLength = 32;
+const hmacLength = 32;
 
 /// Largest HKDF-SHA-256 output: 255 blocks of 32 bytes (RFC 5869 section 2.3).
 const hkdfMaxLength = 255 * 32;
