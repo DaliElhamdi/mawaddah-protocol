@@ -23,6 +23,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `Uuid7.generate` / `isValid` (RFC 9562) from the injected `Clock` and `RandomSource`.
 - `Crypto.pad` / `unpad` (libsodium `sodium_pad`, ISO/IEC 7816-4) and `InvalidPaddingException`; `DeviceId.fromBytes`.
 - Generated vectors `test/vectors/envelope.json` (3 sealed envelopes, 13 rejected cases), `hlc.json` and `uuid7.json`; `.gitleaks.toml` allowlists `envelope.json` by exact path.
+- Event model and apply (PROTOCOL.md sections 10 and 11): `Event` with strict v1 JSON, `EventBatch.encode`/`decode` for the envelope plaintext (`EventException`: `malformed`, `wrongAuthor`), `EventStamp` (order `hlc`, author bytes, `event_id`), `EventFactory`, `EntityRegistry.v1` (`device` hello and `profile` payload checks; `message`, `reaction`, `receipt` rules), the `EventStore` interface with `InMemoryEventStore`, and `Applier` (`applyReceived`, `applyLocal`, `reapplyUnapplied`): idempotent, field-level last-writer-wins, append-only, final tombstones that purge payloads, unapplied events with a reason and a stream. `protocolVersion` / `minSupportedProtocol` constants.
+- Generated vectors `test/vectors/event.json` (encoding, refused plaintexts, three apply scenarios).
 
 ### Changed
 - `package:crypto` moved from dev to normal dependencies: the device ID and relay body hashes need SHA-256, which the `sodium` Dart API does not offer (ADR 0006 point 3).

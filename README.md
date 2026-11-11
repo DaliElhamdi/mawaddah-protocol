@@ -2,7 +2,7 @@
 
 The public, verifiable half of **Mawaddah** (مودّة), a private two-person app for engaged and married couples. This repository holds the code that carries and protects the couple's data, so anyone can check the privacy claims:
 
-- `packages/mawaddah_protocol/` — pure-Dart package: crypto envelopes, pairing, Double Ratchet, event model, sync engine, relay client (so far: interfaces, fakes, the libsodium primitives, device identity and the safety number, pairing, the Double Ratchet, signed envelopes and the hybrid logical clock)
+- `packages/mawaddah_protocol/` — pure-Dart package: crypto envelopes, pairing, Double Ratchet, event model, sync engine, relay client (so far: interfaces, fakes, the libsodium primitives, device identity and the safety number, pairing, the Double Ratchet, signed envelopes, the hybrid logical clock and the event model with its idempotent apply)
 - `relay/` — the **blind relay** (Cloudflare Workers + Durable Objects, TypeScript): it holds sealed envelopes for at most 30 days and cannot open them (skeleton: a `/health` route only, not deployed)
 - [`PROTOCOL.md`](PROTOCOL.md), [`PRIVACY.md`](PRIVACY.md), [`SECURITY.md`](SECURITY.md)
 
@@ -47,6 +47,7 @@ The real `Clock`, `RandomSource`, `Storage` and `RelayClient` are supplied by th
 - `Envelope.open` runs the receive checks in the order of section 8: structure, addresses, signature, `ReplayWindow` (RFC 4303, 1,024 counters, so out-of-order envelopes still pass), time window (at most 1 hour ahead, 31 days behind), decryption, unpadding. A failure throws `EnvelopeException`; its `EnvelopeFailure` says whether to acknowledge the envelope (`acknowledge`) and whether to keep the raw bytes (`keepUnapplied`). The app commits the session, the window, the HLC and the events in one transaction before the ACK.
 - `HlcClock` (over the injected `Clock`) gives `Hlc` values that always increase, whatever the wall clock does: `send()` for a local event or an envelope, `receive()` to merge the partner's. `Hlc` has an 8-byte form (envelope) and a 16-hex-digit form (events).
 - `Uuid7.generate(clock, random)` makes event and entity IDs (RFC 9562).
+- Events (section 10): `Event` (strict JSON), `EventBatch.encode`/`decode` for the envelope plaintext, `EventFactory` for this device's events, and `Applier` over an `EventStore` (the app implements it over its database; `InMemoryEventStore` is the fake). Field-level last-writer-wins, append-only with final tombstones, unapplied events from a newer partner kept with a reason and shown through `EventStore.watchUnapplied`, applied again by `Applier.reapplyUnapplied` after an update.
 - Generated vectors `envelope.json`, `hlc.json` and `uuid7.json`; `dart test test/envelope` checks them.
 
 ## Toolchain and checks

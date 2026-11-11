@@ -1,0 +1,534 @@
+{
+  "file": "event",
+  "protocol_version": 1,
+  "generated_by": "packages/mawaddah_protocol/tool/gen_vectors.dart",
+  "cases": [
+    {
+      "name": "encode: the hello",
+      "input": {
+        "events": [
+          {
+            "event_id": "019a72c9-8200-7365-883f-25ddabfeda3d",
+            "entity_type": "device",
+            "entity_id": "019a72c9-8200-794a-a491-91e69c0cb92a",
+            "op": "update",
+            "payload": {
+              "protocol_version": 1,
+              "min_supported_protocol": 1,
+              "envelope_versions": [
+                1
+              ]
+            },
+            "hlc": "019a72c982000000",
+            "author_device": "CgoKCgoKCgoKCgoKCgoKCg",
+            "protocol_version": 1,
+            "schema_version": 1
+          }
+        ]
+      },
+      "output": {
+        "plaintext": "7b226576656e7473223a5b7b226576656e745f6964223a2230313961373263392d383230302d373336352d383833662d323564646162666564613364222c22656e746974795f74797065223a22646576696365222c22656e746974795f6964223a2230313961373263392d383230302d373934612d613439312d393165363963306362393261222c226f70223a22757064617465222c227061796c6f6164223a7b2270726f746f636f6c5f76657273696f6e223a312c226d696e5f737570706f727465645f70726f746f636f6c223a312c22656e76656c6f70655f76657273696f6e73223a5b315d7d2c22686c63223a2230313961373263393832303030303030222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312c22736368656d615f76657273696f6e223a317d5d7d"
+      }
+    },
+    {
+      "name": "encode: a profile with an Arabic name",
+      "input": {
+        "events": [
+          {
+            "event_id": "019a72c9-8200-76a3-bea9-cda36c773cb7",
+            "entity_type": "profile",
+            "entity_id": "019a72c9-8200-7853-8ca8-4ee475fd80b5",
+            "op": "update",
+            "payload": {
+              "first_name": "أمينة",
+              "gender": "female",
+              "mode": "engaged"
+            },
+            "hlc": "019a72c982000001",
+            "author_device": "CgoKCgoKCgoKCgoKCgoKCg",
+            "protocol_version": 1,
+            "schema_version": 1
+          }
+        ]
+      },
+      "output": {
+        "plaintext": "7b226576656e7473223a5b7b226576656e745f6964223a2230313961373263392d383230302d373661332d626561392d636461333663373733636237222c22656e746974795f74797065223a2270726f66696c65222c22656e746974795f6964223a2230313961373263392d383230302d373835332d386361382d346565343735666438306235222c226f70223a22757064617465222c227061796c6f6164223a7b2266697273745f6e616d65223a22d8a3d985d98ad986d8a9222c2267656e646572223a2266656d616c65222c226d6f6465223a22656e6761676564227d2c22686c63223a2230313961373263393832303030303031222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312c22736368656d615f76657273696f6e223a317d5d7d"
+      }
+    },
+    {
+      "name": "encode: three events; escapes, control and non-ASCII characters",
+      "input": {
+        "events": [
+          {
+            "event_id": "019a72c9-8200-7365-883f-25ddabfeda3d",
+            "entity_type": "device",
+            "entity_id": "019a72c9-8200-794a-a491-91e69c0cb92a",
+            "op": "update",
+            "payload": {
+              "protocol_version": 1,
+              "min_supported_protocol": 1,
+              "envelope_versions": [
+                1
+              ]
+            },
+            "hlc": "019a72c982000000",
+            "author_device": "CgoKCgoKCgoKCgoKCgoKCg",
+            "protocol_version": 1,
+            "schema_version": 1
+          },
+          {
+            "event_id": "019a72c9-8200-76a3-bea9-cda36c773cb7",
+            "entity_type": "profile",
+            "entity_id": "019a72c9-8200-7853-8ca8-4ee475fd80b5",
+            "op": "update",
+            "payload": {
+              "first_name": "أمينة",
+              "gender": "female",
+              "mode": "engaged"
+            },
+            "hlc": "019a72c982000001",
+            "author_device": "CgoKCgoKCgoKCgoKCgoKCg",
+            "protocol_version": 1,
+            "schema_version": 1
+          },
+          {
+            "event_id": "019a72c9-8200-7735-bc46-7307c7dc6e37",
+            "entity_type": "message",
+            "entity_id": "019a72c9-8200-724d-87bf-3e80c36e2d47",
+            "op": "create",
+            "payload": {
+              "text": "salam \"quoted\" \\ line\nbreak \u0001 é 😊"
+            },
+            "hlc": "019a72c982000002",
+            "author_device": "CgoKCgoKCgoKCgoKCgoKCg",
+            "protocol_version": 1,
+            "schema_version": 1
+          }
+        ]
+      },
+      "output": {
+        "plaintext": "7b226576656e7473223a5b7b226576656e745f6964223a2230313961373263392d383230302d373336352d383833662d323564646162666564613364222c22656e746974795f74797065223a22646576696365222c22656e746974795f6964223a2230313961373263392d383230302d373934612d613439312d393165363963306362393261222c226f70223a22757064617465222c227061796c6f6164223a7b2270726f746f636f6c5f76657273696f6e223a312c226d696e5f737570706f727465645f70726f746f636f6c223a312c22656e76656c6f70655f76657273696f6e73223a5b315d7d2c22686c63223a2230313961373263393832303030303030222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312c22736368656d615f76657273696f6e223a317d2c7b226576656e745f6964223a2230313961373263392d383230302d373661332d626561392d636461333663373733636237222c22656e746974795f74797065223a2270726f66696c65222c22656e746974795f6964223a2230313961373263392d383230302d373835332d386361382d346565343735666438306235222c226f70223a22757064617465222c227061796c6f6164223a7b2266697273745f6e616d65223a22d8a3d985d98ad986d8a9222c2267656e646572223a2266656d616c65222c226d6f6465223a22656e6761676564227d2c22686c63223a2230313961373263393832303030303031222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312c22736368656d615f76657273696f6e223a317d2c7b226576656e745f6964223a2230313961373263392d383230302d373733352d626334362d373330376337646336653337222c22656e746974795f74797065223a226d657373616765222c22656e746974795f6964223a2230313961373263392d383230302d373234642d383762662d336538306333366532643437222c226f70223a22637265617465222c227061796c6f6164223a7b2274657874223a2273616c616d205c2271756f7465645c22205c5c206c696e655c6e627265616b205c753030303120c3a920f09f988a227d2c22686c63223a2230313961373263393832303030303032222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312c22736368656d615f76657273696f6e223a317d5d7d"
+      }
+    },
+    {
+      "name": "decode: not UTF-8",
+      "input": {
+        "plaintext": "fffe",
+        "sender": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+      },
+      "error": "malformed"
+    },
+    {
+      "name": "decode: not JSON",
+      "input": {
+        "plaintext": "7b226576656e7473223a205b",
+        "sender": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+      },
+      "error": "malformed"
+    },
+    {
+      "name": "decode: empty event list",
+      "input": {
+        "plaintext": "7b226576656e7473223a5b5d7d",
+        "sender": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+      },
+      "error": "malformed"
+    },
+    {
+      "name": "decode: extra top-level key",
+      "input": {
+        "plaintext": "7b226576656e7473223a5b7b226576656e745f6964223a2230313961373263392d383230302d373661332d626561392d636461333663373733636237222c22656e746974795f74797065223a2270726f66696c65222c22656e746974795f6964223a2230313961373263392d383230302d373835332d386361382d346565343735666438306235222c226f70223a22757064617465222c227061796c6f6164223a7b2266697273745f6e616d65223a22d8a3d985d98ad986d8a9222c2267656e646572223a2266656d616c65222c226d6f6465223a22656e6761676564227d2c22686c63223a2230313961373263393832303030303031222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312c22736368656d615f76657273696f6e223a317d5d2c2276223a317d",
+        "sender": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+      },
+      "error": "malformed"
+    },
+    {
+      "name": "decode: extra event field",
+      "input": {
+        "plaintext": "7b226576656e7473223a5b7b226576656e745f6964223a2230313961373263392d383230302d373661332d626561392d636461333663373733636237222c22656e746974795f74797065223a2270726f66696c65222c22656e746974795f6964223a2230313961373263392d383230302d373835332d386361382d346565343735666438306235222c226f70223a22757064617465222c227061796c6f6164223a7b2266697273745f6e616d65223a22d8a3d985d98ad986d8a9222c2267656e646572223a2266656d616c65222c226d6f6465223a22656e6761676564227d2c22686c63223a2230313961373263393832303030303031222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312c22736368656d615f76657273696f6e223a312c226578747261223a747275657d5d7d",
+        "sender": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+      },
+      "error": "malformed"
+    },
+    {
+      "name": "decode: protocol_version as a float",
+      "input": {
+        "plaintext": "7b226576656e7473223a5b7b226576656e745f6964223a2230313961373263392d383230302d373661332d626561392d636461333663373733636237222c22656e746974795f74797065223a2270726f66696c65222c22656e746974795f6964223a2230313961373263392d383230302d373835332d386361382d346565343735666438306235222c226f70223a22757064617465222c227061796c6f6164223a7b2266697273745f6e616d65223a22d8a3d985d98ad986d8a9222c2267656e646572223a2266656d616c65222c226d6f6465223a22656e6761676564227d2c22686c63223a2230313961373263393832303030303031222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312e302c22736368656d615f76657273696f6e223a317d5d7d",
+        "sender": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+      },
+      "error": "malformed"
+    },
+    {
+      "name": "decode: delete with a payload",
+      "input": {
+        "plaintext": "7b226576656e7473223a5b7b226576656e745f6964223a2230313961373263392d383230302d373661332d626561392d636461333663373733636237222c22656e746974795f74797065223a2270726f66696c65222c22656e746974795f6964223a2230313961373263392d383230302d373835332d386361382d346565343735666438306235222c226f70223a2264656c657465222c227061796c6f6164223a7b2266697273745f6e616d65223a22d8a3d985d98ad986d8a9222c2267656e646572223a2266656d616c65222c226d6f6465223a22656e6761676564227d2c22686c63223a2230313961373263393832303030303031222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312c22736368656d615f76657273696f6e223a317d5d7d",
+        "sender": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+      },
+      "error": "malformed"
+    },
+    {
+      "name": "decode: one good event, one with a bad hlc",
+      "input": {
+        "plaintext": "7b226576656e7473223a5b7b226576656e745f6964223a2230313961373263392d383230302d373661332d626561392d636461333663373733636237222c22656e746974795f74797065223a2270726f66696c65222c22656e746974795f6964223a2230313961373263392d383230302d373835332d386361382d346565343735666438306235222c226f70223a22757064617465222c227061796c6f6164223a7b2266697273745f6e616d65223a22d8a3d985d98ad986d8a9222c2267656e646572223a2266656d616c65222c226d6f6465223a22656e6761676564227d2c22686c63223a2230313961373263393832303030303031222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312c22736368656d615f76657273696f6e223a317d2c7b226576656e745f6964223a2230313961373263392d383230302d373661332d626561392d636461333663373733636237222c22656e746974795f74797065223a2270726f66696c65222c22656e746974795f6964223a2230313961373263392d383230302d373835332d386361382d346565343735666438306235222c226f70223a22757064617465222c227061796c6f6164223a7b2266697273745f6e616d65223a22d8a3d985d98ad986d8a9222c2267656e646572223a2266656d616c65222c226d6f6465223a22656e6761676564227d2c22686c63223a2230313233222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312c22736368656d615f76657273696f6e223a317d5d7d",
+        "sender": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+      },
+      "error": "malformed"
+    },
+    {
+      "name": "decode: newer event without event_id",
+      "input": {
+        "plaintext": "7b226576656e7473223a5b7b2270726f746f636f6c5f76657273696f6e223a327d5d7d",
+        "sender": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+      },
+      "error": "malformed"
+    },
+    {
+      "name": "decode: author is not the sender",
+      "input": {
+        "plaintext": "7b226576656e7473223a5b7b226576656e745f6964223a2230313961373263392d383230302d373661332d626561392d636461333663373733636237222c22656e746974795f74797065223a2270726f66696c65222c22656e746974795f6964223a2230313961373263392d383230302d373835332d386361382d346565343735666438306235222c226f70223a22757064617465222c227061796c6f6164223a7b2266697273745f6e616d65223a22d8a3d985d98ad986d8a9222c2267656e646572223a2266656d616c65222c226d6f6465223a22656e6761676564227d2c22686c63223a2230313961373263393832303030303031222c22617574686f725f646576696365223a2243676f4b43676f4b43676f4b43676f4b43676f4b4367222c2270726f746f636f6c5f76657273696f6e223a312c22736368656d615f76657273696f6e223a317d5d7d",
+        "sender": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"
+      },
+      "error": "wrong_author"
+    },
+    {
+      "name": "apply: last-writer-wins per field, HLC tie",
+      "input": {
+        "local_device": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+        "batches": [
+          {
+            "sender": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+            "events": [
+              {
+                "event_id": "019a72c9-86e2-7b01-b28a-599c43cbebba",
+                "entity_type": "profile",
+                "entity_id": "019a72c9-8200-7b30-b83b-9d8eb5c640ba",
+                "op": "update",
+                "payload": {
+                  "mode": "contracted"
+                },
+                "hlc": "019a72c986e20000",
+                "author_device": "CwsLCwsLCwsLCwsLCwsLCw",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-86e2-7df6-96fb-11de69ce76a4",
+                "entity_type": "profile",
+                "entity_id": "019a72c9-8200-7b30-b83b-9d8eb5c640ba",
+                "op": "update",
+                "payload": {
+                  "first_name": "Amna"
+                },
+                "hlc": "019a72c9864c0000",
+                "author_device": "CwsLCwsLCwsLCwsLCwsLCw",
+                "protocol_version": 1,
+                "schema_version": 1
+              }
+            ]
+          },
+          {
+            "sender": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+            "events": [
+              {
+                "event_id": "019a72c9-864c-7b25-aacb-a71b23332230",
+                "entity_type": "profile",
+                "entity_id": "019a72c9-8200-7b30-b83b-9d8eb5c640ba",
+                "op": "update",
+                "payload": {
+                  "first_name": "Aminah"
+                },
+                "hlc": "019a72c9864c0000",
+                "author_device": "CgoKCgoKCgoKCgoKCgoKCg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-85e8-7ed7-8b4b-20c867b7ae1d",
+                "entity_type": "profile",
+                "entity_id": "019a72c9-8200-7b30-b83b-9d8eb5c640ba",
+                "op": "update",
+                "payload": {
+                  "first_name": "Amina",
+                  "gender": "female",
+                  "mode": "engaged"
+                },
+                "hlc": "019a72c985e80000",
+                "author_device": "CgoKCgoKCgoKCgoKCgoKCg",
+                "protocol_version": 1,
+                "schema_version": 1
+              }
+            ]
+          }
+        ]
+      },
+      "output": {
+        "entities": [
+          {
+            "entity_type": "profile",
+            "entity_id": "019a72c9-8200-7b30-b83b-9d8eb5c640ba",
+            "fields": {
+              "first_name": {
+                "value": "Amna",
+                "event_id": "019a72c9-86e2-7df6-96fb-11de69ce76a4"
+              },
+              "gender": {
+                "value": "female",
+                "event_id": "019a72c9-85e8-7ed7-8b4b-20c867b7ae1d"
+              },
+              "mode": {
+                "value": "contracted",
+                "event_id": "019a72c9-86e2-7b01-b28a-599c43cbebba"
+              }
+            },
+            "created": null,
+            "deleted": null
+          }
+        ],
+        "log": [
+          {
+            "event_id": "019a72c9-85e8-7ed7-8b4b-20c867b7ae1d",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-864c-7b25-aacb-a71b23332230",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-86e2-7b01-b28a-599c43cbebba",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-86e2-7df6-96fb-11de69ce76a4",
+            "payload_purged": false
+          }
+        ],
+        "unapplied": []
+      }
+    },
+    {
+      "name": "apply: append-only, tombstone before create",
+      "input": {
+        "local_device": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+        "batches": [
+          {
+            "sender": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+            "events": [
+              {
+                "event_id": "019a72c9-86ec-7bb7-a36e-c2808bc17e4d",
+                "entity_type": "message",
+                "entity_id": "019a72c9-864c-7ae6-9bdf-2a40738883aa",
+                "op": "delete",
+                "payload": {},
+                "hlc": "019a72c986ec0002",
+                "author_device": "CwsLCwsLCwsLCwsLCwsLCw",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-86ec-7eec-99c1-95cca48643c4",
+                "entity_type": "message",
+                "entity_id": "019a72c9-86e2-7fe5-851b-be7fbc32c381",
+                "op": "create",
+                "payload": {
+                  "text": "kept"
+                },
+                "hlc": "019a72c986ec0000",
+                "author_device": "CwsLCwsLCwsLCwsLCwsLCw",
+                "protocol_version": 1,
+                "schema_version": 1
+              }
+            ]
+          },
+          {
+            "sender": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+            "events": [
+              {
+                "event_id": "019a72c9-8656-7f24-8b04-1d652ac291eb",
+                "entity_type": "message",
+                "entity_id": "019a72c9-864c-7ae6-9bdf-2a40738883aa",
+                "op": "create",
+                "payload": {
+                  "text": "first"
+                },
+                "hlc": "019a72c986560000",
+                "author_device": "CgoKCgoKCgoKCgoKCgoKCg",
+                "protocol_version": 1,
+                "schema_version": 1
+              }
+            ]
+          },
+          {
+            "sender": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+            "events": [
+              {
+                "event_id": "019a72c9-86ec-77a2-bf38-756fbfa48ac3",
+                "entity_type": "message",
+                "entity_id": "019a72c9-86e2-7fe5-851b-be7fbc32c381",
+                "op": "create",
+                "payload": {
+                  "text": "kept, again"
+                },
+                "hlc": "019a72c986ec0001",
+                "author_device": "CwsLCwsLCwsLCwsLCwsLCw",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-86ec-7eec-99c1-95cca48643c4",
+                "entity_type": "message",
+                "entity_id": "019a72c9-86e2-7fe5-851b-be7fbc32c381",
+                "op": "create",
+                "payload": {
+                  "text": "kept"
+                },
+                "hlc": "019a72c986ec0000",
+                "author_device": "CwsLCwsLCwsLCwsLCwsLCw",
+                "protocol_version": 1,
+                "schema_version": 1
+              }
+            ]
+          }
+        ]
+      },
+      "output": {
+        "entities": [
+          {
+            "entity_type": "message",
+            "entity_id": "019a72c9-864c-7ae6-9bdf-2a40738883aa",
+            "fields": {},
+            "created": null,
+            "deleted": "019a72c9-86ec-7bb7-a36e-c2808bc17e4d"
+          },
+          {
+            "entity_type": "message",
+            "entity_id": "019a72c9-86e2-7fe5-851b-be7fbc32c381",
+            "fields": {
+              "text": {
+                "value": "kept, again",
+                "event_id": "019a72c9-86ec-77a2-bf38-756fbfa48ac3"
+              }
+            },
+            "created": "019a72c9-86ec-77a2-bf38-756fbfa48ac3",
+            "deleted": null
+          }
+        ],
+        "log": [
+          {
+            "event_id": "019a72c9-8656-7f24-8b04-1d652ac291eb",
+            "payload_purged": true
+          },
+          {
+            "event_id": "019a72c9-86ec-77a2-bf38-756fbfa48ac3",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-86ec-7bb7-a36e-c2808bc17e4d",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-86ec-7eec-99c1-95cca48643c4",
+            "payload_purged": false
+          }
+        ],
+        "unapplied": []
+      }
+    },
+    {
+      "name": "apply: unapplied events are kept, in HLC order",
+      "input": {
+        "local_device": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+        "batches": [
+          {
+            "sender": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+            "events": [
+              {
+                "event_id": "019a72c9-86f6-7952-a325-b617a11da2e1",
+                "entity_type": "profile",
+                "entity_id": "019a72c9-8200-7b30-b83b-9d8eb5c640ba",
+                "op": "update",
+                "payload": {
+                  "gender": "x"
+                },
+                "hlc": "019a72c986f60004",
+                "author_device": "CwsLCwsLCwsLCwsLCwsLCw",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-86f6-7994-8050-77c3341bc9e1",
+                "entity_type": "profile",
+                "entity_id": "019a72c9-8200-7b30-b83b-9d8eb5c640ba",
+                "op": "update",
+                "payload": {
+                  "mode": "married_cohab"
+                },
+                "hlc": "019a72c986f60003",
+                "author_device": "CwsLCwsLCwsLCwsLCwsLCw",
+                "protocol_version": 1,
+                "schema_version": 2
+              },
+              {
+                "event_id": "019a72c9-86f6-7020-a304-7b89751b726f",
+                "entity_type": "message",
+                "entity_id": "019a72c9-86e2-7fe5-851b-be7fbc32c381",
+                "op": "update",
+                "payload": {
+                  "text": "x"
+                },
+                "hlc": "019a72c986f60002",
+                "author_device": "CwsLCwsLCwsLCwsLCwsLCw",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-86f6-7483-af5d-aa40b5c4e433",
+                "entity_type": "note",
+                "entity_id": "019a72c9-86f6-7010-827f-5993910de5b8",
+                "op": "update",
+                "payload": {
+                  "t": 1
+                },
+                "hlc": "019a72c986f60001",
+                "author_device": "CwsLCwsLCwsLCwsLCwsLCw",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-86f6-7557-aa75-4adc73ec38b7",
+                "protocol_version": 2,
+                "hlc": "019a72c986f60000",
+                "shape": "unknown"
+              }
+            ]
+          }
+        ]
+      },
+      "output": {
+        "entities": [],
+        "log": [],
+        "unapplied": [
+          {
+            "event_id": "019a72c9-86f6-7557-aa75-4adc73ec38b7",
+            "reason": "newer_protocol"
+          },
+          {
+            "event_id": "019a72c9-86f6-7483-af5d-aa40b5c4e433",
+            "reason": "unknown_entity_type"
+          },
+          {
+            "event_id": "019a72c9-86f6-7020-a304-7b89751b726f",
+            "reason": "unknown_op"
+          },
+          {
+            "event_id": "019a72c9-86f6-7994-8050-77c3341bc9e1",
+            "reason": "newer_schema"
+          },
+          {
+            "event_id": "019a72c9-86f6-7952-a325-b617a11da2e1",
+            "reason": "invalid_payload"
+          }
+        ]
+      }
+    }
+  ]
+}
