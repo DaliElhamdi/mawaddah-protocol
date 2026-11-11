@@ -12,7 +12,8 @@ Nothing here has been independently reviewed yet. At least one independent revie
 | Lost or stolen phone | App lock; the partner can revoke the device; local data stays on the stolen phone until erased |
 | Shoulder-surfing | Discreet notification mode |
 | Curious relay operator or Cloudflare | The relay is blind; the metadata it sees is listed in `PRIVACY.md` |
-| Google FCM | Sees push tokens and timing only; payloads carry no content |
+| Google FCM | Sees push tokens and timing only; payloads carry no content (always exactly `{"t":"s"}`) |
+| Leaked FCM service-account key (a relay secret) | The key belongs to a dedicated account with only the FCM sending role (`relay/README.md`), so a leak lets someone send content-free pushes to the app's phones: an empty sync, never data. Revoke the key in Google Cloud and set a new secret |
 | Man-in-the-middle at pairing | QR carries a one-time secret; the safety number must be compared on the 6-digit-code path |
 | Malicious partner after a breakup | Out of scope: they keep their own copy of what they received |
 | Tampered app content | Content is compiled into the signed app |

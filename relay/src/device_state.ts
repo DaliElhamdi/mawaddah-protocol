@@ -30,7 +30,12 @@ export type RegisterResult = 'created' | 'updated' | 'conflict';
 export type AllowResult = 'allowed' | 'repeat' | 'conflict' | 'no_inbox';
 
 export type DepositResult =
-  | { readonly kind: 'stored'; readonly cursor: number }
+  | {
+      readonly kind: 'stored';
+      readonly cursor: number;
+      /** The inbox's push token at the time of the deposit (for the wake-up), or null. */
+      readonly pushToken: string | null;
+    }
   | { readonly kind: 'no_inbox' | 'not_allowed' | 'full' };
 
 export interface StoredEnvelope {
@@ -259,7 +264,8 @@ export class DeviceState {
    */
   deposit(senderKey: string, body: Uint8Array, nowMs: number): DepositResult {
     this.expire(nowMs);
-    if (this.registration() === null) return { kind: 'no_inbox' };
+    const registration = this.registration();
+    if (registration === null) return { kind: 'no_inbox' };
     if (this.allowedSender() !== senderKey) return { kind: 'not_allowed' };
     if (this.pendingBytes() + body.byteLength > MAX_PENDING_BYTES) return { kind: 'full' };
     const row = this.sql.exec(
@@ -268,7 +274,7 @@ export class DeviceState {
       nowMs,
       body,
     )[0];
-    return { kind: 'stored', cursor: row?.seq as number };
+    return { kind: 'stored', cursor: row?.seq as number, pushToken: registration.pushToken };
   }
 
   /** Total size of the envelopes waiting in this inbox. */
@@ -425,6 +431,19 @@ export class DeviceState {
     if (this.registration() === null) return false;
     this.sql.exec('UPDATE inbox SET push_token = ? WHERE id = 1', pushToken);
     return true;
+  }
+
+  /**
+   * Forgets the push token [pushToken] after FCM called it unregistered. A
+   * token the device has replaced since that wake-up was sent is kept.
+   * True when it was removed.
+   */
+  clearPushToken(pushToken: string): boolean {
+    const cleared = this.sql.exec(
+      'UPDATE inbox SET push_token = NULL WHERE id = 1 AND push_token = ? RETURNING id',
+      pushToken,
+    );
+    return cleared.length === 1;
   }
 
   /**
