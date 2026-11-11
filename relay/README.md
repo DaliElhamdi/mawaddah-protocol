@@ -2,7 +2,7 @@
 
 The **blind relay** (spec 4.5): a Cloudflare Worker with SQLite-backed Durable Objects. It carries sealed envelopes between the two phones of a pair and cannot open them. The wire format is in [`../PROTOCOL.md`](../PROTOCOL.md); what the relay can see is in [`../PRIVACY.md`](../PRIVACY.md).
 
-> **Status: in progress, not deployed.** Done so far: request signing, nonce memory, inbox registration and its rate limit (protocol #19), pairing slots (#20). Still to come: allow-list, envelopes, ACK and delete (#21), blobs and the 30-day delete (#22), push (#23), deployment (#25).
+> **Status: in progress, not deployed.** Done so far: request signing, nonce memory, inbox registration and its rate limit (protocol #19), pairing slots (#20), allow-list, envelopes, ACK, push token and inbox delete (#21). Still to come: blobs and the 30-day delete (#22), push (#23), deployment (#25).
 
 ## Endpoints so far
 | Endpoint | Signed | Purpose |
@@ -13,6 +13,12 @@ The **blind relay** (spec 4.5): a Cloudflare Worker with SQLite-backed Durable O
 | `GET /v1/pairing-slot/{slot_id or code}` | **no** | Joiner reads the initiator's bundle |
 | `POST /v1/pairing-slot/{slot_id}/reply` | yes, by the reply's key (needs an inbox) | Joiner posts its reply |
 | `GET /v1/pairing-slot/{slot_id}/reply` | yes, by the key that opened the slot | Initiator reads the reply; this closes the slot |
+| `POST /v1/inbox/{id}/allow` | yes, by the owner | Allow the partner's key to deposit (exactly one key) |
+| `PUT /v1/inbox/{id}/envelopes` | yes, by the allowed sender | Deposit one sealed envelope |
+| `GET /v1/inbox/{id}/envelopes?after=cursor` | yes, by the owner | Fetch waiting envelopes |
+| `POST /v1/inbox/{id}/ack` | yes, by the owner | Delete every envelope up to a cursor |
+| `POST /v1/inbox/{id}/push-token` | yes, by the owner | Replace the push token |
+| `DELETE /v1/inbox/{id}` | yes, by the owner | Delete the inbox, its allowed sender and its envelopes |
 
 ### `POST /v1/inbox`
 Body (JSON, at most 8 KiB):
@@ -40,6 +46,25 @@ The message flow is PROTOCOL.md section 4.5; the bundle and reply are sections 4
 
 After its 10 minutes a slot is deleted whole, whatever its state, and every route answers `404 slot_not_found` for it.
 
+### Inbox routes
+The **owner** of an inbox is the key it was registered with: the inbox ID in the path must be the one computed from the `Maw-Key` header, otherwise `403 not_inbox_owner`. A path ID that is not 22 base64url characters of 16 bytes, or an inbox that does not exist (never registered, or deleted), gets `404 inbox_not_found`. JSON bodies are at most 8 KiB; unknown fields are ignored.
+
+`POST /v1/inbox/{id}/allow`, by the owner, body `{"sender_key": "<partner's IKsig, base64url, 32 bytes>"}` (PROTOCOL.md section 4.5 step 4). From then on only that key can deposit. Exactly one key per inbox: `201 {}` the first time, `200 {}` for the same key again (a retry), `409 allow_conflict` for any other key. The pair stays fixed until the inbox is deleted (keys are fresh for each pairing, so a new pair means new inboxes).
+
+`PUT /v1/inbox/{id}/envelopes`, by the **allowed sender** (it needs no inbox of its own here), body: the sealed envelope as raw bytes (PROTOCOL.md section 7), 1 to 65,536 bytes (`413 body_too_large` above). Header `Maw-Wake: 0` or `1` is required: `1` asks for a push to the inbox owner (spec 8.7; sending pushes comes with #23). The header is not part of the signature (section 13 signs the method, path, body, time and nonce); TLS protects it in transit, and the relay, which decides on pushes anyway, could ignore it either way. Answer `201 {}`. A key that is not the allowed sender (also before any allow) gets `403 sender_not_allowed`; just after pairing this can mean the partner has not finished step 4 yet, so the sender retries with its back-off. The relay does not read the envelope. **Quota:** at most 100 MiB of envelopes wait in one inbox; a deposit that would pass it gets `409 inbox_full` (retry later: the owner's next ACK frees space).
+
+`GET /v1/inbox/{id}/envelopes` or `…/envelopes?after=<cursor>`, by the owner. Answer:
+```json
+{ "envelopes": [ { "cursor": "17", "body": "<envelope, base64url>" } ], "more": false }
+```
+Envelopes come in deposit order, after `cursor` (from the start without `after`). A page holds at most 100 envelopes and at most 1 MiB of envelope bytes, but always at least one envelope when any is waiting; `more` says whether others wait after the last one. The cursor is opaque to clients: a decimal string that increases with every deposit and is never handed out twice in an inbox, also after the envelopes before it were deleted. `after` must be a cursor the relay gave (decimal, no leading zeros) or `0`; anything else in the query gets `400 malformed_request`.
+
+`POST /v1/inbox/{id}/ack`, by the owner, body `{"cursor": "<cursor>"}`. Deletes at once, from storage, **every** envelope up to and including that cursor (the ACK is cumulative, PROTOCOL.md section 17). Answer `200 {}`, also when nothing was left to delete (a repeated ACK is harmless).
+
+`POST /v1/inbox/{id}/push-token`, by the owner, body `{"push_token": "<FCM token>"}` or `{"push_token": null}`, with the same rules as at registration. Answer `200 {}`.
+
+`DELETE /v1/inbox/{id}`, by the owner, no body. Deletes the inbox (signing key, push token, platform), its allowed sender and every waiting envelope (blobs too, once they exist, #22). Used by unpair and "Delete all data". Answer `200 {}`, also when the inbox was already gone, so a retry after a lost answer succeeds. The key's nonces are kept until they expire (15 minutes), so a request captured before the delete cannot be replayed to register the inbox again; then the device object deletes all of its storage.
+
 ## Request signing
 Every request except `GET /health` and `GET /v1/pairing-slot/{slot_id or code}` carries the four headers of PROTOCOL.md section 13 (`Maw-Key`, `Maw-Timestamp`, `Maw-Nonce`, `Maw-Signature`). The relay checks, in this order:
 1. Body size (`413 body_too_large` before anything else).
@@ -58,7 +83,10 @@ Every error is JSON `{"error": "<code>"}` with `cache-control: no-store`; a few 
 | 400 | `malformed_request` | The body is not the JSON the endpoint expects |
 | 400 | `key_mismatch` | The body names a key other than the signing key |
 | 403 | `inbox_required` | The signing key has no inbox yet (pairing-slot routes) |
+| 403 | `not_inbox_owner` | The inbox in the path is not the signing key's own |
+| 403 | `sender_not_allowed` | The signing key may not deposit into this inbox (not the allowed sender, or none allowed yet) |
 | 404 | `slot_not_found` | No live pairing slot with that code or ID (unknown, expired, or not yours) |
+| 404 | `inbox_not_found` | No inbox with that ID (never registered, deleted, or a badly formed ID) |
 | 401 | `auth_missing` | A signing header is missing |
 | 401 | `auth_malformed` | A signing header is badly formed |
 | 401 | `clock_skew` | Timestamp more than 300 s from the relay clock; adds `server_time` |
@@ -69,6 +97,8 @@ Every error is JSON `{"error": "<code>"}` with `cache-control: no-store`; a few 
 | 409 | `inbox_conflict` | Another key already holds this inbox ID (not expected to happen) |
 | 409 | `slot_used` | The pairing slot already has a reply (or it was read) |
 | 409 | `slot_conflict` | This key already opened a slot with another bundle |
+| 409 | `allow_conflict` | This inbox already allows another sender key |
+| 409 | `inbox_full` | 100 MiB of envelopes are already waiting in this inbox; try again later |
 | 413 | `body_too_large` | Body over the endpoint's limit |
 | 429 | `rate_limited` | Too many registrations, or failed code lookups, from this network; adds `retry_after` |
 | 500 | `internal_error` | Something failed inside the relay |
@@ -77,7 +107,7 @@ Every error is JSON `{"error": "<code>"}` with `cache-control: no-store`; a few 
 ## What is stored
 | Durable Object | Named by | Holds | Deleted |
 |---|---|---|---|
-| `DeviceObject` | the inbox ID | nonces of the last 15 minutes; the inbox: signing key, push token, platform | nonces after 15 minutes (alarm); an object with no inbox and no nonce deletes all its storage; the inbox itself by `DELETE /v1/inbox/{id}` (#21) |
+| `DeviceObject` | the inbox ID | nonces of the last 15 minutes; the inbox: signing key, push token, platform; the one allowed sender key; the waiting envelopes (bytes, size, deposit time, cursor) | nonces after 15 minutes (alarm); each envelope when acknowledged; the inbox, allowed sender and envelopes by `DELETE /v1/inbox/{id}`; an object with nothing left (no inbox, envelope, allowed sender or live nonce) deletes all its storage. The 30-day delete of envelopes comes with #22 |
 | `RegistrationLimitObject` | `SHA-256("mawaddah/v1/rate-limit\n" + bucket)`, bucket = the IPv4 address or the IPv6 /64 | the times of the registrations of the last hour | each time after one hour; when none is left, all its storage (alarm) |
 | `LookupLimitObject` | the same hash of the bucket (another namespace) | the times of code lookups of the last 10 minutes that found no open slot | each time after 10 minutes; every counted lookup sets the alarm (also one given back), and when none is left the alarm deletes all its storage |
 | `PairingSlotsObject` | one object, `pairing-slots` | per live slot: slot ID, code, the two signing keys, expiry, and the bundle and reply (public keys only) until the initiator reads the reply | bundle and reply when the reply is read; the whole slot 10 minutes after creation (alarm, and on every access); when none is left, all its storage |
