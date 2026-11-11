@@ -10,6 +10,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - Known-answer tests and vector files `test/vectors/rfc7748_x25519.json`, `rfc8032_ed25519.json`, `rfc5869_hkdf.json`, `rfc7693_blake2b.json`, `xchacha20poly1305.json`.
 - Device identity (PROTOCOL.md sections 3 and 5): `DeviceIdentity.generate(crypto, random)` makes the Ed25519 signing key and the X25519 key independently (32 random bytes each, seed first); `toStorageBytes` / `fromStorageBytes` for the app's secure storage (65 bytes, versioned, input zeroed, `toString` redacted); `DeviceId` (`SHA-256("mawaddah/v1/inbox" || IKsig_pub)[0..16]`, base64url, strict `parse`); `safetyNumber` (20 digits, same in both orders) and `safetyNumberGroups`.
 - `tool/gen_vectors.dart` and generated vector files `test/vectors/identity.json` and `safety_number.json` (deterministic seeds written into each case).
+- Pairing key agreement (PROTOCOL.md section 4): `PairingInitiator` and `PairingJoiner` (injected `Crypto`, `RandomSource`, `Clock`), `PairingBundle`, `PairingQr` (129 bytes, `MAWADDAH:` + base64url, strict decoding), `PairingReply`, the HKDF derivation of `SK`, `KC`, `TH`, `confirm` and `AD`, `PairingResult` (shared keys, safety number, "must be confirmed" state on the code path) and `PairingProfile` for the encrypted profile events. A slot lasts 10 minutes and takes one reply.
+- `Crypto.hmac` / `verifyHmac` (HMAC-SHA-512-256, libsodium `crypto_auth`), tested with RFC 4231 cases (`test/vectors/rfc4231_hmac.json`).
+- Generated vectors `test/vectors/pairing.json` (13 cases); `.gitleaks.toml` allowlists it and `rfc4231_hmac.json` by exact path.
 
 ### Changed
 - `package:crypto` moved from dev to normal dependencies: the device ID and relay body hashes need SHA-256, which the `sodium` Dart API does not offer (ADR 0006 point 3).

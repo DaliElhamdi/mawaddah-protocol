@@ -1,0 +1,27 @@
+{
+  "file": "rfc4231_hmac",
+  "protocol_version": 1,
+  "source": "RFC 4231 section 4.2 and 4.4 (HMAC-SHA-512), first 32 bytes; a 32-byte key is the RFC's 20-byte key padded with zeros, which HMAC treats the same",
+  "cases": [
+    {
+      "name": "RFC 4231 test case 1",
+      "input": {
+        "key": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b000000000000000000000000",
+        "message": "4869205468657265"
+      },
+      "output": {
+        "tag": "87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cde"
+      }
+    },
+    {
+      "name": "RFC 4231 test case 3",
+      "input": {
+        "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000000000000",
+        "message": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "output": {
+        "tag": "fa73b0089d56a284efb0f0756c890be9b1b5dbdd8ee81a3655f83e33b2279d39"
+      }
+    }
+  ]
+}

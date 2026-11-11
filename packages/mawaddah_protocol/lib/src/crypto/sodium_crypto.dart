@@ -294,6 +294,35 @@ final class SodiumCrypto implements Crypto {
     }
   }
 
+  // --- HMAC-SHA-512-256 --------------------------------------------------
+
+  void _checkHmacKey(SecretBytes key) {
+    if (key.length != hmacKeyLength) {
+      throw ArgumentError.value(
+        key.length,
+        'key',
+        'must be $hmacKeyLength bytes long',
+      );
+    }
+  }
+
+  @override
+  Uint8List hmac(SecretBytes key, Uint8List message) {
+    _checkHmacKey(key);
+    return _sodium.crypto.auth(message: message, key: key._live);
+  }
+
+  @override
+  bool verifyHmac(SecretBytes key, Uint8List message, Uint8List tag) {
+    _checkHmacKey(key);
+    if (tag.length != hmacLength) return false;
+    return _sodium.crypto.auth.verify(
+      tag: tag,
+      message: message,
+      key: key._live,
+    );
+  }
+
   // --- Secret bytes ------------------------------------------------------
 
   @override
