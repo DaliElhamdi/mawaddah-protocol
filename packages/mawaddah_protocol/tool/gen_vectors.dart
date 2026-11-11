@@ -25,6 +25,9 @@ Future<void> main() async {
   _write('safety_number', _safetyNumberCases(crypto));
   _write('pairing', _pairingCases(crypto));
   _write('ratchet', _ratchetCases(crypto));
+  _write('envelope', _envelopeCases(crypto));
+  _write('hlc', _hlcCases());
+  _write('uuid7', _uuid7Cases());
 }
 
 void _write(String file, List<Map<String, Object?>> cases) {
@@ -917,4 +920,534 @@ List<Map<String, Object?>> _ratchetCases(Crypto crypto) => [
       ('recv', 'alice', 'b6'),
     ],
   ),
+];
+
+// --- envelope.json -------------------------------------------------------------
+//
+// The joiner (Alice, sends first) seals her first message to the initiator
+// (Bob). Each success case has its own identities and ratchet keys, so no
+// message key is used twice across the file. Every output is derived twice:
+// by Envelope.seal, and by the reference below written straight from
+// PROTOCOL.md sections 6 and 7 on raw bytes; the generator stops if they
+// differ. Failing cases change one thing in the first case's envelope (or
+// in Bob's state) and name the error Envelope.open must give.
+
+final _envelopeLabel = ascii.encode('mawaddah/v1/envelope');
+
+/// Inputs of one sealing: both identities and the ratchet start.
+Map<String, Object?> _envelopeSetup(int seed) {
+  final setup = SeededRandom(seed);
+  return {
+    'alice': _identityInput(seed + 1),
+    'bob': _identityInput(seed + 2),
+    'root_key': _hex(setup.nextBytes(32)),
+    'associated_data': _hex(setup.nextBytes(128)),
+    'bob_ratchet_secret': _hex(setup.nextBytes(32)),
+    'alice_random': _hex(SeededRandom(seed + 3).nextBytes(32)),
+    'bob_random': _hex(SeededRandom(seed + 4).nextBytes(32)),
+  };
+}
+
+Uint8List _unhex(Object? s) {
+  final t = s! as String;
+  return Uint8List.fromList([
+    for (var i = 0; i < t.length; i += 2)
+      int.parse(t.substring(i, i + 2), radix: 16),
+  ]);
+}
+
+DeviceIdentity _identityFrom(Crypto crypto, Map<String, Object?> json) =>
+    DeviceIdentity.fromStorageBytes(
+      crypto,
+      Uint8List.fromList([
+        1,
+        ..._unhex(json['sig_seed']),
+        ..._unhex(json['dh_secret']),
+      ]),
+    );
+
+/// Both sides of [setup], with Bob's receiving state.
+({
+  DeviceIdentity alice,
+  DeviceIdentity bob,
+  RatchetSession aliceSession,
+  RatchetSession bobSession,
+})
+_envelopeSides(Crypto crypto, Map<String, Object?> setup, Clock clock) {
+  final bobPair = crypto.importX25519KeyPair(
+    _unhex(setup['bob_ratchet_secret']),
+  );
+  final bobPub = bobPair.publicKey;
+  return (
+    alice: _identityFrom(crypto, setup['alice']! as Map<String, Object?>),
+    bob: _identityFrom(crypto, setup['bob']! as Map<String, Object?>),
+    aliceSession: RatchetSession.initAlice(
+      crypto: crypto,
+      random: _FixedRandom(_unhex(setup['alice_random'])),
+      clock: clock,
+      rootKey: crypto.importSecret(_unhex(setup['root_key'])),
+      associatedData: _unhex(setup['associated_data']),
+      remoteRatchetKey: bobPub,
+    ),
+    bobSession: RatchetSession.initBob(
+      crypto: crypto,
+      random: _FixedRandom(_unhex(setup['bob_random'])),
+      clock: clock,
+      rootKey: crypto.importSecret(_unhex(setup['root_key'])),
+      associatedData: _unhex(setup['associated_data']),
+      ratchetKeyPair: bobPair,
+    ),
+  );
+}
+
+/// A RandomSource that hands out the given bytes once.
+class _FixedRandom implements RandomSource {
+  _FixedRandom(this._bytes);
+  final Uint8List _bytes;
+  var _at = 0;
+
+  @override
+  Uint8List nextBytes(int length) {
+    if (_at + length > _bytes.length) throw StateError('random exhausted');
+    return Uint8List.fromList(_bytes.sublist(_at, _at += length));
+  }
+}
+
+Map<String, Object?> _envelopeSuccess(
+  Crypto crypto, {
+  required String name,
+  required int seed,
+  required int counter,
+  required Hlc hlc,
+  required int receiverNowMs,
+  required String plaintext,
+}) {
+  final setup = _envelopeSetup(seed);
+  final clock = FakeClock(
+    DateTime.fromMillisecondsSinceEpoch(receiverNowMs, isUtc: true),
+  );
+  final sides = _envelopeSides(crypto, setup, clock);
+  final text = Uint8List.fromList(utf8.encode(plaintext));
+  final bytes = Envelope.seal(
+    crypto: crypto,
+    sender: sides.alice,
+    recipient: sides.bob.deviceId,
+    counter: counter,
+    hlc: hlc,
+    session: sides.aliceSession,
+    plaintext: text,
+  );
+
+  // Reference: PROTOCOL.md sections 6 and 7 on raw bytes.
+  final ref = _RefSide(crypto, _unhex(setup['associated_data']));
+  final aliceRatchet = _unhex(setup['alice_random']);
+  final bobPub = ref.pub(_unhex(setup['bob_ratchet_secret']));
+  final (_, cks) = ref.kdfRk(
+    _unhex(setup['root_key']),
+    ref.dh(aliceRatchet, bobPub),
+  );
+  final (_, mk) = ref.kdfCk(cks);
+  final km = ref.aeadKm(mk);
+  final padLen = (text.length ~/ 256 + 1) * 256;
+  final padded = Uint8List(padLen)
+    ..setAll(0, text)
+    ..[text.length] = 0x80;
+  final prefix = Uint8List(50)
+    ..[0] = 1
+    ..[1] = 1
+    ..setAll(2, sides.alice.deviceId.bytes)
+    ..setAll(18, sides.bob.deviceId.bytes)
+    ..setAll(42, hlc.toBytes());
+  ByteData.sublistView(prefix)
+    ..setUint32(34, counter ~/ 0x100000000)
+    ..setUint32(38, counter % 0x100000000);
+  ref
+    ..dhsSecret = aliceRatchet
+    ..dhsPub = ref.pub(aliceRatchet);
+  final header = ref.header(0, 0);
+  final ciphertext = ref.aead(
+    km,
+    padded,
+    Uint8List.fromList([...ref.ad, ...prefix, ...header]),
+    seal: true,
+  );
+  final signed = Uint8List.fromList([...prefix, ...header, ...ciphertext]);
+  final signature = crypto.sign(
+    sides.alice.signingSecretKey,
+    Uint8List.fromList([..._envelopeLabel, ...signed]),
+  );
+  final expected = [...signed, ...signature.bytes];
+  if (_hex(expected) != _hex(bytes)) {
+    throw StateError('$name: envelope differs from the reference');
+  }
+
+  // Bob opens it.
+  final opened = Envelope.open(
+    crypto: crypto,
+    bytes: bytes,
+    self: sides.bob.deviceId,
+    partner: sides.alice.publicIdentity,
+    session: sides.bobSession,
+    window: ReplayWindow(),
+    clock: HlcClock(clock),
+  );
+  if (_hex(opened.plaintext) != _hex(text)) {
+    throw StateError('$name: opened plaintext differs');
+  }
+
+  return {
+    'name': name,
+    'input': {
+      ...setup,
+      'counter': counter,
+      'hlc': hlc.toHex(),
+      'plaintext': plaintext,
+      'receiver_now_ms': receiverNowMs,
+    },
+    'output': {
+      'alice_device_id': _hex(sides.alice.deviceId.bytes),
+      'bob_device_id': _hex(sides.bob.deviceId.bytes),
+      'alice_ratchet_pub': _hex(ref.dhsPub),
+      'bob_ratchet_pub': _hex(bobPub),
+      'padded_plaintext': _hex(padded),
+      'message_key': _hex(mk),
+      'aead_key': _hex(km.sublist(0, 32)),
+      'aead_nonce': _hex(km.sublist(32)),
+      'prefix': _hex(prefix),
+      'header': _hex(header),
+      'ciphertext': _hex(ciphertext),
+      'signature': _hex(signature.bytes),
+      'envelope': _hex(bytes),
+    },
+  };
+}
+
+String _envelopeFailureName(EnvelopeFailure f) => switch (f) {
+  EnvelopeFailure.malformed => 'malformed',
+  EnvelopeFailure.unknownVersion => 'unknown_version',
+  EnvelopeFailure.wrongRecipient => 'wrong_recipient',
+  EnvelopeFailure.unknownSender => 'unknown_sender',
+  EnvelopeFailure.badSignature => 'bad_signature',
+  EnvelopeFailure.replayed => 'replayed',
+  EnvelopeFailure.fromTheFuture => 'from_the_future',
+  EnvelopeFailure.tooOld => 'too_old',
+  EnvelopeFailure.undecryptable => 'undecryptable',
+};
+
+/// A failing case: Bob, in the state of [base] changed by the arguments,
+/// opens [envelope] and must fail with [error] (checked here).
+Map<String, Object?> _envelopeFailure(
+  Crypto crypto, {
+  required String name,
+  required Map<String, Object?> base,
+  required Uint8List envelope,
+  required String error,
+  int? receiverNowMs,
+  List<int> windowAccepted = const [],
+}) {
+  final input = base['input']! as Map<String, Object?>;
+  final now = receiverNowMs ?? input['receiver_now_ms']! as int;
+  final clock = FakeClock(
+    DateTime.fromMillisecondsSinceEpoch(now, isUtc: true),
+  );
+  final sides = _envelopeSides(crypto, input, clock);
+  final window = ReplayWindow();
+  for (final c in windowAccepted) {
+    window.mark(c);
+  }
+  try {
+    Envelope.open(
+      crypto: crypto,
+      bytes: envelope,
+      self: sides.bob.deviceId,
+      partner: sides.alice.publicIdentity,
+      session: sides.bobSession,
+      window: window,
+      clock: HlcClock(clock),
+    );
+    throw StateError('$name: opened');
+  } on EnvelopeException catch (e) {
+    if (_envelopeFailureName(e.failure) != error) {
+      throw StateError('$name: got ${e.failure}, want $error');
+    }
+  }
+  return {
+    'name': name,
+    'input': {
+      for (final MapEntry(:key, :value) in input.entries)
+        if (key != 'plaintext' && key != 'counter' && key != 'hlc') key: value,
+      'receiver_now_ms': now,
+      'window_accepted': windowAccepted,
+      'envelope': _hex(envelope),
+    },
+    'error': error,
+  };
+}
+
+List<Map<String, Object?>> _envelopeCases(Crypto crypto) {
+  const now = 1762862400000; // 2025-11-11T12:00:00Z
+  final first = _envelopeSuccess(
+    crypto,
+    name: 'first message, short plaintext',
+    seed: 300,
+    counter: 1,
+    hlc: Hlc(now - 5000, 0),
+    receiverNowMs: now,
+    plaintext:
+        '{"events":[{"event_id":"019a72d3-6a38-7cc1-9a2e-3f6d4b8c1e07",'
+        '"entity_type":"message","entity_id":'
+        '"019a72d3-6a38-7cc1-9a2e-3f6d4b8c1e08","op":"create",'
+        '"payload":{"text":"Salam"},"hlc":"019a72d36a380000",'
+        '"author_device":"AAAAAAAAAAAAAAAAAAAAAA","protocol_version":1,'
+        '"schema_version":1}]}',
+  );
+  final sizes = <Map<String, Object?>>[
+    _envelopeSuccess(
+      crypto,
+      name: '255-byte plaintext (one block), counter above 2^32',
+      seed: 310,
+      counter: 0x100000001,
+      hlc: Hlc(now, 0xffff),
+      receiverNowMs: now,
+      plaintext: '{"events":[${'"x",' * 48}"${'y' * 48}"]}',
+    ),
+    _envelopeSuccess(
+      crypto,
+      name: '256-byte plaintext (two blocks)',
+      seed: 320,
+      counter: 7,
+      hlc: Hlc(now - 1000, 3),
+      receiverNowMs: now,
+      plaintext: '{"events":[${'"x",' * 48}"${'y' * 49}"]}',
+    ),
+  ];
+  for (final (c, length) in [(sizes[0], 255), (sizes[1], 256)]) {
+    final text = (c['input']! as Map<String, Object?>)['plaintext']! as String;
+    if (text.length != length) throw StateError('${c['name']}: $length');
+  }
+  final out = [first, ...sizes];
+  final good = _unhex((first['output']! as Map<String, Object?>)['envelope']);
+  final input = first['input']! as Map<String, Object?>;
+  final hlcMs = Hlc.parse(input['hlc']! as String).physicalMs;
+  Uint8List flipped(int i) => Uint8List.fromList(good)..[i] ^= 1;
+
+  // Re-signed by Alice after changing a ciphertext byte: the signature
+  // checks, the ratchet cannot open it.
+  final alice = _identityFrom(crypto, input['alice']! as Map<String, Object?>);
+  final body = flipped(100).sublist(0, good.length - 64);
+  final resigned = Uint8List.fromList([
+    ...body,
+    ...crypto
+        .sign(
+          alice.signingSecretKey,
+          Uint8List.fromList([..._envelopeLabel, ...body]),
+        )
+        .bytes,
+  ]);
+  // Sealed by Alice to a third device.
+  final setup = Map<String, Object?>.from(input);
+  final sides = _envelopeSides(
+    crypto,
+    setup,
+    FakeClock(DateTime.fromMillisecondsSinceEpoch(now, isUtc: true)),
+  );
+  final elsewhere = Envelope.seal(
+    crypto: crypto,
+    sender: sides.alice,
+    recipient: _identity(crypto, 399).deviceId,
+    counter: 1,
+    hlc: Hlc(now - 5000, 0),
+    session: sides.aliceSession,
+    plaintext: Uint8List.fromList(utf8.encode('{"events":[]}')),
+  );
+
+  out.addAll([
+    _envelopeFailure(
+      crypto,
+      name: 'tampered ciphertext byte',
+      base: first,
+      envelope: flipped(100),
+      error: 'bad_signature',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'tampered HLC byte',
+      base: first,
+      envelope: flipped(49),
+      error: 'bad_signature',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'tampered signature byte',
+      base: first,
+      envelope: flipped(good.length - 1),
+      error: 'bad_signature',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'replayed counter',
+      base: first,
+      envelope: good,
+      windowAccepted: [1],
+      error: 'replayed',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'counter behind the window (highest accepted 1025)',
+      base: first,
+      envelope: good,
+      windowAccepted: [1025],
+      error: 'replayed',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'HLC more than 1 hour ahead of the receiver',
+      base: first,
+      envelope: good,
+      receiverNowMs: hlcMs - 3600000 - 1,
+      error: 'from_the_future',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'HLC more than 31 days behind the receiver',
+      base: first,
+      envelope: good,
+      receiverNowMs: hlcMs + 31 * 86400000 + 1,
+      error: 'too_old',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'wrong recipient',
+      base: first,
+      envelope: elsewhere,
+      error: 'wrong_recipient',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'unknown sender',
+      base: first,
+      envelope: flipped(2),
+      error: 'unknown_sender',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'unknown version',
+      base: first,
+      envelope: Uint8List.fromList(good)..[0] = 2,
+      error: 'unknown_version',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'one byte short',
+      base: first,
+      envelope: good.sublist(0, good.length - 1),
+      error: 'malformed',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'counter 0',
+      base: first,
+      envelope: flipped(41),
+      error: 'malformed',
+    ),
+    _envelopeFailure(
+      crypto,
+      name: 'signed by the sender but not decryptable',
+      base: first,
+      envelope: resigned,
+      error: 'undecryptable',
+    ),
+  ]);
+  return out;
+}
+
+// --- hlc.json --------------------------------------------------------------------
+
+List<Map<String, Object?>> _hlcCases() {
+  const ms = 1762862400000;
+  Map<String, Object?> run(
+    String name,
+    Hlc start,
+    List<(String, int, Hlc?)> ops,
+  ) {
+    var nowMs = 0;
+    final clock = _MsClock(() => nowMs);
+    final hlc = HlcClock(clock, last: start);
+    final values = <String>[];
+    for (final (op, now, remote) in ops) {
+      nowMs = now;
+      values.add((op == 'send' ? hlc.send() : hlc.receive(remote!)).toHex());
+    }
+    return {
+      'name': name,
+      'input': {
+        'start': start.toHex(),
+        'ops': [
+          for (final (op, now, remote) in ops)
+            {'op': op, 'now_ms': now, 'remote': ?remote?.toHex()},
+        ],
+      },
+      'output': {'values': values},
+    };
+  }
+
+  return [
+    run('send on a still, a moving and a backward clock', Hlc.zero, [
+      ('send', ms, null),
+      ('send', ms, null),
+      ('send', ms, null),
+      ('send', ms + 5, null),
+      ('send', ms - 3600000, null),
+      ('send', ms - 3600000, null),
+      ('send', ms + 6, null),
+    ]),
+    run('receive: the four cases', Hlc(ms + 100, 4), [
+      ('receive', ms, Hlc(ms + 100, 9)), // l' == l == l_m
+      ('receive', ms, Hlc(ms + 50, 99)), // l' == l
+      ('receive', ms, Hlc(ms + 200, 7)), // l' == l_m
+      ('receive', ms + 300, Hlc(ms + 250, 7)), // now is largest
+      ('send', ms + 300, null),
+    ]),
+    run('a full counter moves the physical part on by 1 ms', Hlc(ms, 0xfffe), [
+      ('send', ms, null),
+      ('send', ms, null),
+      ('send', ms, null),
+      ('receive', ms, Hlc(ms + 60000, 0xffff)),
+      ('receive', ms, Hlc(ms + 60001, 0xffff)),
+    ]),
+  ];
+}
+
+class _MsClock implements Clock {
+  _MsClock(this._ms);
+  final int Function() _ms;
+
+  @override
+  DateTime now() => DateTime.fromMillisecondsSinceEpoch(_ms(), isUtc: true);
+}
+
+// --- uuid7.json ------------------------------------------------------------------
+
+List<Map<String, Object?>> _uuid7Cases() => [
+  for (final (name, ms, random) in [
+    ('all-zero random bytes', 1762862400000, Uint8List(10)),
+    (
+      'all-one random bytes',
+      1762862400000,
+      Uint8List(10)..fillRange(0, 10, 0xff),
+    ),
+    ('SeededRandom(500)', 1762862400123, SeededRandom(500).nextBytes(10)),
+    ('time 0', 0, SeededRandom(501).nextBytes(10)),
+    ('largest 48-bit time', 0xffffffffffff, SeededRandom(502).nextBytes(10)),
+  ])
+    {
+      'name': name,
+      'input': {'now_ms': ms, 'random': _hex(random)},
+      'output': {
+        'uuid': Uuid7.generate(
+          _MsClock(() => ms),
+          _FixedRandom(Uint8List.fromList(random)),
+        ),
+      },
+    },
 ];

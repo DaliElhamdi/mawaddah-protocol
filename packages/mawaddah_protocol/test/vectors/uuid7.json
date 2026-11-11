@@ -1,0 +1,57 @@
+{
+  "file": "uuid7",
+  "protocol_version": 1,
+  "generated_by": "packages/mawaddah_protocol/tool/gen_vectors.dart",
+  "cases": [
+    {
+      "name": "all-zero random bytes",
+      "input": {
+        "now_ms": 1762862400000,
+        "random": "00000000000000000000"
+      },
+      "output": {
+        "uuid": "019a72c9-8200-7000-8000-000000000000"
+      }
+    },
+    {
+      "name": "all-one random bytes",
+      "input": {
+        "now_ms": 1762862400000,
+        "random": "ffffffffffffffffffff"
+      },
+      "output": {
+        "uuid": "019a72c9-8200-7fff-bfff-ffffffffffff"
+      }
+    },
+    {
+      "name": "SeededRandom(500)",
+      "input": {
+        "now_ms": 1762862400123,
+        "random": "b1375705964c4910184d"
+      },
+      "output": {
+        "uuid": "019a72c9-827b-7137-9705-964c4910184d"
+      }
+    },
+    {
+      "name": "time 0",
+      "input": {
+        "now_ms": 0,
+        "random": "7dfc94a65d83354ac8e8"
+      },
+      "output": {
+        "uuid": "00000000-0000-7dfc-94a6-5d83354ac8e8"
+      }
+    },
+    {
+      "name": "largest 48-bit time",
+      "input": {
+        "now_ms": 281474976710655,
+        "random": "78c2c46e277825cf2110"
+      },
+      "output": {
+        "uuid": "ffffffff-ffff-78c2-846e-277825cf2110"
+      }
+    }
+  ]
+}

@@ -220,7 +220,7 @@ One envelope carries one ratchet message. Binary, at most 65,536 bytes (relay li
 | 1 | 1 | `type` | `0x01` = ratchet message (the only type in v1) |
 | 2 | 16 | `sender_id` | sender's device ID |
 | 18 | 16 | `recipient_id` | recipient's device ID |
-| 34 | 8 | `counter` | `u64`, per sender, starts at 1, +1 for every envelope sealed, never reused (the sender stores the new value before sealing, so a crash cannot reuse one) |
+| 34 | 8 | `counter` | `u64`, per sender, starts at 1, +1 for every envelope sealed, never reused (the sender stores the new value before sealing, so a crash cannot reuse one); at most 2^63 − 1 |
 | 42 | 8 | `hlc` | `u64`, sender's HLC when sealed (section 9) |
 | 50 | 32 | `dh_pub` | sender's current ratchet public key |
 | 82 | 4 | `pn` | `u32`, length of the previous sending chain |
@@ -234,22 +234,22 @@ One envelope carries one ratchet message. Binary, at most 65,536 bytes (relay li
 
 ## 8. Receiving an envelope
 In this order; any failure rejects the envelope:
-1. **Parse.** Length 426 (90 + 272 + 64) to 65,536 bytes; known `version` and `type`. An unknown `version` or `type` is not an error to drop: keep the raw bytes as unapplied, acknowledge it, and show the "newer version" card (section 11). Its signature cannot be checked yet, so at most 100 such envelopes are kept (oldest deleted first).
+1. **Parse.** At most 65,536 bytes; known `version` and `type`, read before the v1 length rules so that a later version is never called malformed because its layout differs. An unknown `version` or `type` is not an error to drop: keep the raw bytes as unapplied, acknowledge it, and show the "newer version" card (section 11). Its signature cannot be checked yet, so at most 100 such envelopes are kept (oldest deleted first). For v1: length 426 (90 + 272 + 64) or more, `L` a multiple of 256 plus 16 (section 7), and `counter` from 1 to 2^63 − 1; anything else is malformed.
 2. **Addresses.** `recipient_id` is this device and `sender_id` is the paired partner.
 3. **Signature** with the partner's `IKsig`.
 4. **Replay window** (RFC 4303 §3.4.3, window `W = 1024`): reject if `counter` ≤ highest accepted counter − `W`, or if `counter` is already marked in the window.
 5. **Time window:** let `t` = the physical part of `hlc` and `now` = the receiver's clock. If `t > now + 1 hour`, do not acknowledge it: leave it on the relay and try again at the next sync; after 24 hours of retrying, show "One of your phones has the wrong date or time". If `t < now − 31 days`, reject it (the relay deletes everything older than 30 days, so it cannot be genuine).
-6. **Decrypt** with the ratchet (`RatchetDecrypt`, including skipped keys). If decryption fails, keep the raw envelope as unapplied with reason `undecryptable` rather than dropping it.
+6. **Decrypt** with the ratchet (`RatchetDecrypt`, including skipped keys). If decryption fails, or the decrypted bytes have no valid padding, keep the raw envelope as unapplied with reason `undecryptable` rather than dropping it.
 7. **Unpad and parse** the events; store and apply each one (sections 10–11).
 8. **Commit** the new ratchet state, the replay window, the receiver's HLC and the events in one database transaction, **then** acknowledge the envelope to the relay. If the app dies before the ACK, the relay delivers it again and step 4 or event idempotency makes the repeat harmless.
 
-Rejected envelopes (steps 2–4, and step 5 when too old) are acknowledged and discarded, and counted in the debug log with no content. An `undecryptable` envelope passed the signature check, so its counter is marked in the replay window.
+Rejected envelopes (malformed ones in step 1, steps 2–4, and step 5 when too old) are acknowledged and discarded, and counted in the debug log with no content. An `undecryptable` envelope passed the signature check, so its counter is marked in the replay window. Only the time check of step 5 needs a clock: the boundaries `now + 1 hour` and `now − 31 days` are themselves accepted.
 
 ## 9. Hybrid logical clock (HLC)
 64 bits: the high 48 bits are the physical time in milliseconds since the Unix epoch (UTC), the low 16 bits a logical counter. Algorithm from Kulkarni et al. (section 2):
 - **Local event or send:** `l' = max(l, now_ms)`; if `l' == l` then `c' = c + 1` else `c' = 0`.
 - **Receive** (remote `l_m`, `c_m`): `l' = max(l, l_m, now_ms)`; `c'` = `max(c, c_m) + 1` if `l' == l == l_m`, `c + 1` if `l' == l`, `c_m + 1` if `l' == l_m`, else `0`.
-- If `c` would exceed 65,535, wait for the next millisecond. `now_ms` comes from the injected `Clock`.
+- If `c` would exceed 65,535, use `l' = l' + 1` and `c' = 0`. For a local event this is the value waiting for the next millisecond would give, without blocking; it also works on receive, when `l'` comes from a partner clock that is ahead (up to 1 hour, section 8) and waiting would not help. `now_ms` comes from the injected `Clock`; a reading before 1970 counts as 0.
 - Total order of events: compare `hlc`, then `author_device` bytes. This is the last-writer-wins order of section 10.
 - In JSON an HLC is 16 lowercase hexadecimal digits, so string order equals numeric order.
 
@@ -268,7 +268,7 @@ Every change is an immutable event (spec 4.6). Fields:
 | `protocol_version` | integer | ≥ 1 | protocol the author used (section 11) |
 | `schema_version` | integer | ≥ 1 | version of this `entity_type`'s payload |
 
-- The UUID v7 time comes from the `Clock` and the random bits from the `RandomSource`.
+- The UUID v7 time comes from the `Clock` and the random bits from the `RandomSource`: with 10 random bytes `r`, the 16 bytes are `unix_ts_ms` (48 bits, big-endian), `0x70 | (r[0] & 0x0f)`, `r[1]`, `0x80 | (r[2] & 0x3f)`, `r[3..10]` (RFC 9562 section 5.7, fixed-length random fields, no counter).
 - **Merge rules** (spec 4.6): mutable entities use field-level last-writer-wins: an `update` payload holds only changed fields, and each field keeps the value of the event with the highest (`hlc`, `author_device`). Append-only entities (chat messages, answers, logs) are only created; a later `delete` is a tombstone: the entity is hidden and its payload is purged from the log. A `snapshot` replaces all earlier events of its entity type up to its `hlc` (compaction and initial sync).
 - Events from the partner are checked: `author_device` must be the sender of the envelope that carried them.
 
@@ -342,8 +342,8 @@ Committed in `packages/mawaddah_protocol/test/vectors/`, used by the package tes
 | `pairing.json` | both paths: the random bytes each side draws (initiator: identity 64, `EKi` 32, `S` 16; joiner: identity 64, `EKj` 32) and the slot ID → bundle, QR text, reply, DH1–3, `SK`, `KC`, `TH`, `confirm`, `AD`, safety number; failing cases (wrong `S`, changed `confirm`, reply for another initiator, relabelled path, second reply, bad bundle signature, malformed QR texts) with the error name |
 | `safety_number.json` | key pairs (both orders) → 20 digits |
 | `ratchet.json` | a scripted conversation from `SK`, `AD`, the initiator's `EKi` secret and each side's random bytes (32 per new ratchet key): each step's side, plaintext, envelope bytes 0..50, header, chain key, `mk`, AEAD key and nonce, ciphertext, and at each DH ratchet step the new ratchet key, root key and both chain keys; two cases: in order with turn changes and crossing messages, and out of order (keys skipped in the current chain and, through `pn`, in the previous one; messages opened later from stored keys), where receive steps also list the skipped keys they create and the number stored |
-| `envelope.json` | header fields and plaintext → padded plaintext, envelope bytes, signature; rejected cases (tampered byte, replayed counter, time out of window, wrong recipient) with the expected error |
-| `hlc.json`, `uuid7.json` | clock readings → HLC values; clock and random bytes → UUID v7 |
+| `envelope.json` | both identities (seeds), `SK`, `AD`, both ratchet keys, counter, HLC and plaintext → device IDs, padded plaintext, `mk`, AEAD key and nonce, bytes 0..50, ratchet header, ciphertext, signature and the whole envelope (the joiner's first message, three sizes); rejected cases built from the first one, each with the receiver's clock and replay window: tampered ciphertext, HLC and signature bytes, replayed counter, counter behind the window, time ahead and too old, wrong recipient, unknown sender, unknown version, short, counter 0, and re-signed but undecryptable, with the error name |
+| `hlc.json`, `uuid7.json` | a start value and a list of sends and receives with the clock reading at each → each HLC value (clock going back, the four receive cases, a full counter); clock and 10 random bytes → UUID v7 |
 | `relay_signing.json` | method, path, body, timestamp, nonce, key seed → signing input and signature |
 
 Format of every file:
