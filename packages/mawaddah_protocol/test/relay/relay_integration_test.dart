@@ -20,6 +20,13 @@ import '../sync/sync_support.dart' show pairedDevice;
 
 final _url = Platform.environment['MAWADDAH_RELAY_URL'];
 
+/// These tests create inboxes and use up rate limits: only ever against a
+/// relay on this computer, never staging or production.
+bool get _local {
+  final host = Uri.tryParse(_url ?? '')?.host;
+  return host == '127.0.0.1' || host == 'localhost' || host == '::1';
+}
+
 /// The real time: the relay refuses requests more than 300 s off its clock.
 final class _Now implements Clock {
   _Now([this.offset = Duration.zero]);
@@ -86,7 +93,11 @@ void main() {
 
   group(
     'local relay',
-    skip: _url == null ? 'MAWADDAH_RELAY_URL not set' : false,
+    skip: _url == null
+        ? 'MAWADDAH_RELAY_URL not set'
+        : _local
+        ? false
+        : 'MAWADDAH_RELAY_URL must be a relay on this computer',
     () {
       test('code path: pair, chat both ways, blobs, errors, delete', () async {
         final ip = newIp();

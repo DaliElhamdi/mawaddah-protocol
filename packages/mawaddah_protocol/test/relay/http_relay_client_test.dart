@@ -115,6 +115,15 @@ void main() {
       ]) {
         expect(() => at(ok), returnsNormally, reason: ok);
       }
+      // The error shows the scheme and host only.
+      try {
+        at('ftp://user:pw@relay.example/?k=v');
+        fail('refused expected');
+      } on ArgumentError catch (e) {
+        expect('$e', contains('ftp://relay.example'));
+        expect('$e', isNot(contains('pw')));
+        expect('$e', isNot(contains('k=v')));
+      }
       for (final bad in [
         'http://relay.example',
         'http://192.168.1.10:8787',
@@ -168,7 +177,7 @@ void main() {
           pushToken: null,
           platform: RelayPlatform.ios,
         ),
-        throwsA(_code(RelayErrorCode.badResponse)),
+        throwsA(_code(RelayErrorCode.invalidResponse)),
       );
       expect(jsonDecode(lying.sent.first.body)['push_token'], isNull);
     });
@@ -248,7 +257,7 @@ void main() {
       ]) {
         await expectLater(
           make((_) => _json(body)).client.createPairingSlot(initiator.bundle),
-          throwsA(_code(RelayErrorCode.badResponse)),
+          throwsA(_code(RelayErrorCode.invalidResponse)),
           reason: '$body',
         );
       }
@@ -266,7 +275,7 @@ void main() {
             (_) => _json(body),
             signed: false,
           ).client.lookupPairingSlot(_id(3)),
-          throwsA(_code(RelayErrorCode.badResponse)),
+          throwsA(_code(RelayErrorCode.invalidResponse)),
           reason: '$body',
         );
       }
@@ -279,7 +288,7 @@ void main() {
       ]) {
         await expectLater(
           make((_) => _json(body)).client.readPairingReply(_id(3)),
-          throwsA(_code(RelayErrorCode.badResponse)),
+          throwsA(_code(RelayErrorCode.invalidResponse)),
           reason: '$body',
         );
       }
@@ -406,14 +415,20 @@ void main() {
           ],
           'more': false,
         },
-        [],
       ]) {
         await expectLater(
           make((_) => _json(body)).client.fetch(inbox, after: '5'),
-          throwsA(_code(RelayErrorCode.badResponse)),
+          throwsA(_code(RelayErrorCode.invalidResponse)),
           reason: '$body',
         );
       }
+    });
+
+    test('an answer that is not a JSON object is a bad response', () async {
+      await expectLater(
+        make((_) => _json(<Object?>[])).client.fetch(inbox),
+        throwsA(_code(RelayErrorCode.badResponse)),
+      );
     });
 
     test('blob chunks: path, query, raw bytes and the size header', () async {
@@ -463,6 +478,26 @@ void main() {
         ),
         throwsArgumentError,
       );
+      // A blob of 1 MiB + 3: chunk 0 must be a full 1 MiB, chunk 1 exactly
+      // 3 bytes; there is no chunk 2.
+      for (final (index, length) in [
+        (0, relayBlobChunkLength - 1),
+        (1, 2),
+        (1, 4),
+        (2, 3),
+      ]) {
+        await expectLater(
+          make(
+            (_) => http.Response.bytes(
+              Uint8List(length),
+              200,
+              headers: {'maw-blob-size': '${relayBlobChunkLength + 3}'},
+            ),
+          ).client.getBlobChunk(inbox, blob, index),
+          throwsA(_code(RelayErrorCode.invalidResponse)),
+          reason: 'chunk $index of $length bytes',
+        );
+      }
       for (final body in [Uint8List(0), Uint8List(relayBlobChunkLength + 1)]) {
         await expectLater(
           make(
@@ -472,7 +507,7 @@ void main() {
               headers: {'maw-blob-size': '$maxRelayBlobLength'},
             ),
           ).client.getBlobChunk(inbox, blob, 0),
-          throwsA(_code(RelayErrorCode.badResponse)),
+          throwsA(_code(RelayErrorCode.invalidResponse)),
           reason: '${body.length} bytes',
         );
       }
@@ -485,7 +520,7 @@ void main() {
               headers: {'maw-blob-size': ?size},
             ),
           ).client.getBlobChunk(inbox, blob, 0),
-          throwsA(_code(RelayErrorCode.badResponse)),
+          throwsA(_code(RelayErrorCode.invalidResponse)),
           reason: '$size',
         );
       }
@@ -506,6 +541,21 @@ void main() {
         () => t.client.readPairingReply('x'),
       ]) {
         await expectLater(call(), throwsArgumentError);
+      }
+      // The error names the parameter, never the value (a code, an ID).
+      for (final call in <Future<void> Function()>[
+        () => t.client.lookupPairingSlot('12345'),
+        () => t.client.fetch('${_id(1)}x'),
+        () => t.client.ack(inbox, '0123'),
+      ]) {
+        try {
+          await call();
+          fail('ArgumentError expected');
+        } on ArgumentError catch (e) {
+          expect('$e', isNot(contains('12345')));
+          expect('$e', isNot(contains(_id(1))));
+          expect('$e', isNot(contains('0123')));
+        }
       }
       expect(t.sent, isEmpty);
     });
@@ -529,6 +579,7 @@ void main() {
           RelayErrorCode.network,
           RelayErrorCode.timeout,
           RelayErrorCode.badResponse,
+          RelayErrorCode.invalidResponse,
         }.contains(c),
       );
       // The relay's table (relay/README.md, "Errors"): 30 codes.
@@ -560,6 +611,9 @@ void main() {
       expect(caught!.retryable, isTrue);
       await run(_json({'error': 'rate_limited'}, 429, {'retry-after': '30'}));
       expect(caught!.retryAfter, const Duration(seconds: 30));
+      // A wait longer than any relay window is capped.
+      await run(_err('rate_limited', 429, {'retry_after': 86400}));
+      expect(caught!.retryAfter, HttpRelayClient.maxRetryAfter);
       await run(_err('clock_skew', 401, {'server_time': 1800000000}));
       expect(caught!.serverTime, DateTime.utc(2027, 1, 15, 8));
       expect(caught!.retryable, isFalse);
@@ -651,6 +705,7 @@ void main() {
         RelayErrorCode.blobNotFound,
         RelayErrorCode.clockSkew,
         RelayErrorCode.badSignature,
+        RelayErrorCode.invalidResponse,
       ]) {
         expect(r(c), isFalse, reason: c.name);
       }
@@ -703,6 +758,39 @@ void main() {
         expect(t.sent, hasLength(1), reason: code);
         expect(t.slept, isEmpty);
       }
+    });
+
+    test('deposit is tried once (the engine resends the same bytes)', () async {
+      final t = make((_) => throw http.ClientException('dropped'));
+      await expectLater(
+        t.client.deposit(_id(5), Uint8List(1)),
+        throwsA(_code(RelayErrorCode.network)),
+      );
+      expect(t.sent, hasLength(1));
+    });
+
+    test('a code lookup is tried once; a slot-ID lookup is retried', () async {
+      var t = make((_) => throw http.ClientException('dropped'), signed: false);
+      await expectLater(
+        t.client.lookupPairingSlot('123456'),
+        throwsA(_code(RelayErrorCode.network)),
+      );
+      expect(t.sent, hasLength(1));
+      t = make((_) => throw http.ClientException('dropped'), signed: false);
+      await expectLater(
+        t.client.lookupPairingSlot(_id(3)),
+        throwsA(_code(RelayErrorCode.network)),
+      );
+      expect(t.sent, hasLength(3));
+    });
+
+    test('an invalid answer is not retried', () async {
+      final t = make((_) => _json({'inbox_id': _id(7)}, 201));
+      await expectLater(
+        t.client.registerInbox(pushToken: null, platform: RelayPlatform.ios),
+        throwsA(_code(RelayErrorCode.invalidResponse)),
+      );
+      expect(t.sent, hasLength(1));
     });
 
     test(
@@ -864,7 +952,7 @@ void main() {
       final looping = _Looping(alice);
       await expectLater(
         looping.uploadBlob(bobInbox, _id(5), file(2 * relayBlobChunkLength)),
-        throwsA(_code(RelayErrorCode.badResponse)),
+        throwsA(_code(RelayErrorCode.invalidResponse)),
       );
       expect(looping.puts, lessThanOrEqualTo(7));
     });
@@ -873,7 +961,7 @@ void main() {
       await alice.uploadBlob(bobInbox, _id(6), file(relayBlobChunkLength + 1));
       await expectLater(
         _Shrinking(bob).downloadBlob(bobInbox, _id(6)),
-        throwsA(_code(RelayErrorCode.badResponse)),
+        throwsA(_code(RelayErrorCode.invalidResponse)),
       );
     });
   });

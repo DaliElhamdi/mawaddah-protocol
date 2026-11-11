@@ -229,7 +229,7 @@ extension RelayBlobTransfer on RelayClient {
     // cannot hold it forever.
     for (var steps = 0; chunk < count; steps++) {
       if (steps > 3 * count) {
-        throw const RelayException(RelayErrorCode.badResponse);
+        throw const RelayException(RelayErrorCode.invalidResponse);
       }
       final start = chunk * relayBlobChunkLength;
       final end = start + relayBlobChunkLength < size
@@ -268,7 +268,7 @@ extension RelayBlobTransfer on RelayClient {
     try {
       count = relayBlobChunkCount(size);
     } on RangeError {
-      throw const RelayException(RelayErrorCode.badResponse);
+      throw const RelayException(RelayErrorCode.invalidResponse);
     }
     final out = Uint8List(size);
     var offset = 0;
@@ -280,7 +280,7 @@ extension RelayBlobTransfer on RelayClient {
           ? size - chunk * relayBlobChunkLength
           : relayBlobChunkLength;
       if (part.blobSize != size || part.bytes.length != expected) {
-        throw const RelayException(RelayErrorCode.badResponse);
+        throw const RelayException(RelayErrorCode.invalidResponse);
       }
       out.setRange(offset, offset + expected, part.bytes);
       offset += expected;

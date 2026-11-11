@@ -23,18 +23,28 @@ import 'relay_signing.dart';
 /// - An answer is checked before it is used; one that does not fit the
 ///   route is [RelayErrorCode.badResponse], never a crash.
 /// - **Retries:** a try that gets no answer, times out, or meets a passing
-///   server fault (`internal_error`, a 5xx without a known code, a garbled
-///   answer) is tried again after each of [retryDelays], so a short network
-///   drop does not fail a sync. Everything else (`rate_limited`,
+///   server fault (`internal_error`, a 5xx without a known code, an answer
+///   that is not JSON) is tried again after each of [retryDelays], so a
+///   short network drop does not fail a sync. Not repeated here:
+///   [deposit] (a lost answer would store the envelope twice; the sync
+///   engine resends the same bytes on its next run), [readPairingReply]
+///   (the reply can be read once) and a code lookup (a repeat could use up
+///   one of the network's wrong guesses). Everything else (`rate_limited`,
 ///   `inbox_full`, `sender_not_allowed`, …) is thrown at once: the caller
-///   decides when to try again, with [RelayException.retryable] and its own
-///   back-off (PROTOCOL.md section 17). Every route is safe to repeat
-///   (`relay/README.md`), except [readPairingReply], which is tried once.
+///   decides when to try again, with [RelayException.retryable] and its
+///   own back-off (PROTOCOL.md section 17). One call takes at most
+///   3 × [timeout] plus the delays.
+/// - An answer that parses but breaks the route's rules (an inbox ID that
+///   is not the key's, cursors that do not increase, a chunk of the wrong
+///   length, …) is `invalid_response`: a broken or hostile relay, never
+///   retried.
 final class HttpRelayClient implements RelayClient {
   /// [baseUrl] is the relay's origin, e.g. `https://relay.example`: HTTPS,
   /// no path, query or user info. Plain `http` is accepted only for
   /// `localhost`, `127.0.0.1`, `[::1]` and `10.0.2.2` (the Android
-  /// emulator's name for the computer it runs on), for local tests.
+  /// emulator's name for the computer it runs on), for local tests. The
+  /// package cannot tell a release build from a debug one: the app makes
+  /// sure its release builds use the HTTPS production address.
   ///
   /// [httpClient] defaults to a new `http.Client`, closed by [close]; a
   /// client passed in is left open.
@@ -99,7 +109,7 @@ final class HttpRelayClient implements RelayClient {
     // The relay computes the ID from the key (PROTOCOL.md section 3); one
     // that does not match would send the partner's envelopes elsewhere.
     if (id is! String || id != s.identity.deviceId.toBase64Url()) {
-      throw _bad;
+      throw _invalid;
     }
     return id;
   }
@@ -116,7 +126,7 @@ final class HttpRelayClient implements RelayClient {
         !_code.hasMatch(code) ||
         expiresAt is! int ||
         expiresAt < 0) {
-      throw _bad;
+      throw _invalid;
     }
     return PairingSlot(
       slotId: slotId,
@@ -131,16 +141,24 @@ final class HttpRelayClient implements RelayClient {
   @override
   Future<PairingSlotLookup> lookupPairingSlot(String handle) async {
     if (!_code.hasMatch(handle) && !isRelayId(handle)) {
-      throw ArgumentError.value(handle, 'handle', 'not a code or slot ID');
+      // The handle is a pairing code: never quoted in the error.
+      throw ArgumentError('not a 6-digit code or a slot ID', 'handle');
     }
-    final json = await _json('GET', '/v1/pairing-slot/$handle', signed: false);
+    final json = await _json(
+      'GET',
+      '/v1/pairing-slot/$handle',
+      signed: false,
+      // A code lookup that found nothing counts against the network's 5
+      // wrong guesses: never spend one on a repeat.
+      retry: isRelayId(handle),
+    );
     final slotId = json['slot_id'];
     final bundle = json['bundle'];
     if (slotId is! String ||
         !isRelayId(slotId) ||
         (isRelayId(handle) && slotId != handle) ||
         bundle is! Map<String, Object?>) {
-      throw _bad;
+      throw _invalid;
     }
     try {
       return PairingSlotLookup(
@@ -148,7 +166,7 @@ final class HttpRelayClient implements RelayClient {
         bundle: PairingBundle.fromJson(bundle),
       );
     } on FormatException {
-      throw _bad;
+      throw _invalid;
     }
   }
 
@@ -166,14 +184,14 @@ final class HttpRelayClient implements RelayClient {
       '/v1/pairing-slot/$slotId/reply',
       retry: false,
     );
-    if (!json.containsKey('reply')) throw _bad;
+    if (!json.containsKey('reply')) throw _invalid;
     final reply = json['reply'];
     if (reply == null) return null;
-    if (reply is! Map<String, Object?>) throw _bad;
+    if (reply is! Map<String, Object?>) throw _invalid;
     try {
       return PairingReply.fromJson(reply);
     } on FormatException {
-      throw _bad;
+      throw _invalid;
     }
   }
 
@@ -206,6 +224,10 @@ final class HttpRelayClient implements RelayClient {
       body: body,
       contentType: _octets,
       extraHeaders: {_wakeHeader: wake ? '1' : '0'},
+      // Not repeated here: a lost answer would store the envelope twice
+      // and send a second wake-up. The sync engine deposits the same bytes
+      // again on its next run (PROTOCOL.md section 17).
+      retry: false,
     );
   }
 
@@ -217,28 +239,28 @@ final class HttpRelayClient implements RelayClient {
     final json = await _json('GET', '/v1/inbox/$inboxId/envelopes$query');
     final list = json['envelopes'];
     final more = json['more'];
-    if (list is! List<Object?> || more is! bool) throw _bad;
+    if (list is! List<Object?> || more is! bool) throw _invalid;
     final envelopes = <RelayEnvelope>[];
     var last = after == null ? BigInt.zero : BigInt.parse(after);
     for (final item in list) {
-      if (item is! Map<String, Object?>) throw _bad;
+      if (item is! Map<String, Object?>) throw _invalid;
       final cursor = item['cursor'];
       final body = item['body'];
       if (cursor is! String || !_decimal.hasMatch(cursor) || body is! String) {
-        throw _bad;
+        throw _invalid;
       }
       // Cursors increase; one that does not would make the next fetch, or
       // the cumulative ACK, skip envelopes.
       final position = BigInt.parse(cursor);
-      if (position <= last) throw _bad;
+      if (position <= last) throw _invalid;
       last = position;
       final bytes = _unb64(body);
       if (bytes == null || bytes.isEmpty || bytes.length > maxEnvelopeLength) {
-        throw _bad;
+        throw _invalid;
       }
       envelopes.add(RelayEnvelope(cursor: cursor, body: bytes));
     }
-    if (envelopes.isEmpty && more) throw _bad;
+    if (envelopes.isEmpty && more) throw _invalid;
     return RelayPage(envelopes: envelopes, more: more);
   }
 
@@ -294,8 +316,13 @@ final class HttpRelayClient implements RelayClient {
     final size = sizeText != null && _decimal.hasMatch(sizeText)
         ? int.tryParse(sizeText)
         : null;
-    if (size == null || size < 1 || size > maxRelayBlobLength) throw _bad;
-    if (a.body.isEmpty || a.body.length > relayBlobChunkLength) throw _bad;
+    if (size == null || size < 1 || size > maxRelayBlobLength) throw _invalid;
+    final count = relayBlobChunkCount(size);
+    final expected = chunk == count - 1
+        ? size - chunk * relayBlobChunkLength
+        : relayBlobChunkLength;
+    // A chunk index past the end, or a chunk cut short or padded.
+    if (chunk >= count || a.body.length != expected) throw _invalid;
     return RelayBlobChunk(bytes: a.body, blobSize: size);
   }
 
@@ -455,11 +482,9 @@ final class HttpRelayClient implements RelayClient {
     return RelayException(
       RelayErrorCode.fromWire(code),
       status: a.status,
-      retryAfter: retryAfter is int && retryAfter >= 0
-          ? Duration(seconds: retryAfter)
-          : headerSeconds != null
-          ? Duration(seconds: headerSeconds)
-          : null,
+      retryAfter: _waitOf(
+        retryAfter is int && retryAfter >= 0 ? retryAfter : headerSeconds,
+      ),
       serverTime: serverTime is int && serverTime >= 0
           ? DateTime.fromMillisecondsSinceEpoch(serverTime * 1000, isUtc: true)
           : null,
@@ -469,20 +494,32 @@ final class HttpRelayClient implements RelayClient {
 
   // --- helpers ---------------------------------------------------------------
 
+  /// Longest wait taken from the relay: its limits use windows of at most
+  /// one hour, so a longer wait is a fault, not a reason to stop for days.
+  static const maxRetryAfter = Duration(hours: 1);
+
+  static Duration? _waitOf(int? seconds) {
+    if (seconds == null) return null;
+    final d = Duration(seconds: seconds);
+    return d > maxRetryAfter ? maxRetryAfter : d;
+  }
+
   static const _octets = 'application/octet-stream';
   static const _bad = RelayException(RelayErrorCode.badResponse);
+  static const _invalid = RelayException(RelayErrorCode.invalidResponse);
   static final _code = RegExp(r'^[0-9]{6}$');
   static final _decimal = RegExp(r'^(0|[1-9][0-9]{0,30})$');
 
   static void _id(String id, String name) {
     if (!isRelayId(id)) {
-      throw ArgumentError.value(id, name, 'not a 22-character relay ID');
+      // IDs are not quoted: errors end up in crash reports and logs.
+      throw ArgumentError('not a 22-character relay ID', name);
     }
   }
 
   static void _cursor(String cursor) {
     if (!_decimal.hasMatch(cursor)) {
-      throw ArgumentError.value(cursor, 'cursor', 'not a relay cursor');
+      throw ArgumentError('not a relay cursor', 'cursor');
     }
   }
 
@@ -522,10 +559,11 @@ final class HttpRelayClient implements RelayClient {
         url.hasQuery ||
         url.hasFragment ||
         (url.path.isNotEmpty && url.path != '/')) {
-      throw ArgumentError.value(
-        url.toString(),
+      // Scheme and host only: a URL may carry user info or a query.
+      throw ArgumentError(
+        'must be an https origin, http only for a local relay '
+            '(got ${url.scheme}://${url.host})',
         'baseUrl',
-        'must be an https origin (http only for a local relay)',
       );
     }
     return url.replace(path: '').toString();

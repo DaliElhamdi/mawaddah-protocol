@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /// Why a relay request failed: the relay's stable error codes
-/// (`relay/README.md`, "Errors"), plus four client-side reasons.
+/// (`relay/README.md`, "Errors"), plus five client-side reasons.
 enum RelayErrorCode {
   malformedRequest('malformed_request'),
   keyMismatch('key_mismatch'),
@@ -45,9 +45,15 @@ enum RelayErrorCode {
   /// No answer within the client's timeout.
   timeout('timeout', true),
 
-  /// An answer that is not what the route returns (a proxy's error page, a
-  /// body that does not parse). Retryable: usually a passing fault.
-  badResponse('bad_response', true);
+  /// An answer that is not the relay's JSON (a proxy's error page, a body
+  /// that does not parse, too large, a redirect). Retryable: usually a
+  /// passing fault on the way.
+  badResponse('bad_response', true),
+
+  /// An answer that parses but breaks the route's rules (an inbox ID that is
+  /// not the key's, cursors that do not increase, a chunk of the wrong
+  /// length). A broken or hostile relay: not retryable.
+  invalidResponse('invalid_response');
 
   const RelayErrorCode(this.wireName, [this._retryable = false]);
 
@@ -68,7 +74,8 @@ enum RelayErrorCode {
       this != unknown &&
       this != network &&
       this != timeout &&
-      this != badResponse;
+      this != badResponse &&
+      this != invalidResponse;
 }
 
 /// A relay request failed. Carries only the code, the HTTP status and the

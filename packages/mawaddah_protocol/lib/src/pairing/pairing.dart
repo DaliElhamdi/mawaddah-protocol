@@ -297,7 +297,9 @@ final class PairingInitiator {
   /// read the reply, and delete the inbox when giving up (before [abandon]).
   /// The initiator owns them: never dispose them. After [abandon] or a
   /// failed [acceptReply] they are erased; after a successful one
-  /// [PairingResult.identity] is this same object.
+  /// [PairingResult.identity] is this same object. Do not keep this
+  /// reference past the attempt, and store the keys
+  /// (`identity.toStorageBytes()`) only once pairing has succeeded.
   DeviceIdentity get identity => _identity;
 
   /// The QR for the slot the relay returned. The QR carries `S`: show it

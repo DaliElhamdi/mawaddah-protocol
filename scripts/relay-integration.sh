@@ -22,11 +22,15 @@ stop() {
   if [ -n "$pid" ]; then
     # wrangler starts workerd as a child: stop the whole process group.
     kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null
+    for _ in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.25; done
+    # Still there after 5 s: force it.
+    kill -KILL -- "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null
     wait "$pid" 2>/dev/null
   fi
   rm -rf "$work"
 }
 trap stop EXIT
+trap 'exit 130' INT TERM
 
 [ -d relay/node_modules ] || (cd relay && npm ci --silent) || { echo "   FAIL: npm ci"; exit 1; }
 
