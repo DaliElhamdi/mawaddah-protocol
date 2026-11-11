@@ -9,6 +9,9 @@ abstract interface class Storage {
   Future<Uint8List?> read(String key);
 
   /// Stores [value] under [key], replacing any previous value.
+  ///
+  /// Must not keep a reference to [value]: callers holding secrets overwrite
+  /// it with zeros once the returned future completes.
   Future<void> write(String key, Uint8List value);
 
   /// Removes [key]; does nothing if it is absent.

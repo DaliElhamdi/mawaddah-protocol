@@ -504,11 +504,12 @@ String _pad(String b64) => b64 + '=' * ((4 - b64.length % 4) % 4);
 
 // --- ratchet.json --------------------------------------------------------------
 //
-// A scripted conversation (in order per direction, with turn changes and
-// crossing messages). Out-of-order and skipped cases are added with #14.
-// Every output is derived twice: by RatchetSession, and by the reference
-// below written straight from PROTOCOL.md section 6 on raw bytes; the
-// generator stops if they differ.
+// Scripted conversations: one in order per direction (turn changes and
+// crossing messages), one out of order (skipped message keys in the current
+// and in a previous chain, messages opened from stored skipped keys). Every
+// output is derived twice: by RatchetSession, and by the reference below
+// written straight from PROTOCOL.md section 6 on raw bytes; the generator
+// stops if they differ.
 
 /// Random bytes one side's RandomSource hands out, 32 per GENERATE_DH.
 class _Draws implements RandomSource {
@@ -536,6 +537,24 @@ class _RefSide {
   Uint8List? cks;
   Uint8List? ckr;
   var ns = 0, nr = 0, pn = 0;
+
+  /// MKSKIPPED: "hex(dh_pub):n" -> message key, in the order stored.
+  final skipped = <String, Uint8List>{};
+
+  /// Signal 3.5 SkipMessageKeys(until) on the receiving chain; returns the
+  /// keys it stored, for the vector output.
+  List<Map<String, Object?>> skip(int until) {
+    final out = <Map<String, Object?>>[];
+    if (ckr == null) return out;
+    while (nr < until) {
+      final (ck, mk) = kdfCk(ckr!);
+      skipped['${_hex(dhr!)}:$nr'] = mk;
+      out.add({'dh_pub': _hex(dhr!), 'n': nr, 'message_key': _hex(mk)});
+      ckr = ck;
+      nr += 1;
+    }
+    return out;
+  }
 
   Uint8List _s(SecretBytes b) {
     final out = b.extractBytes();
@@ -626,19 +645,25 @@ class _RefSide {
   }
 }
 
-Map<String, Object?> _ratchetConversation(Crypto crypto) {
-  final setup = SeededRandom(100);
+Map<String, Object?> _ratchetConversation(
+  Crypto crypto, {
+  required String name,
+  required int seed,
+  required List<(String, String, String)> script,
+}) {
+  final setup = SeededRandom(seed);
   final sk = setup.nextBytes(32);
   final ad = setup.nextBytes(128);
   final bobSecret = setup.nextBytes(32);
 
-  final aliceDraws = _Draws(101);
-  final bobDraws = _Draws(102);
+  final aliceDraws = _Draws(seed + 1);
+  final bobDraws = _Draws(seed + 2);
   final bobPair = crypto.importX25519KeyPair(Uint8List.fromList(bobSecret));
   final bobPub = bobPair.publicKey.bytes;
   final alice = RatchetSession.initAlice(
     crypto: crypto,
     random: aliceDraws,
+    clock: FakeClock(),
     rootKey: crypto.importSecret(Uint8List.fromList(sk)),
     associatedData: ad,
     remoteRatchetKey: X25519PublicKey(bobPub),
@@ -646,13 +671,17 @@ Map<String, Object?> _ratchetConversation(Crypto crypto) {
   final bob = RatchetSession.initBob(
     crypto: crypto,
     random: bobDraws,
+    clock: FakeClock(),
     rootKey: crypto.importSecret(Uint8List.fromList(sk)),
     associatedData: ad,
     ratchetKeyPair: bobPair,
   );
 
   // Reference sides (Signal 3.3 init), drawing the same bytes.
-  final refRandom = {'alice': SeededRandom(101), 'bob': SeededRandom(102)};
+  final refRandom = {
+    'alice': SeededRandom(seed + 1),
+    'bob': SeededRandom(seed + 2),
+  };
   final ra = _RefSide(crypto, ad)
     ..dhsSecret = refRandom['alice']!.nextBytes(32);
   ra
@@ -668,27 +697,6 @@ Map<String, Object?> _ratchetConversation(Crypto crypto) {
   rb.dhsPub = rb.pub(bobSecret);
   final ref = {'alice': ra, 'bob': rb};
   final real = {'alice': alice, 'bob': bob};
-
-  // Script: (op, side, message id). Messages are delivered in order per
-  // direction; a2/b2 cross (both are sent before either is read).
-  const script = [
-    ('send', 'alice', 'a0'),
-    ('send', 'alice', 'a1'),
-    ('recv', 'bob', 'a0'),
-    ('recv', 'bob', 'a1'),
-    ('send', 'bob', 'b0'),
-    ('send', 'bob', 'b1'),
-    ('recv', 'alice', 'b0'),
-    ('recv', 'alice', 'b1'),
-    ('send', 'alice', 'a2'),
-    ('send', 'bob', 'b2'),
-    ('recv', 'bob', 'a2'),
-    ('recv', 'alice', 'b2'),
-    ('send', 'bob', 'b3'),
-    ('recv', 'alice', 'b3'),
-    ('send', 'alice', 'a3'),
-    ('recv', 'bob', 'a3'),
-  ];
 
   final sent = <String, ({Uint8List prefix, Uint8List header, Uint8List ct})>{};
   final counters = {'alice': 0, 'bob': 0};
@@ -743,39 +751,56 @@ Map<String, Object?> _ratchetConversation(Crypto crypto) {
       final s = sent[id]!;
       final hdrPub = s.header.sublist(0, 32);
       final hdrPn = ByteData.sublistView(s.header).getUint32(32);
+      final hdrN = ByteData.sublistView(s.header).getUint32(36);
       final step = <String, Object?>{
         'op': 'receive',
         'side': side,
         'message': id,
       };
-      // Reference RatchetDecrypt without skipped keys (Signal 3.4/3.5).
-      if (r.dhr == null || _hex(hdrPub) != _hex(r.dhr!)) {
-        if (r.ckr != null && hdrPn != r.nr) {
-          throw StateError('script needs skipped keys at $id');
+      final hadSkipped = r.skipped.isNotEmpty;
+      final Uint8List mk;
+      final Uint8List? ck;
+      // Reference RatchetDecrypt (Signal 3.4/3.5).
+      if (r.skipped.remove('${_hex(hdrPub)}:$hdrN') case final stored?) {
+        // TrySkippedMessageKeys.
+        mk = stored;
+        ck = null;
+        step['from_skipped_key'] = true;
+      } else {
+        final created = <Map<String, Object?>>[];
+        if (r.dhr == null || _hex(hdrPub) != _hex(r.dhr!)) {
+          created.addAll(r.skip(hdrPn));
+          r
+            ..pn = r.ns
+            ..ns = 0
+            ..nr = 0
+            ..dhr = hdrPub;
+          final (rk1, ckr1) = r.kdfRk(r.rk, r.dh(r.dhsSecret, hdrPub));
+          r
+            ..ckr = ckr1
+            ..dhsSecret = refRandom[side]!.nextBytes(32);
+          r.dhsPub = r.pub(r.dhsSecret);
+          final (rk2, cks2) = r.kdfRk(rk1, r.dh(r.dhsSecret, hdrPub));
+          r
+            ..rk = rk2
+            ..cks = cks2;
+          step['dh_ratchet'] = {
+            'new_ratchet_secret': h(r.dhsSecret),
+            'new_ratchet_pub': h(r.dhsPub),
+            'root_key': h(r.rk),
+            'receiving_chain_key': h(r.ckr!),
+            'sending_chain_key': h(r.cks!),
+          };
         }
+        created.addAll(r.skip(hdrN));
+        if (created.length > 1000) throw StateError('MAX_SKIP at $id');
+        if (created.isNotEmpty) step['skipped_keys'] = created;
+        final (ck1, mk1) = r.kdfCk(r.ckr!);
+        (ck, mk) = (ck1, mk1);
         r
-          ..pn = r.ns
-          ..ns = 0
-          ..nr = 0
-          ..dhr = hdrPub;
-        final (rk1, ckr1) = r.kdfRk(r.rk, r.dh(r.dhsSecret, hdrPub));
-        r
-          ..ckr = ckr1
-          ..dhsSecret = refRandom[side]!.nextBytes(32);
-        r.dhsPub = r.pub(r.dhsSecret);
-        final (rk2, cks2) = r.kdfRk(rk1, r.dh(r.dhsSecret, hdrPub));
-        r
-          ..rk = rk2
-          ..cks = cks2;
-        step['dh_ratchet'] = {
-          'new_ratchet_secret': h(r.dhsSecret),
-          'new_ratchet_pub': h(r.dhsPub),
-          'root_key': h(r.rk),
-          'receiving_chain_key': h(r.ckr!),
-          'sending_chain_key': h(r.cks!),
-        };
+          ..ckr = ck1
+          ..nr += 1;
       }
-      final (ck, mk) = r.kdfCk(r.ckr!);
       final km = r.aeadKm(mk);
       final pt = r.aead(
         km,
@@ -783,9 +808,6 @@ Map<String, Object?> _ratchetConversation(Crypto crypto) {
         _bytes([ad, s.prefix, s.header]),
         seal: false,
       );
-      r
-        ..ckr = ck
-        ..nr += 1;
 
       final got = real[side]!.decrypt(
         RatchetHeader.decode(s.header),
@@ -793,10 +815,16 @@ Map<String, Object?> _ratchetConversation(Crypto crypto) {
         envelopePrefix: s.prefix,
       );
       same(got, pt, '$id plaintext');
+      if (real[side]!.skippedKeyCount != r.skipped.length) {
+        throw StateError('ratchet reference differs: $id skipped keys');
+      }
+      if (ck != null) step['chain_key'] = h(ck);
       step
-        ..['chain_key'] = h(ck)
         ..['message_key'] = h(mk)
         ..['plaintext'] = h(pt);
+      if (hadSkipped || r.skipped.isNotEmpty) {
+        step['skipped_key_count'] = r.skipped.length;
+      }
       steps.add(step);
     }
   }
@@ -804,7 +832,7 @@ Map<String, Object?> _ratchetConversation(Crypto crypto) {
   bob.dispose();
 
   return {
-    'name': 'conversation in order with turn changes and crossing messages',
+    'name': name,
     'input': {
       'root_key': h(sk),
       'associated_data': h(ad),
@@ -825,5 +853,68 @@ Map<String, Object?> _ratchetConversation(Crypto crypto) {
 }
 
 List<Map<String, Object?>> _ratchetCases(Crypto crypto) => [
-  _ratchetConversation(crypto),
+  // Script: (op, side, message id). Messages are delivered in order per
+  // direction; a2/b2 cross (both are sent before either is read).
+  _ratchetConversation(
+    crypto,
+    name: 'conversation in order with turn changes and crossing messages',
+    seed: 100,
+    script: const [
+      ('send', 'alice', 'a0'),
+      ('send', 'alice', 'a1'),
+      ('recv', 'bob', 'a0'),
+      ('recv', 'bob', 'a1'),
+      ('send', 'bob', 'b0'),
+      ('send', 'bob', 'b1'),
+      ('recv', 'alice', 'b0'),
+      ('recv', 'alice', 'b1'),
+      ('send', 'alice', 'a2'),
+      ('send', 'bob', 'b2'),
+      ('recv', 'bob', 'a2'),
+      ('recv', 'alice', 'b2'),
+      ('send', 'bob', 'b3'),
+      ('recv', 'alice', 'b3'),
+      ('send', 'alice', 'a3'),
+      ('recv', 'bob', 'a3'),
+    ],
+  ),
+  // Out of order: Bob's first message is n = 2 (a0, a1 skipped before his
+  // first DH step); b2 is skipped inside the current chain; b6 is skipped
+  // from the previous chain through pn at a turn; a1, b0, b2, b6 open later
+  // from stored keys; b3 and a3 cross.
+  _ratchetConversation(
+    crypto,
+    name: 'conversation out of order with skipped message keys',
+    seed: 200,
+    script: const [
+      ('send', 'alice', 'a0'),
+      ('send', 'alice', 'a1'),
+      ('send', 'alice', 'a2'),
+      ('recv', 'bob', 'a2'),
+      ('recv', 'bob', 'a0'),
+      ('send', 'bob', 'b0'),
+      ('send', 'bob', 'b1'),
+      ('send', 'bob', 'b2'),
+      ('recv', 'alice', 'b1'),
+      ('send', 'alice', 'a3'),
+      ('send', 'bob', 'b3'),
+      ('recv', 'bob', 'a3'),
+      ('recv', 'alice', 'b3'),
+      ('send', 'bob', 'b4'),
+      ('recv', 'alice', 'b4'),
+      ('recv', 'alice', 'b2'),
+      ('recv', 'alice', 'b0'),
+      ('recv', 'bob', 'a1'),
+      ('send', 'alice', 'a4'),
+      ('recv', 'bob', 'a4'),
+      ('send', 'bob', 'b5'),
+      ('send', 'bob', 'b6'),
+      ('recv', 'alice', 'b5'),
+      ('send', 'alice', 'a5'),
+      ('recv', 'bob', 'a5'),
+      ('send', 'bob', 'b7'),
+      ('recv', 'alice', 'b7'),
+      ('recv', 'alice', 'b6'),
+    ],
+  ),
 ];
