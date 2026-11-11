@@ -2,7 +2,7 @@
 
 The public, verifiable half of **Mawaddah** (مودّة), a private two-person app for engaged and married couples. This repository holds the code that carries and protects the couple's data, so anyone can check the privacy claims:
 
-- `packages/mawaddah_protocol/` — pure-Dart package: crypto envelopes, pairing, Double Ratchet, event model, sync engine, relay client (so far: interfaces, fakes, the libsodium primitives, device identity and the safety number)
+- `packages/mawaddah_protocol/` — pure-Dart package: crypto envelopes, pairing, Double Ratchet, event model, sync engine, relay client (so far: interfaces, fakes, the libsodium primitives, device identity and the safety number, pairing, the Double Ratchet, signed envelopes and the hybrid logical clock)
 - `relay/` — the **blind relay** (Cloudflare Workers + Durable Objects, TypeScript): it holds sealed envelopes for at most 30 days and cannot open them (skeleton: a `/health` route only, not deployed)
 - [`PROTOCOL.md`](PROTOCOL.md), [`PRIVACY.md`](PRIVACY.md), [`SECURITY.md`](SECURITY.md)
 
@@ -38,7 +38,16 @@ The real `Clock`, `RandomSource`, `Storage` and `RelayClient` are supplied by th
 - `toStorageBytes()` gives `0x01 || Ed25519 seed || X25519 secret` (65 bytes) for the app's Keystore-protected storage; zero the list once stored. `DeviceIdentity.fromStorageBytes` reads it back and zeroes its input. These bytes never leave the device; `toString` shows only the device ID.
 - `DeviceId` = `SHA-256("mawaddah/v1/inbox" || IKsig_pub)[0..16]`, also the relay inbox ID, written as 22 base64url characters (`toBase64Url`, strict `DeviceId.parse`).
 - `safetyNumber(crypto, a, b)` returns the 20 digits, the same in either order; `safetyNumberGroups` splits them into 5 groups of 4 for display.
-- Generated vectors: `dart run tool/gen_vectors.dart` (from the package directory) writes `test/vectors/identity.json` and `safety_number.json`. Regenerate only with a protocol change and its ADR; `dart test test/identity` checks them.
+- Generated vectors: `dart run tool/gen_vectors.dart` (from the package directory) writes every generated file in `test/vectors/` (identity, safety number, pairing, ratchet, envelope, HLC, UUID v7). Regenerate only with a protocol change and its ADR; the tests in `test/` check them.
+
+## Envelopes, replay window and clock (`packages/mawaddah_protocol/lib/src/envelope`)
+[`PROTOCOL.md`](PROTOCOL.md) sections 7 to 9.
+
+- `Envelope.seal` pads the plaintext to 256-byte blocks, encrypts it with the `RatchetSession` and signs `"mawaddah/v1/envelope" || bytes[0..90+L]` with the sender's `IKsig`. Before sealing, the app stores the new counter; after, and before the bytes leave the phone, it saves the session.
+- `Envelope.open` runs the receive checks in the order of section 8: structure, addresses, signature, `ReplayWindow` (RFC 4303, 1,024 counters, so out-of-order envelopes still pass), time window (at most 1 hour ahead, 31 days behind), decryption, unpadding. A failure throws `EnvelopeException`; its `EnvelopeFailure` says whether to acknowledge the envelope (`acknowledge`) and whether to keep the raw bytes (`keepUnapplied`). The app commits the session, the window, the HLC and the events in one transaction before the ACK.
+- `HlcClock` (over the injected `Clock`) gives `Hlc` values that always increase, whatever the wall clock does: `send()` for a local event or an envelope, `receive()` to merge the partner's. `Hlc` has an 8-byte form (envelope) and a 16-hex-digit form (events).
+- `Uuid7.generate(clock, random)` makes event and entity IDs (RFC 9562).
+- Generated vectors `envelope.json`, `hlc.json` and `uuid7.json`; `dart test test/envelope` checks them.
 
 ## Toolchain and checks
 Pinned versions: Dart in `.dart-version`, Node in `.node-version` (CI reads these files). `scripts/check.sh` = format, analyze, lint, typecheck, secret-file and fork-safety guards; `scripts/test.sh` = `dart test` and the relay's Vitest (the first `dart test` compiles libsodium, about 15 s). CI runs both plus gitleaks (`.gitleaks.toml` keeps the default rules and skips only the test-vector files, whose "secret" keys are public on purpose: printed in the RFCs, or generated from fixed seeds by `tool/gen_vectors.dart`). Workflows use `pull_request` only, never `pull_request_target`, and no secrets, so fork PRs cannot reach any.

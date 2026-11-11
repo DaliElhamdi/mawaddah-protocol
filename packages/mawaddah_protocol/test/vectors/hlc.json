@@ -1,0 +1,134 @@
+{
+  "file": "hlc",
+  "protocol_version": 1,
+  "generated_by": "packages/mawaddah_protocol/tool/gen_vectors.dart",
+  "cases": [
+    {
+      "name": "send on a still, a moving and a backward clock",
+      "input": {
+        "start": "0000000000000000",
+        "ops": [
+          {
+            "op": "send",
+            "now_ms": 1762862400000
+          },
+          {
+            "op": "send",
+            "now_ms": 1762862400000
+          },
+          {
+            "op": "send",
+            "now_ms": 1762862400000
+          },
+          {
+            "op": "send",
+            "now_ms": 1762862400005
+          },
+          {
+            "op": "send",
+            "now_ms": 1762858800000
+          },
+          {
+            "op": "send",
+            "now_ms": 1762858800000
+          },
+          {
+            "op": "send",
+            "now_ms": 1762862400006
+          }
+        ]
+      },
+      "output": {
+        "values": [
+          "019a72c982000000",
+          "019a72c982000001",
+          "019a72c982000002",
+          "019a72c982050000",
+          "019a72c982050001",
+          "019a72c982050002",
+          "019a72c982060000"
+        ]
+      }
+    },
+    {
+      "name": "receive: the four cases",
+      "input": {
+        "start": "019a72c982640004",
+        "ops": [
+          {
+            "op": "receive",
+            "now_ms": 1762862400000,
+            "remote": "019a72c982640009"
+          },
+          {
+            "op": "receive",
+            "now_ms": 1762862400000,
+            "remote": "019a72c982320063"
+          },
+          {
+            "op": "receive",
+            "now_ms": 1762862400000,
+            "remote": "019a72c982c80007"
+          },
+          {
+            "op": "receive",
+            "now_ms": 1762862400300,
+            "remote": "019a72c982fa0007"
+          },
+          {
+            "op": "send",
+            "now_ms": 1762862400300
+          }
+        ]
+      },
+      "output": {
+        "values": [
+          "019a72c98264000a",
+          "019a72c98264000b",
+          "019a72c982c80008",
+          "019a72c9832c0000",
+          "019a72c9832c0001"
+        ]
+      }
+    },
+    {
+      "name": "a full counter moves the physical part on by 1 ms",
+      "input": {
+        "start": "019a72c98200fffe",
+        "ops": [
+          {
+            "op": "send",
+            "now_ms": 1762862400000
+          },
+          {
+            "op": "send",
+            "now_ms": 1762862400000
+          },
+          {
+            "op": "send",
+            "now_ms": 1762862400000
+          },
+          {
+            "op": "receive",
+            "now_ms": 1762862400000,
+            "remote": "019a72ca6c60ffff"
+          },
+          {
+            "op": "receive",
+            "now_ms": 1762862400000,
+            "remote": "019a72ca6c61ffff"
+          }
+        ]
+      },
+      "output": {
+        "values": [
+          "019a72c98200ffff",
+          "019a72c982010000",
+          "019a72c982010001",
+          "019a72ca6c610000",
+          "019a72ca6c620000"
+        ]
+      }
+    }
+  ]
+}

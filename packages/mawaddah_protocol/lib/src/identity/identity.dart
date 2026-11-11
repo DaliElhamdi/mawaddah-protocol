@@ -197,6 +197,15 @@ final class DeviceId {
     );
   }
 
+  /// A device ID read from its 16 bytes (for example from an envelope).
+  /// Throws [FormatException] for any other length.
+  factory DeviceId.fromBytes(Uint8List bytes) {
+    if (bytes.length != byteLength) {
+      throw FormatException('a device ID is $byteLength bytes');
+    }
+    return DeviceId._(Uint8List.fromList(bytes).asUnmodifiableView());
+  }
+
   /// Parses the base64url form (22 characters, no padding). Throws
   /// [FormatException] for any other text.
   factory DeviceId.parse(String text) {

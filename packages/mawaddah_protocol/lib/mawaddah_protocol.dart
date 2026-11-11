@@ -6,6 +6,10 @@ library;
 
 export 'src/clock.dart';
 export 'src/crypto/crypto.dart';
+export 'src/envelope/envelope.dart';
+export 'src/envelope/hlc.dart';
+export 'src/envelope/replay_window.dart';
+export 'src/event/uuid7.dart';
 export 'src/fakes/fake_clock.dart';
 export 'src/fakes/fake_relay_client.dart';
 export 'src/fakes/in_memory_storage.dart';

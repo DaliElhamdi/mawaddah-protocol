@@ -17,11 +17,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - Generated vectors `test/vectors/ratchet.json` (a 16-step conversation with turn changes and crossing messages; every key and ciphertext derived twice in the generator); `.gitleaks.toml` allowlists it by exact path.
 - Skipped message keys for the Double Ratchet (PROTOCOL.md section 6, Signal 3.5): messages may arrive out of order or late, also across turns. One message may create at most 1,000 skipped keys (`maxSkip`, both chains of a turn together; more is refused with `tooManySkipped`). At most 1,000 are stored, oldest deleted first. A key older than 30 days (injected `Clock`) is ignored and then deleted, at the next success or by `deleteExpiredSkippedKeys()`. A failed decrypt still changes nothing, including the stored keys.
 - Saving a ratchet session: `RatchetSession.toStorageBytes` / `fromStorageBytes` (versioned local format, input zeroed, damaged bytes refused with `FormatException`) and `save` / `load` through `Storage`. `ratchet.json` gains an out-of-order case (28 steps).
+- Signed envelopes (PROTOCOL.md sections 7 and 8): `Envelope.seal` (pad to 256-byte blocks, ratchet-encrypt with the 50 envelope bytes as associated data, Ed25519 signature with the `mawaddah/v1/envelope` label) and `Envelope.open`, which checks in the order of section 8: structure, addresses, signature, replay window, time window, decryption, padding. Failures are `EnvelopeException`s whose `EnvelopeFailure` says whether to acknowledge the envelope and whether to keep its raw bytes; only `undecryptable` changes state (the counter is used up). `Envelope.parse` reads the fields.
+- `ReplayWindow`: the RFC 4303 sliding window over envelope counters (`W = 1024`), with versioned save/restore bytes (137 bytes, local format).
+- Hybrid logical clock (PROTOCOL.md section 9): `Hlc` (48-bit milliseconds + 16-bit counter; 8-byte and 16-hex-digit forms) and `HlcClock` (`send`, `receive`) over the injected `Clock`; always increasing when the clock goes back.
+- `Uuid7.generate` / `isValid` (RFC 9562) from the injected `Clock` and `RandomSource`.
+- `Crypto.pad` / `unpad` (libsodium `sodium_pad`, ISO/IEC 7816-4) and `InvalidPaddingException`; `DeviceId.fromBytes`.
+- Generated vectors `test/vectors/envelope.json` (3 sealed envelopes, 13 rejected cases), `hlc.json` and `uuid7.json`; `.gitleaks.toml` allowlists `envelope.json` by exact path.
 
 ### Changed
 - `package:crypto` moved from dev to normal dependencies: the device ID and relay body hashes need SHA-256, which the `sodium` Dart API does not offer (ADR 0006 point 3).
 - `RatchetSession.fromPairing`, `initAlice` and `initBob` now take a `Clock`. `RatchetFailure.skippedMessage` is replaced by `tooManySkipped`, because out-of-order messages are now accepted.
 - `Storage.write` must not keep a reference to the value it is given (callers zero secrets once it completes).
+- `PROTOCOL.md` clarifications from building the envelopes (wire format unchanged): the `version` and `type` bytes are read before the v1 length rules; a v1 envelope whose `L` is not a multiple of 256 plus 16, or whose counter is 0 or above 2^63 − 1, is malformed; bad padding after decryption counts as `undecryptable`; a full HLC counter moves the physical part on by 1 ms instead of waiting; the UUID v7 byte layout is written out.
 - `mawaddah_protocol` now needs Dart 3.13 or later (required by `sodium` 4.x) and a C compiler the first time it is built or tested.
 
 ## [0.0.1] - 2026-11-10
