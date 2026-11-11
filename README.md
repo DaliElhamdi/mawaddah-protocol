@@ -2,7 +2,7 @@
 
 The public, verifiable half of **Mawaddah** (مودّة), a private two-person app for engaged and married couples. This repository holds the code that carries and protects the couple's data, so anyone can check the privacy claims:
 
-- `packages/mawaddah_protocol/` — pure-Dart package: crypto envelopes, pairing, Double Ratchet, event model, sync engine, relay client (so far: interfaces, fakes, the libsodium primitives, device identity and the safety number, pairing, the Double Ratchet, signed envelopes, the hybrid logical clock and the event model with its idempotent apply)
+- `packages/mawaddah_protocol/` — pure-Dart package: crypto envelopes, pairing, Double Ratchet, event model, sync engine, relay client (so far: interfaces, fakes, the libsodium primitives, device identity and the safety number, pairing, the Double Ratchet, signed envelopes, the hybrid logical clock, the event model with its idempotent apply, and the outbox and sync loop)
 - `relay/` — the **blind relay** (Cloudflare Workers + Durable Objects, TypeScript): it holds sealed envelopes for at most 30 days and cannot open them (skeleton: a `/health` route only, not deployed)
 - [`PROTOCOL.md`](PROTOCOL.md), [`PRIVACY.md`](PRIVACY.md), [`SECURITY.md`](SECURITY.md)
 
@@ -19,6 +19,7 @@ Logic code takes its outside world as injected interfaces, so tests can control 
 | `RandomSource` | random bytes (secure in the app) | `SeededRandom` (deterministic, **not secure**) |
 | `Storage` | async key-value bytes | `InMemoryStorage` |
 | `RelayClient` | deposit, fetch, ack sealed envelopes | `FakeRelayClient` |
+| `EventStore` + `SyncStore` | events, merged state; sync state (one shared transaction) | `InMemoryEventStore` + `InMemorySyncStore` |
 
 The real `Clock`, `RandomSource`, `Storage` and `RelayClient` are supplied by the app. `NotificationGateway` lives in the private `core` package. Run the tests with `cd packages/mawaddah_protocol && dart test`.
 
@@ -49,6 +50,14 @@ The real `Clock`, `RandomSource`, `Storage` and `RelayClient` are supplied by th
 - `Uuid7.generate(clock, random)` makes event and entity IDs (RFC 9562).
 - Events (section 10): `Event` (strict JSON), `EventBatch.encode`/`decode` for the envelope plaintext, `EventFactory` for this device's events, and `Applier` over an `EventStore` (the app implements it over its database; `InMemoryEventStore` is the fake). Field-level last-writer-wins, append-only with final tombstones, unapplied events from a newer partner kept with a reason and shown through `EventStore.watchUnapplied`, applied again by `Applier.reapplyUnapplied` after an update.
 - Generated vectors `envelope.json`, `hlc.json` and `uuid7.json`; `dart test test/envelope` checks them.
+
+## Outbox and sync loop (`packages/mawaddah_protocol/lib/src/sync`)
+[`PROTOCOL.md`](PROTOCOL.md) section 17.
+
+- `SyncEngine.commitLocal(events)` applies this device's events and queues them in the outbox, in one transaction: the app works offline.
+- `SyncEngine.syncOnce()` (one run at a time) fetches after the stored cursor, opens, applies and commits each envelope with its cursor, then acknowledges (cumulative); then it seals and deposits the outbox. A failed deposit is retried as the same sealed bytes, so being offline uses no extra ratchet keys. It returns a `SyncReport` (counts only, `retryAt` from `BackOff`, `clockWarning`). Relay failures are reported, store failures throw.
+- `WakePolicy.v1` is the one table that decides `wake: 1` (a new chat message) or `wake: 0` (receipts, profile, hello).
+- The app implements `SyncStore` over the same database transaction as its `EventStore`; `dart test test/sync` covers 7 days offline, duplicates, partial failures and lost ACKs.
 
 ## Toolchain and checks
 Pinned versions: Dart in `.dart-version`, Node in `.node-version` (CI reads these files). `scripts/check.sh` = format, analyze, lint, typecheck, secret-file and fork-safety guards; `scripts/test.sh` = `dart test` and the relay's Vitest (the first `dart test` compiles libsodium, about 15 s). CI runs both plus gitleaks (`.gitleaks.toml` keeps the default rules and skips only the test-vector files, whose "secret" keys are public on purpose: printed in the RFCs, or generated from fixed seeds by `tool/gen_vectors.dart`). Workflows use `pull_request` only, never `pull_request_target`, and no secrets, so fork PRs cannot reach any.
