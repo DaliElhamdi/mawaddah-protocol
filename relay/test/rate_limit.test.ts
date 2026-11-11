@@ -2,7 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { bucketObjectName, ipBucket, REGISTRATION_LIMIT, REGISTRATION_WINDOW_MS, RegistrationCounter } from '../src/rate_limit';
+import {
+  bucketObjectName,
+  ipBucket,
+  LOOKUP_FAILURE_LIMIT,
+  LOOKUP_FAILURE_WINDOW_MS,
+  LookupFailureCounter,
+  REGISTRATION_LIMIT,
+  REGISTRATION_WINDOW_MS,
+  RegistrationCounter,
+} from '../src/rate_limit';
 import { memorySql } from './support/sqlite';
 
 const t0 = 1762862400000;
@@ -45,6 +54,23 @@ describe('RegistrationCounter', () => {
     expect(c.prune(t0 + REGISTRATION_WINDOW_MS)).toBe(t0 + 5 * minute + REGISTRATION_WINDOW_MS);
     expect(c.prune(t0 + 5 * minute + REGISTRATION_WINDOW_MS)).toBeNull();
     expect(rows()).toEqual([]);
+  });
+});
+
+describe('LookupFailureCounter', () => {
+  it('allows 5 failures per 10 minutes; check does not count', () => {
+    const sql = memorySql();
+    close = sql.close;
+    const c = new LookupFailureCounter(sql);
+    expect([LOOKUP_FAILURE_LIMIT, LOOKUP_FAILURE_WINDOW_MS]).toEqual([5, 10 * minute]);
+    for (let i = 0; i < 20; i++) expect(c.check(t0).allowed).toBe(true);
+    expect(c.check(t0)).toEqual({ allowed: true, clearAt: t0 });
+    for (let i = 0; i < 5; i++) expect(c.hit(t0 + i * minute).allowed).toBe(true);
+    expect(c.check(t0 + 5 * minute)).toEqual({ allowed: false, retryAfterSeconds: 5 * 60 });
+    expect(c.hit(t0 + 5 * minute)).toEqual({ allowed: false, retryAfterSeconds: 5 * 60 });
+    expect(c.check(t0 + 10 * minute).allowed).toBe(true);
+    expect(c.prune(t0 + 14 * minute)).toBeNull();
+    expect(sql.exec('SELECT at FROM hits')).toEqual([]);
   });
 });
 

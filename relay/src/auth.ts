@@ -96,7 +96,8 @@ export async function verifySignedRequest(
   return { ok: true, request: { key, keyText, nonce } };
 }
 
-async function verifyEd25519(key: Uint8Array, signature: Uint8Array, message: Uint8Array): Promise<boolean> {
+/** Ed25519 verification with WebCrypto; false for a key or signature it cannot parse. */
+export async function verifyEd25519(key: Uint8Array, signature: Uint8Array, message: Uint8Array): Promise<boolean> {
   try {
     const publicKey = await crypto.subtle.importKey('raw', key, { name: 'Ed25519' }, false, ['verify']);
     return await crypto.subtle.verify({ name: 'Ed25519' }, publicKey, signature, message);

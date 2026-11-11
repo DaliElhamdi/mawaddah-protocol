@@ -1,11 +1,13 @@
 // Copyright 2026 The Mawaddah authors
 // SPDX-License-Identifier: Apache-2.0
 
-// Inbox registrations per IP (spec 4.5: 5 per IP per hour). One Durable
-// Object per IP bucket, named by a hash of the bucket. It stores only the
-// times of accepted registrations; when the last one is an hour old the
-// object deletes all its storage (an alarm does it), so nothing about an IP
-// is kept longer than one hour.
+// Per-IP limits (spec 4.5), one Durable Object per IP bucket, named by a
+// hash of the bucket:
+// - inbox registrations: 5 per IP per hour;
+// - failed pairing-code lookups: 5 per IP per 10 minutes.
+// Each object stores only the times of counted events; when the last one has
+// left the window the object deletes all its storage (an alarm does it), so
+// nothing about an IP is kept longer than its window.
 
 import { sha256, toHex } from './encoding';
 import type { Sql } from './sql';
@@ -13,41 +15,73 @@ import type { Sql } from './sql';
 export const REGISTRATION_LIMIT = 5;
 export const REGISTRATION_WINDOW_MS = 60 * 60 * 1000;
 
+export const LOOKUP_FAILURE_LIMIT = 5;
+export const LOOKUP_FAILURE_WINDOW_MS = 10 * 60 * 1000;
+
 export type RateLimitResult =
   | { readonly allowed: true; readonly clearAt: number }
   | { readonly allowed: false; readonly retryAfterSeconds: number };
 
-export class RegistrationCounter {
-  constructor(private readonly sql: Sql) {
+/** At most [limit] counted events in any sliding window of [windowMs]. */
+export class WindowCounter {
+  constructor(
+    private readonly sql: Sql,
+    readonly limit: number,
+    readonly windowMs: number,
+  ) {
     sql.exec('CREATE TABLE IF NOT EXISTS hits (at INTEGER NOT NULL)');
   }
 
   /**
-   * Counts one registration at [nowMs] if the bucket is under the limit.
-   * A refused attempt is not counted, so it does not extend the wait.
-   * `clearAt` is when every stored time will have expired.
+   * Whether one more event at [nowMs] is under the limit, without counting it.
+   * When allowed, `clearAt` is when the stored times expire (now, if none).
    */
-  hit(nowMs: number): RateLimitResult {
+  check(nowMs: number): RateLimitResult {
     this.prune(nowMs);
     const rows = this.sql.exec('SELECT COUNT(*) AS n, MIN(at) AS oldest FROM hits')[0];
     const count = Number(rows?.n ?? 0);
-    if (count >= REGISTRATION_LIMIT) {
+    if (count >= this.limit) {
       const oldest = Number(rows?.oldest);
-      return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((oldest + REGISTRATION_WINDOW_MS - nowMs) / 1000)) };
+      return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((oldest + this.windowMs - nowMs) / 1000)) };
     }
+    return { allowed: true, clearAt: this.clearAt() ?? nowMs };
+  }
+
+  /**
+   * Counts one event at [nowMs] if the bucket is under the limit. A refused
+   * attempt is not counted, so it does not extend the wait. `clearAt` is when
+   * every stored time will have expired.
+   */
+  hit(nowMs: number): RateLimitResult {
+    const result = this.check(nowMs);
+    if (!result.allowed) return result;
     this.sql.exec('INSERT INTO hits (at) VALUES (?)', nowMs);
-    return { allowed: true, clearAt: this.clearAt() ?? nowMs + REGISTRATION_WINDOW_MS };
+    return { allowed: true, clearAt: this.clearAt() ?? nowMs + this.windowMs };
   }
 
   /** Drops expired times. Returns when the rest expire (ms), or null if none is left. */
   prune(nowMs: number): number | null {
-    this.sql.exec('DELETE FROM hits WHERE at <= ?', nowMs - REGISTRATION_WINDOW_MS);
+    this.sql.exec('DELETE FROM hits WHERE at <= ?', nowMs - this.windowMs);
     return this.clearAt();
   }
 
   private clearAt(): number | null {
     const latest = this.sql.exec('SELECT MAX(at) AS latest FROM hits')[0]?.latest;
-    return typeof latest === 'number' ? latest + REGISTRATION_WINDOW_MS : null;
+    return typeof latest === 'number' ? latest + this.windowMs : null;
+  }
+}
+
+/** New inboxes from one IP bucket: 5 per sliding hour. */
+export class RegistrationCounter extends WindowCounter {
+  constructor(sql: Sql) {
+    super(sql, REGISTRATION_LIMIT, REGISTRATION_WINDOW_MS);
+  }
+}
+
+/** Failed pairing-code lookups from one IP bucket: 5 per sliding 10 minutes. */
+export class LookupFailureCounter extends WindowCounter {
+  constructor(sql: Sql) {
+    super(sql, LOOKUP_FAILURE_LIMIT, LOOKUP_FAILURE_WINDOW_MS);
   }
 }
 

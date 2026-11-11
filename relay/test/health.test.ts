@@ -11,6 +11,12 @@ const noState: RelayDeps = {
   registrationLimiter: () => {
     throw new Error('not used');
   },
+  lookupLimiter: () => {
+    throw new Error('not used');
+  },
+  pairingSlots: () => {
+    throw new Error('not used');
+  },
   now: () => 0,
 };
 
