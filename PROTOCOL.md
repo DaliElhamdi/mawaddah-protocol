@@ -363,7 +363,7 @@ Bytes are lowercase hex in vector files (easier to compare by eye than base64url
 ## 16. Known limits
 Stated plainly, so nobody relies on more than this gives:
 - **Not reviewed yet.** The implementation follows published specifications but has had no independent review; one is planned before v1.0.0.
-- **The relay sees metadata** (spec 4.3): inbox IDs and that two inboxes are linked, envelope and blob sizes (rounded to 256 bytes for envelopes), times, whether a wake-up was asked, push tokens, and IP addresses for at most 24 hours. Because ratchet headers are not encrypted, it can also count messages per ratchet step and see the sender's clock time in each envelope.
+- **The relay sees metadata** (spec 4.3): inbox IDs and that two inboxes are linked, envelope and blob sizes (rounded to 256 bytes for envelopes), times, whether a wake-up was asked, push tokens, and IP addresses for at most 24 hours. Because ratchet headers are not encrypted, it can also count messages per ratchet step and see the sender's clock time in each envelope (including a phone whose clock is wrong). The envelope `counter` is in the clear too, so it shows how many envelopes each phone has sent since pairing.
 - **Code path without comparison is not safe:** a 6-digit code cannot authenticate keys. The app requires the safety-number comparison on that path; skipping it is not possible by design.
 - **The QR is a one-time bearer secret:** someone who photographs it during its 10 minutes can answer first. The real partner's phone then reports the invitation as used (section 4.5); the people have to notice and unpair.
 - **Safety number strength** is about 66 bits and relies on fresh joiner keys revealed only after the bundle is received (section 5).

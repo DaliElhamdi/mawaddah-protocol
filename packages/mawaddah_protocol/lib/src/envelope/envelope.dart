@@ -136,7 +136,9 @@ enum EnvelopeFailure {
 
 /// A received envelope was not opened. Except for
 /// [EnvelopeFailure.undecryptable], nothing changed: not the session, the
-/// replay window nor the HLC.
+/// replay window nor the HLC. An `undecryptable` envelope used up its
+/// counter in the window, and when only its padding was bad the ratchet
+/// session also moved on.
 final class EnvelopeException implements Exception {
   const EnvelopeException(this.failure, {this.ratchetFailure});
 
@@ -360,6 +362,9 @@ final class Envelope {
     if (t < now - maxEnvelopeAge.inMilliseconds) {
       throw const EnvelopeException(EnvelopeFailure.tooOld);
     }
+    // The HLC merge must not fail after the commit below: try it on a copy
+    // first (it throws only at the end of the 48-bit range).
+    HlcClock(clock.clock, last: clock.last).receive(envelope.hlc);
     // 6. Decrypt. The signature checked, so the counter is used up either
     // way.
     final Uint8List padded;

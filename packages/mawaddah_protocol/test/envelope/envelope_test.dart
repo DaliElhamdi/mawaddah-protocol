@@ -113,6 +113,7 @@ void main() {
     test('every single changed bit, and nothing changes', () {
       final (:alice, :bob, clock: _) = paired(crypto);
       final genuine = alice.send('hello');
+      final before = bob.session.toStorageBytes();
       final n = genuine.length;
       for (var i = 0; i < n; i++) {
         final f = failureOf(() => bob.open(flip(genuine, i)));
@@ -126,6 +127,7 @@ void main() {
         };
         expect(f, expected, reason: 'byte $i');
       }
+      expect(bob.session.toStorageBytes(), before);
       expect(bob.window.highest, 0);
       expect(bob.hlc.last, Hlc.zero);
       expect(bob.open(genuine), 'hello');
@@ -160,7 +162,10 @@ void main() {
       const hour = 3600000;
       final edge = alice.send('edge', hlc: Hlc(now + hour, 0));
       final ahead = alice.send('ahead', hlc: Hlc(now + hour + 1, 0));
+      final before = bob.session.toStorageBytes();
       expect(failureOf(() => bob.open(ahead)), EnvelopeFailure.fromTheFuture);
+      expect(bob.session.toStorageBytes(), before);
+      expect(bob.hlc.last, Hlc.zero);
       expect(bob.window.highest, 0);
       expect(bob.open(edge), 'edge');
       clock.advance(const Duration(milliseconds: 1));
@@ -173,7 +178,11 @@ void main() {
       const days31 = 31 * 86400000;
       final edge = alice.send('edge', hlc: Hlc(now - days31, 0));
       final old = alice.send('old', hlc: Hlc(now - days31 - 1, 0));
+      final before = bob.session.toStorageBytes();
       expect(failureOf(() => bob.open(old)), EnvelopeFailure.tooOld);
+      expect(bob.session.toStorageBytes(), before);
+      expect(bob.window.highest, 0);
+      expect(bob.hlc.last, Hlc.zero);
       expect(bob.open(edge), 'edge');
     });
 
@@ -293,6 +302,7 @@ void main() {
         Uint8List.fromList([...ascii.encode('mawaddah/v1/envelope'), ...body]),
       );
       final bytes = Uint8List.fromList([...body, ...resigned.bytes]);
+      final before = bob.session.toStorageBytes();
       try {
         bob.open(bytes);
         fail('opened');
@@ -302,6 +312,7 @@ void main() {
       }
       // The counter is used up; the session is unchanged.
       expect(bob.window.highest, 1);
+      expect(bob.session.toStorageBytes(), before);
       expect(failureOf(() => bob.open(bytes)), EnvelopeFailure.replayed);
       expect(failureOf(() => bob.open(genuine)), EnvelopeFailure.replayed);
       expect(bob.hlc.last, Hlc.zero);

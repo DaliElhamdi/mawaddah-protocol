@@ -57,6 +57,35 @@ void main() {
     expect(w.accepts(100000), isFalse);
   });
 
+  test('counters around 2^32 and up to 2^63 - 1', () {
+    const twoTo32 = 0x100000000;
+    final w = ReplayWindow()..mark(twoTo32 - 1);
+    w.mark(twoTo32 + 5);
+    expect(w.highest, twoTo32 + 5);
+    expect(w.accepts(twoTo32 - 1), isFalse);
+    expect(w.accepts(twoTo32), isTrue);
+    expect(w.accepts(twoTo32 + 5 - 1023), isTrue);
+    expect(w.accepts(twoTo32 + 5 - 1024), isFalse);
+    w.mark(twoTo32);
+    expect(w.accepts(twoTo32), isFalse);
+    final r = ReplayWindow.fromStorageBytes(w.toStorageBytes());
+    for (var c = twoTo32 - 1100; c <= twoTo32 + 10; c++) {
+      expect(r.accepts(c), w.accepts(c), reason: '$c');
+    }
+    const max = maxEnvelopeCounter;
+    final top = ReplayWindow()..mark(max - 1);
+    expect(top.accepts(max), isTrue);
+    top.mark(max);
+    expect(top.accepts(max), isFalse);
+    expect(top.accepts(max - 1), isFalse);
+    expect(top.accepts(max - 2), isTrue);
+    expect(top.accepts(max - 1024), isFalse);
+    final restored = ReplayWindow.fromStorageBytes(top.toStorageBytes());
+    expect(restored.highest, max);
+    expect(restored.accepts(max - 1), isFalse);
+    expect(restored.accepts(max - 2), isTrue);
+  });
+
   test('matches the plain rule on random traffic', () {
     final random = Random(7);
     final w = ReplayWindow();
