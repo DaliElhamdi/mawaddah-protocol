@@ -34,8 +34,9 @@ final class SodiumCrypto implements Crypto {
   na.SecureKey _randomSecret(int length) {
     final bytes = _random.nextBytes(length);
     if (bytes.length != length) {
-      throw StateError('RandomSource returned ${bytes.length} bytes, '
-          'expected $length');
+      final got = bytes.length;
+      bytes.fillRange(0, got, 0);
+      throw StateError('RandomSource returned $got bytes, expected $length');
     }
     return _importBytes(bytes);
   }
@@ -72,8 +73,13 @@ final class SodiumCrypto implements Crypto {
 
   X25519KeyPair _x25519Pair(na.SecureKey secret) {
     final sk = X25519SecretKey._(_sodium, secret);
-    final pk = X25519PublicKey(_sodium.crypto.scalarmult.base(n: sk._live));
-    return X25519KeyPair._(pk, sk);
+    try {
+      final pk = X25519PublicKey(_sodium.crypto.scalarmult.base(n: sk._live));
+      return X25519KeyPair._(pk, sk);
+    } catch (_) {
+      sk.dispose();
+      rethrow;
+    }
   }
 
   @override
@@ -243,6 +249,11 @@ final class SodiumCrypto implements Crypto {
         throw ArgumentError.value(info, 'info', 'must be ASCII');
       }
     }
+    if (prk.length != hkdfPrkLength) {
+      throw ArgumentError.value(
+          prk.length, 'prk', 'must be $hkdfPrkLength bytes long');
+    }
+    RangeError.checkValueInInterval(length, 1, hkdfMaxLength, 'length');
     return SecretBytes._(
       _sodium,
       _hkdf.expand(masterKey: prk._live, context: info, outLen: length),

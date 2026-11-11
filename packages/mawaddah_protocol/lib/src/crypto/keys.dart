@@ -6,6 +6,7 @@ part of 'crypto.dart';
 // --- Public values ---------------------------------------------------------
 
 /// Fixed-length public bytes (keys, signatures, nonces). Compared by value.
+/// The comparison is not constant-time: never use it for MACs or secrets.
 abstract base class _PublicBytes {
   _PublicBytes(Uint8List bytes, int length, String what)
       : bytes = _checkedCopy(bytes, length, what);
@@ -132,6 +133,10 @@ abstract base class _Secret {
 final class SecretBytes extends _Secret {
   SecretBytes._(na.SodiumSumo sodium, na.SecureKey key)
       : super(sodium, key, null, 'SecretBytes');
+
+  /// An independent copy (for example to keep a chain key while deriving
+  /// from it). Dispose both.
+  SecretBytes copy() => SecretBytes._(_sodium, _live.copy());
 
   /// Bytes [start] to [end] (exclusive) as a new secret. This secret is kept.
   SecretBytes slice(int start, [int? end]) {

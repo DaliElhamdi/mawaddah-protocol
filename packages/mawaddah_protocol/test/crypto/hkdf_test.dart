@@ -86,6 +86,41 @@ void main() {
       expect(okm.extractBytes(), t1);
     });
 
+    test('a NUL inside the label is kept (not a C-string terminator)', () {
+      const withNul = 'a\u0000b';
+      final okm = crypto.hkdfExpand(prk: prk, info: withNul, length: 32);
+      expect(okm.extractBytes(),
+          rawExpand(prk.extractBytes(), ascii.encode(withNul), 32));
+      expect(
+          okm.extractBytes(),
+          isNot(crypto
+              .hkdfExpand(prk: prk, info: 'a', length: 32)
+              .extractBytes()));
+    });
+
+    test('length must be 1..8160 and prk 32 bytes', () {
+      expect(
+          crypto
+              .hkdfExpand(prk: prk, info: label, length: hkdfMaxLength)
+              .length,
+          8160);
+      expect(() => crypto.hkdfExpand(prk: prk, info: label, length: 8161),
+          throwsRangeError);
+      expect(() => crypto.hkdfExpand(prk: prk, info: label, length: 0),
+          throwsRangeError);
+      final short = crypto.importSecret(Uint8List(31));
+      expect(() => crypto.hkdfExpand(prk: short, info: label, length: 32),
+          throwsArgumentError);
+    });
+
+    test('copy is independent of the original', () {
+      final c = prk.copy();
+      expect(c.extractBytes(), prk.extractBytes());
+      c.dispose();
+      expect(prk.isDisposed, isFalse);
+      expect(prk.extractBytes(), hasLength(32));
+    });
+
     test('a non-ASCII label is refused', () {
       expect(() => crypto.hkdfExpand(prk: prk, info: 'مودة', length: 32),
           throwsArgumentError);

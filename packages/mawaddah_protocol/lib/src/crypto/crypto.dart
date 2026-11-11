@@ -23,6 +23,12 @@ part 'sodium_crypto.dart';
 ///
 /// Methods that take a `Uint8List` holding secret bytes (`import*`) copy it
 /// into guarded memory and then overwrite the caller's list with zeros.
+///
+/// Errors: a value of the wrong size or out of range is a programming error
+/// and throws [ArgumentError] or [RangeError]; a secret used after `dispose()`
+/// throws [StateError]. Only data received from outside raises a
+/// [CryptoException] (failed decryption, a small-order public key).
+/// Signature checks return `false` instead of throwing.
 abstract interface class Crypto {
   // --- X25519 (RFC 7748) -------------------------------------------------
 
@@ -99,8 +105,11 @@ abstract interface class Crypto {
   /// HKDF-Extract. A missing [salt] means the RFC's default (32 zero bytes).
   SecretBytes hkdfExtract({SecretBytes? salt, required SecretBytes ikm});
 
-  /// HKDF-Expand of [prk] (32 bytes) with an ASCII label as `info`
-  /// (PROTOCOL.md section 1), [length] bytes (at most 8160).
+  /// HKDF-Expand of [prk] ([hkdfPrkLength] bytes) with an ASCII label as
+  /// `info` (PROTOCOL.md section 1), [length] bytes (1 to [hkdfMaxLength]).
+  ///
+  /// `info` is a String because the `sodium` API takes it that way; binary
+  /// `info` is not supported (the protocol has none).
   SecretBytes hkdfExpand({
     required SecretBytes prk,
     required String info,
@@ -123,6 +132,12 @@ abstract interface class Crypto {
   /// The concatenation of [parts] (for example the X3DH input `F || DH1 || ...`).
   SecretBytes concat(List<SecretBytes> parts);
 }
+
+/// Size of an HKDF-SHA-256 pseudorandom key (the SHA-256 output length).
+const hkdfPrkLength = 32;
+
+/// Largest HKDF-SHA-256 output: 255 blocks of 32 bytes (RFC 5869 section 2.3).
+const hkdfMaxLength = 255 * 32;
 
 /// Base of every error raised by [Crypto].
 sealed class CryptoException implements Exception {
