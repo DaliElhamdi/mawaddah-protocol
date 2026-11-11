@@ -34,6 +34,12 @@ export type ErrorCode =
   | 'allow_conflict'
   | 'inbox_full'
   | 'invalid_cursor'
+  | 'blob_not_found'
+  | 'blob_too_large'
+  | 'blob_quota_exceeded'
+  | 'blob_conflict'
+  | 'blob_incomplete'
+  | 'chunk_out_of_order'
   | 'internal_error';
 
 export function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {

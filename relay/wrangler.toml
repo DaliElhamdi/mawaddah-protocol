@@ -8,7 +8,7 @@ compatibility_date = "2026-01-01"
 [observability]
 enabled = false
 
-# One object per device (named by its inbox ID): nonces and inbox.
+# One object per device (named by its inbox ID): nonces, inbox, allowed sender, envelopes and blobs.
 [[durable_objects.bindings]]
 name = "DEVICES"
 class_name = "DeviceObject"
