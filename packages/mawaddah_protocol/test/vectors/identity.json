@@ -1,0 +1,59 @@
+{
+  "file": "identity",
+  "protocol_version": 1,
+  "generated_by": "packages/mawaddah_protocol/tool/gen_vectors.dart",
+  "cases": [
+    {
+      "name": "SeededRandom(1): 32-byte Ed25519 seed, then X25519 secret",
+      "input": {
+        "sig_seed": "a473ff7bb3cdc899a04dea0fbd30a72e95f0cf2f94e0e05034f24a1d899f196d",
+        "dh_secret": "3e138a839b3468f4eb28e1bfee2a02c8efc111741bec287deb074c4f1e3977a5"
+      },
+      "output": {
+        "sig_pub": "e5db8097f1f7cfad7bb6ffd5efc9158a9746d4977380a8e6fd3e1c7e9d2486d3",
+        "dh_pub": "2cd7911233c2a7427c0eada59a8b14e14f8faf3fc8c0d02c7d2c7cc9fe4d300e",
+        "device_id": "a99b63bdefe26b77a0e3bf06635dac7e",
+        "device_id_base64url": "qZtjve_ia3eg478GY12sfg"
+      }
+    },
+    {
+      "name": "SeededRandom(2): 32-byte Ed25519 seed, then X25519 secret",
+      "input": {
+        "sig_seed": "69713c142e721fb31689fc0db376c67aa672a31a038886090c59dad9c570deb0",
+        "dh_secret": "dc33a37f6a39dc41e626298e2b1eeccb7ee73a2d8a342f67681bdfa9b0d9df25"
+      },
+      "output": {
+        "sig_pub": "78641770a235d86293eeeb0c43d02af1c074ae8768d61cd505273cf04597e706",
+        "dh_pub": "dc7f7c0ee927a3341d3d3550b7289ec792eaa8fe048352355f34d68d5715f754",
+        "device_id": "0eb25b3c76c4216704c7327a385ce546",
+        "device_id_base64url": "DrJbPHbEIWcExzJ6OFzlRg"
+      }
+    },
+    {
+      "name": "SeededRandom(3): 32-byte Ed25519 seed, then X25519 secret",
+      "input": {
+        "sig_seed": "4737567fd774b9e83ee51c6bc4d0018bfb5c3ed8d4451e7998ac3b5e2792bbd6",
+        "dh_secret": "0eca71be04681ed25619aa146c320f1779073e82be543956122b13287c55c7a3"
+      },
+      "output": {
+        "sig_pub": "dfa1005a680a742c6571e544389517a03ca182cbc62ce19b72def65d0d2ce72f",
+        "dh_pub": "972a72b41501cb977ec0e452a4c4e79fb828dff57b4d2dd15525f0ccc43b9927",
+        "device_id": "2d4ed4ba0cb1109a4807b8bef5de8bef",
+        "device_id_base64url": "LU7UugyxEJpIB7i-9d6L7w"
+      }
+    },
+    {
+      "name": "SeededRandom(4): 32-byte Ed25519 seed, then X25519 secret",
+      "input": {
+        "sig_seed": "527931acc66e58f257677387b2c32e4e89e4482bb23d26155742c5207bb5781c",
+        "dh_secret": "7e54385856d36ac9c4e7056df6188f088c446b11883b1b6f6ee9245ceecfef37"
+      },
+      "output": {
+        "sig_pub": "08c216946604e6a2596d7670e021b267bfa8bb56d06323b70565d6a06097ef34",
+        "dh_pub": "ee2316ef2ec18d5d400c34147ebc7c519c1b54bfd83a64658687e3c09485367b",
+        "device_id": "a447d18febe241311aae43ab9e8505af",
+        "device_id_base64url": "pEfRj-viQTEarkOrnoUFrw"
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 The public, verifiable half of **Mawaddah** (مودّة), a private two-person app for engaged and married couples. This repository holds the code that carries and protects the couple's data, so anyone can check the privacy claims:
 
-- `packages/mawaddah_protocol/` — pure-Dart package: crypto envelopes, pairing, Double Ratchet, event model, sync engine, relay client (so far: interfaces, fakes and the libsodium primitives)
+- `packages/mawaddah_protocol/` — pure-Dart package: crypto envelopes, pairing, Double Ratchet, event model, sync engine, relay client (so far: interfaces, fakes, the libsodium primitives, device identity and the safety number)
 - `relay/` — the **blind relay** (Cloudflare Workers + Durable Objects, TypeScript): it holds sealed envelopes for at most 30 days and cannot open them (skeleton: a `/health` route only, not deployed)
 - [`PROTOCOL.md`](PROTOCOL.md), [`PRIVACY.md`](PRIVACY.md), [`SECURITY.md`](SECURITY.md)
 
@@ -31,8 +31,17 @@ The real `Clock`, `RandomSource`, `Storage` and `RelayClient` are supplied by th
 - **Loading:** `await SodiumCrypto.load()`, or `SodiumCrypto(sodiumSumo)` to reuse a libsodium instance the app already loaded.
 - **Known-answer tests** in `test/crypto/` use the published vectors in `test/vectors/` (RFC 7748, RFC 8032, RFC 5869, RFC 7693, draft-irtf-cfrg-xchacha-03 and libsodium's own XChaCha20-Poly1305 test).
 
+## Device identity and safety number (`packages/mawaddah_protocol/lib/src/identity`)
+[`PROTOCOL.md`](PROTOCOL.md) sections 3 and 5.
+
+- `DeviceIdentity.generate(crypto, random)` makes the two long-term key pairs, Ed25519 `IKsig` and X25519 `IKdh`, independently: the first 32 bytes from `random` are the Ed25519 seed, the next 32 the X25519 secret key. A device makes a new identity for every pairing attempt (ADR 0006).
+- `toStorageBytes()` gives `0x01 || Ed25519 seed || X25519 secret` (65 bytes) for the app's Keystore-protected storage; zero the list once stored. `DeviceIdentity.fromStorageBytes` reads it back and zeroes its input. These bytes never leave the device; `toString` shows only the device ID.
+- `DeviceId` = `SHA-256("mawaddah/v1/inbox" || IKsig_pub)[0..16]`, also the relay inbox ID, written as 22 base64url characters (`toBase64Url`, strict `DeviceId.parse`).
+- `safetyNumber(crypto, a, b)` returns the 20 digits, the same in either order; `safetyNumberGroups` splits them into 5 groups of 4 for display.
+- Generated vectors: `dart run tool/gen_vectors.dart` (from the package directory) writes `test/vectors/identity.json` and `safety_number.json`. Regenerate only with a protocol change and its ADR; `dart test test/identity` checks them.
+
 ## Toolchain and checks
-Pinned versions: Dart in `.dart-version`, Node in `.node-version` (CI reads these files). `scripts/check.sh` = format, analyze, lint, typecheck, secret-file and fork-safety guards; `scripts/test.sh` = `dart test` and the relay's Vitest (the first `dart test` compiles libsodium, about 15 s). CI runs both plus gitleaks (`.gitleaks.toml` keeps the default rules and skips only the published test-vector files, whose "secret" keys are printed in the RFCs). Workflows use `pull_request` only, never `pull_request_target`, and no secrets, so fork PRs cannot reach any.
+Pinned versions: Dart in `.dart-version`, Node in `.node-version` (CI reads these files). `scripts/check.sh` = format, analyze, lint, typecheck, secret-file and fork-safety guards; `scripts/test.sh` = `dart test` and the relay's Vitest (the first `dart test` compiles libsodium, about 15 s). CI runs both plus gitleaks (`.gitleaks.toml` keeps the default rules and skips only the test-vector files, whose "secret" keys are public on purpose: printed in the RFCs, or generated from fixed seeds by `tool/gen_vectors.dart`). Workflows use `pull_request` only, never `pull_request_target`, and no secrets, so fork PRs cannot reach any.
 
 ## Releases
 Releases are tags `vX.Y.Z` on `main`. The `protocol-release` workflow runs the checks and tests, then publishes a GitHub Release with the matching CHANGELOG section (add `## [X.Y.Z] - date` first; `scripts/release-notes.sh vX.Y.Z` shows what will be published). The private app depends on the package by tag (`ref: vX.Y.Z`), never by branch.

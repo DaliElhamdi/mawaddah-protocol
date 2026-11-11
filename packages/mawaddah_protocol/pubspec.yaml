@@ -1,5 +1,5 @@
 name: mawaddah_protocol
-description: Pure-Dart protocol package for Mawaddah (interfaces, fakes and libsodium crypto primitives).
+description: Pure-Dart protocol package for Mawaddah (interfaces, fakes, libsodium crypto primitives and device identity).
 version: 0.0.1
 publish_to: none
 
@@ -11,9 +11,11 @@ dependencies:
   # libsodium 1.0.22, sumo build, compiled from the source shipped in the
   # package by its build hook (PROTOCOL.md section 2).
   sodium: ^4.1.2+1
+  # SHA-256 for the device ID and relay body hashes, which the `sodium` Dart
+  # API does not offer (PROTOCOL.md section 2, ADR 0006 point 3). The HKDF
+  # tests also use its HMAC-SHA-256 as an independent cross-check.
+  crypto: ^3.0.8
 
 dev_dependencies:
-  # Independent HMAC-SHA-256 used only as a cross-check in the HKDF tests.
-  crypto: ^3.0.8
   lints: ^6.1.0
   test: ^1.25.0
