@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.1.0-dev.1] - 2026-11-12
+
+Pre-release so the app can start using the package (issue #27). The final `0.1.0` follows at the Phase 1 gate; the wire format may still change until the owner approves it.
+
 ### Added
 - `PRIVACY.md` completed (spec 4.3, 13.2): the approved wording in English, Arabic and French; who can read what; the relay's metadata in detail (padding, times, cleartext clock and counter, wake-up flag, hashed IP addresses); what is stored and when it is deleted; Cloudflare and Google FCM; retention and erasure; what the app keeps on the phone. `SECURITY.md` completed (spec 13.3): how to report, what the design protects and does not, and a threat model with every spec 13.3 case plus a hostile relay, a leaked FCM key, clocks, abuse and the supply chain, each with its honest limits. `scripts/check.sh` fails if the public docs use a forbidden privacy phrase.
 - `PROTOCOL.md`: the v1 wire format (draft, implemented in v0.1.0): identity keys and device ID, pairing (X3DH adapted, QR payload, code path), safety number, Double Ratchet parameters, envelope layout and receive checks, HLC, event schema and versioning, attachments, relay request signing, constants, test-vector layout and known limits.
