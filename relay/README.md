@@ -139,15 +139,20 @@ curl https://mawaddah-relay-staging.<account>.workers.dev/health    # {"ok":true
 
 **Owner setup, once** (also in the private repository's `docs/owner-setup.md`, Phase 1):
 1. A Cloudflare account; in *Workers & Pages* choose the account's `workers.dev` subdomain (the first time only; the deploy fails without it and says so).
-2. An API token, limited to this one account: the *Edit Cloudflare Workers* template is enough (Workers Scripts: Edit, plus the read permissions the template adds). Durable Objects need nothing more. Do not use the Global API Key.
+2. An API token limited to this one account. The narrowest custom token is *Account → Workers Scripts → Edit* plus *Account → Account Settings → Read* (add *User → User Details → Read* if wrangler asks); the *Edit Cloudflare Workers* template also works but grants more (routes, KV, and so on). Durable Objects need nothing more. Do not use the Global API Key.
 3. Repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the public repository (done 2026-11-10).
 4. Per environment, when you want wake-ups: the FCM secret ([Wake-ups](#wake-ups-fcm)): `npx wrangler secret put FCM_SERVICE_ACCOUNT --env staging < service-account.json` (and `--env production`). Secrets belong to one Worker, so each environment needs its own.
-5. Optional: *Settings → Environments → production* in GitHub, with *Required reviewers*, so a tag waits for your click before it goes live.
+5. Do this before the first production tag (it is what stops a workflow edited on another branch from reaching production), because a repository secret can be read by any workflow of any collaborator on any branch:
+   - Move the two secrets from *Settings → Secrets → Actions* to **environment secrets** (*Settings → Environments*: `staging` and `production`; the workflow already names its environment). Limit `staging` to the `main` branch and `production` to tags, and give `production` *Required reviewers* so a tag waits for your click.
+   - Use two tokens, one per environment, if you can: a leaked staging token then cannot touch production. (Both Workers are in one account, so a token limited to one Worker is not possible; limit it to the account.)
+   - Add a tag ruleset on `v*` (restrict creation and deletion, block updates): pushing a final tag is what deploys production.
 
 **Things to know**
 - `wrangler.toml` repeats the Durable Object bindings and migrations in each environment, because wrangler does not inherit them. `test/wrangler_config.test.ts` fails if an environment drifts from the top level. Migrations are append-only: a new class needs a new tag, added at the top level and in both environments.
 - A Durable Object migration is applied when the Worker is deployed; there is no automatic rollback of a migration. Roll back code by deploying an earlier tag or commit. Do not rename or delete a class that has stored data.
 - Production is deployed from a tag, so cut the tag only when staging has run the same commit (the staging deploy happens when the change reaches `main`).
+- Production is deployed from any final tag whose commit is on `main` (the same rule as `protocol-release`): that also allows deploying an older tag to roll back. Nothing checks that staging ran the same commit; that is your discipline. If two tags are pushed in quick succession, GitHub keeps only the newest pending production run, so push them one at a time and wait for the first to finish.
+- The workflow log is public. Wrangler's deploy output names the Worker and its `workers.dev` address (which contains your account's subdomain; the app will carry that address anyway), not the account ID or the token. After the first run of each environment, read the log once to confirm that.
 - `workers.dev` addresses are not on a zone of yours, so Cloudflare's zone-level rules (WAF custom rules, rate-limiting rules) cannot be attached to them. The per-IP registration limit lives in the Worker (above); the cost and abuse limit noted in #19 (any valid signature from a fresh key creates a small object that lives 15 minutes) stays open until the relay has its own domain, where an edge rate-limiting rule can go in front. Until then watch the Worker's request graph in the dashboard.
 
 ## Load test
@@ -159,12 +164,13 @@ node loadtest/loadtest.mjs https://mawaddah-relay-staging.<account>.workers.dev 
 ```
 It registers two inboxes (A sends, B receives), allows A, then measures 300 requests each of `GET /health`, signed deposits of 1 KiB envelopes (`Maw-Wake: 0`, so no push), paged fetch with a cumulative ACK for every page, and polls of the then empty inbox; at the end it deletes both inboxes. It prints requests per second and p50, p95, p99 and max latency, plus the HTTP status counts, and exits non-zero if any request failed. `--json` prints the same as JSON.
 - **Run it from your own machine or a runner, never against production**: it refuses a non-local address that is not a `-staging.` Worker unless you add `--allow-production`.
-- **Registration limit:** a run registers 2 inboxes and the relay allows 5 per IP per hour. Run again at once with the same `--seed <text>` (registering the same key again is free). After a `429`, wait or change address.
+- **Registration limit:** a run registers 2 inboxes and deletes them at the end, and the relay allows 5 new inboxes per IP per hour, so two runs per hour per address. After a `429`, wait. `--requests` is capped at 5000 and `--concurrency` at 50. `--seed <text>` makes the keys (use throwaway text).
+- Percentiles are printed from 20 samples (p95) and 100 samples (p99) on: the fetch and ACK lines have one sample per page of 100 envelopes, so read the deposit, poll and health lines for latency.
 - All traffic of one run goes to one inbox, so one Durable Object: that is what one couple does. It does not show how many couples one Worker carries; Durable Objects of different inboxes run in parallel. The numbers include the network from where you run it.
-- Free-plan accounts allow 100,000 Worker requests and 100,000 Durable Object rows written per day; a default run uses about 1,500 requests and a few thousand rows.
+- Free-plan accounts allow 100,000 Worker requests and 100,000 Durable Object rows written per day; a default run is about 950 requests and a few thousand rows.
 
 ## Monthly cost
-An estimate for the Phase 1 report, from Cloudflare's published prices as read on 2026-11-12 ([Workers](https://developers.cloudflare.com/workers/platform/pricing/), [Durable Objects](https://developers.cloudflare.com/durable-objects/platform/pricing/)) and the assumptions below. It is a model, not a measurement: replace it with the dashboard's numbers after the first month of real use.
+An estimate for the Phase 1 report, from Cloudflare's published prices as read on 2026-11-12 (check them against the dashboard's billing page before relying on them) ([Workers](https://developers.cloudflare.com/workers/platform/pricing/), [Durable Objects](https://developers.cloudflare.com/durable-objects/platform/pricing/)) and the assumptions below. It is a model, not a measurement: replace it with the dashboard's numbers after the first month of real use.
 
 | | Free plan | Workers Paid plan |
 |---|---|---|
@@ -261,13 +267,13 @@ Stored data is what waits on the relay, not what passes through it: an attachmen
 
 ## No request logs
 The relay writes nothing to the console and keeps no request logs (spec 4.5). `wrangler.toml` sets `[observability] enabled = false` at the top level and in both environments (`test/wrangler_config.test.ts` checks it, and that no variables, routes, tail consumers or log push are set). The dashboard can still turn things on that the file does not control, so after the first deploy of each Worker (*Workers & Pages → the Worker*) check:
-- **Observability / Workers Logs:** off (no logs, no traces, no invocation logs).
+- **Observability / Workers Logs:** off (no logs, no traces, no invocation logs). `wrangler.toml` also sets `logpush = false` and `preview_urls = false`.
 - **Logpush:** no job for this Worker, and none at account level that covers it (it would export request fields including IP addresses).
 - **Tail Workers:** none attached.
-- **Account-level:** no Logpush or audit-style export that reads Worker requests; *Analytics* graphs (counts only) are fine.
-- **Preview URLs:** off, or left alone: they are separate `*.workers.dev` addresses of the same code and storage.
+- **Account-level:** no Logpush or Workers Trace Events job that covers this Worker. The dashboard's *Analytics* graphs show aggregate counts (by status, data centre or country), no IP addresses; they are fine.
+- **Preview URLs:** off (set in `wrangler.toml`): they would be separate `*.workers.dev` addresses of the same code and storage.
 
-Cloudflare itself still sees IP addresses at its edge (PRIVACY.md, third parties).
+Nothing is **stored**, and the code logs nothing, but a live view is separate from stored logs: `wrangler tail` and the dashboard's live logs show each request's address, headers and source IP while someone is watching, whatever `observability` says. That is the account owner (or Cloudflare); the relay cannot prevent it. Do not tail the production Worker. Cloudflare itself also sees IP addresses at its edge (PRIVACY.md, third parties).
 
 ## Develop and test
 ```sh

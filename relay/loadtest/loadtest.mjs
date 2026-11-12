@@ -16,9 +16,11 @@
 // and finally deletes both inboxes. The envelopes are random bytes (the relay
 // does not read them); nothing is sent that names a real person.
 //
+// --seed: the keys are derived from it, so use throwaway text, never a secret.
 // Limits to know: the relay allows 5 new inboxes per IP per hour, and a run
-// registers 2. Use the same --seed to run again at once (registering the same
-// key again is free). Every deposit goes to one Durable Object (one couple's
+// registers 2 (and deletes them at the end, so registering again counts again):
+// two runs per hour per address. --requests is capped at 5000 and --concurrency at 50
+// so a typo cannot use up a free plan. Every deposit goes to one Durable Object (one couple's
 // inbox), which is the real access pattern: one couple never uses more than one.
 
 import { createHash, randomBytes } from 'node:crypto';
@@ -35,7 +37,11 @@ const concurrency = Number(flag('concurrency', '10'));
 const seedText = flag('seed', randomBytes(8).toString('hex'));
 const asJson = has('json');
 
-if (!/^https?:\/\//.test(baseUrl) || !Number.isInteger(requests) || requests < 1 || !Number.isInteger(concurrency) || concurrency < 1) {
+if (
+  !/^https?:\/\//.test(baseUrl) ||
+  !Number.isInteger(requests) || requests < 1 || requests > 5000 ||
+  !Number.isInteger(concurrency) || concurrency < 1 || concurrency > 50
+) {
   console.error('usage: node loadtest/loadtest.mjs <base-url> [--requests N] [--concurrency C] [--seed TEXT] [--json]');
   process.exit(2);
 }
@@ -45,7 +51,7 @@ if (!local && !baseUrl.startsWith('https://')) {
   console.error('refusing plain HTTP to a non-local address');
   process.exit(2);
 }
-if (!local && !host.includes('-staging.') && !has('allow-production')) {
+if (!local && !host.startsWith('mawaddah-relay-staging.') && !has('allow-production')) {
   console.error('refusing a non-local address that is not a staging Worker; add --allow-production if you mean it');
   process.exit(2);
 }
@@ -120,10 +126,11 @@ function record(name, results, seconds) {
     ok,
     failed: results.length - ok,
     statuses,
-    perSecond: Number((results.length / seconds).toFixed(1)),
+    // A percentile of a handful of samples says nothing: report it from 20 samples on.
+    perSecond: seconds === null ? null : Number((results.length / seconds).toFixed(1)),
     p50: Number(percentile(times, 50).toFixed(1)),
-    p95: Number(percentile(times, 95).toFixed(1)),
-    p99: Number(percentile(times, 99).toFixed(1)),
+    p95: times.length >= 20 ? Number(percentile(times, 95).toFixed(1)) : null,
+    p99: times.length >= 100 ? Number(percentile(times, 99).toFixed(1)) : null,
     max: Number((times.at(-1) ?? NaN).toFixed(1)),
   });
 }
@@ -135,15 +142,21 @@ async function main() {
 
   const regA = await send(a, 'POST', '/v1/inbox', registration(a), { 'content-type': 'application/json' });
   const regB = await send(b, 'POST', '/v1/inbox', registration(b), { 'content-type': 'application/json' });
-  if (regA.status > 201 || regB.status > 201) {
-    console.error(`could not register the two inboxes (A: ${regA.status}, B: ${regB.status}); after 429 wait an hour or reuse --seed`);
+  const idOf = (res) => (res.status === 200 || res.status === 201 ? JSON.parse(res.body).inbox_id : null);
+  const inboxA = idOf(regA);
+  const inboxB = idOf(regB);
+  if (inboxA === null || inboxB === null) {
+    console.error(`could not register the two inboxes (A: ${regA.status}, B: ${regB.status}); after 429 wait for the hour to pass`);
+    // Do not leave the one that did register behind.
+    if (inboxA !== null) await send(a, 'DELETE', `/v1/inbox/${inboxA}`);
+    if (inboxB !== null) await send(b, 'DELETE', `/v1/inbox/${inboxB}`);
     process.exit(1);
   }
-  const inboxB = JSON.parse(regB.body).inbox_id;
-  const inboxA = JSON.parse(regA.body).inbox_id;
   const allow = await send(b, 'POST', `/v1/inbox/${inboxB}/allow`, json({ sender_key: a.keyText }), { 'content-type': 'application/json' });
   if (allow.status > 201) {
     console.error(`allow failed (${allow.status}); use a new --seed`);
+    await send(a, 'DELETE', `/v1/inbox/${inboxA}`);
+    await send(b, 'DELETE', `/v1/inbox/${inboxB}`);
     process.exit(1);
   }
 
@@ -162,7 +175,6 @@ async function main() {
     const fetched = [];
     const acked = [];
     let cursor = null;
-    const fetchStart = performance.now();
     for (let guard = 0; guard < requests + 5; guard++) {
       const p = cursor === null ? path : `${path}?after=${cursor}`;
       const res = await send(b, 'GET', p);
@@ -174,8 +186,8 @@ async function main() {
       acked.push(await send(b, 'POST', `/v1/inbox/${inboxB}/ack`, json({ cursor }), { 'content-type': 'application/json' }));
       if (!page.more) break;
     }
-    record('fetch (pages of <= 100)', fetched, (performance.now() - fetchStart) / 1000);
-    record('ack (one per page)', acked, (performance.now() - fetchStart) / 1000);
+    record('fetch (pages of <= 100)', fetched, null);
+    record('ack (one per page)', acked, null);
 
     // 4. poll: an empty inbox, concurrent (what phones do on every app open).
     const pollPath = `${path}?after=${cursor ?? 0}`;
@@ -196,10 +208,10 @@ async function main() {
         scenario: r.scenario,
         requests: r.requests,
         failed: r.failed,
-        'req/s': r.perSecond,
+        'req/s': r.perSecond ?? '-',
         'p50 ms': r.p50,
-        'p95 ms': r.p95,
-        'p99 ms': r.p99,
+        'p95 ms': r.p95 ?? '-',
+        'p99 ms': r.p99 ?? '-',
         'max ms': r.max,
         statuses: JSON.stringify(r.statuses),
       })),

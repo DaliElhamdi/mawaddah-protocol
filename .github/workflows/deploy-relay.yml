@@ -21,7 +21,8 @@ env:
 jobs:
   deploy:
     name: deploy
-    if: github.repository == 'DaliElhamdi/mawaddah-protocol'
+    # Only this repository; a manual run only from the main branch (staging).
+    if: github.repository == 'DaliElhamdi/mawaddah-protocol' && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     # One deploy at a time per environment; a running deploy is never cancelled.
@@ -44,12 +45,6 @@ jobs:
             echo "::error::tag $GITHUB_REF_NAME is not on main; production is deployed from main only"
             exit 1
           fi
-
-      - name: A manual run deploys staging from main only
-        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
-        run: |
-          echo "::error::run this workflow from main"
-          exit 1
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -74,9 +69,10 @@ jobs:
         run: |
           set -o pipefail
           npx wrangler deploy --env "$TARGET" 2>&1 | tee "$RUNNER_TEMP/deploy.log"
-          url=$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' "$RUNNER_TEMP/deploy.log" | head -n 1 || true)
+          if [ "$TARGET" = production ]; then worker=mawaddah-relay; else worker=mawaddah-relay-staging; fi
+          url=$(grep -Eo "https://$worker\.[A-Za-z0-9-]+\.workers\.dev" "$RUNNER_TEMP/deploy.log" | head -n 1 || true)
           if [ -z "$url" ]; then
-            echo "::error::wrangler did not print a workers.dev address (is the account's workers.dev subdomain set up?)"
+            echo "::error::wrangler did not print the address of $worker (is the account's workers.dev subdomain set up?)"
             exit 1
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
@@ -85,7 +81,7 @@ jobs:
         env:
           URL: ${{ steps.deploy.outputs.url }}
         run: |
-          for i in $(seq 1 12); do
+          for i in $(seq 1 24); do
             if curl -fsS -m 10 "$URL/health" | tee /dev/stderr | grep -q '"ok":true'; then
               echo "health OK: $URL"; exit 0
             fi
@@ -101,7 +97,9 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if npx wrangler secret list --env "$TARGET" 2>/dev/null | grep -q '"FCM_SERVICE_ACCOUNT"'; then
+          if ! names=$(npx wrangler secret list --env "$TARGET" 2>/dev/null); then
+            echo "::warning::could not list the secrets of $TARGET (token permission?): FCM_SERVICE_ACCOUNT not checked"
+          elif printf '%s' "$names" | grep -q '"FCM_SERVICE_ACCOUNT"'; then
             echo "FCM_SERVICE_ACCOUNT is set on $TARGET"
           else
             echo "::warning::FCM_SERVICE_ACCOUNT is not set on $TARGET: the relay works but sends no wake-ups (relay/README.md, Wake-ups)"

@@ -47,11 +47,12 @@ describe('wrangler.toml environments', () => {
         expect(c.compatibility_date).toBe(top.compatibility_date);
       });
 
-      it('sets no variables, routes, tail consumers or log push', () => {
+      it('sets no variables, routes or tail consumers, no log push and no preview addresses', () => {
         expect(c.vars).toEqual({});
         expect(c.routes ?? []).toEqual([]);
         expect(c.tail_consumers ?? []).toEqual([]);
-        expect(c.logpush ?? false).toBe(false);
+        expect(c.logpush).toBe(false);
+        expect(c.preview_urls).toBe(false);
       });
     });
   }
