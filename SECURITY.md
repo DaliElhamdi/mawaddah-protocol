@@ -95,7 +95,7 @@ Each case says what protects you and, honestly, what does not.
 
 ### Abuse and cost
 - **Protection:** 5 new inboxes per network per hour; pairing slots single use for 10 minutes, at most 100,000 open; per-inbox quotas (100 MiB of envelopes, 100 MiB of attachments); 30-day expiry.
-- **Limits:** any request with a valid signature from a new key creates a small object that lives 15 minutes, before any per-network limit applies. A Cloudflare rate-limiting rule at the edge is planned with the deployment. Phones behind one carrier-grade NAT share the per-network limits.
+- **Limits:** any request with a valid signature from a new key creates a small object that lives 15 minutes, before any per-network limit applies. The relay's address is a `workers.dev` one, where Cloudflare's zone-level rate-limiting rules cannot be attached, so an edge rule has to wait for a domain of its own (`relay/README.md`, "Deploy"); until then the Worker's request graph is the only watch. Phones behind one carrier-grade NAT share the per-network limits.
 
 ### Supply chain
 - **Protection:**

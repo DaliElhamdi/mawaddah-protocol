@@ -3,10 +3,10 @@
 The public, verifiable half of **Mawaddah** (مودّة), a private two-person app for engaged and married couples. This repository holds the code that carries and protects the couple's data, so anyone can check the privacy claims:
 
 - `packages/mawaddah_protocol/` — pure-Dart package: crypto envelopes, pairing, Double Ratchet, event model, sync engine, relay client (so far: interfaces, fakes, the libsodium primitives, device identity and the safety number, pairing, the Double Ratchet, signed envelopes, the hybrid logical clock, the event model with its idempotent apply, the outbox and sync loop, and the HTTP relay client)
-- `relay/` — the **blind relay** (Cloudflare Workers + Durable Objects, TypeScript): it holds sealed envelopes for at most 30 days and cannot open them (so far: signed requests, inbox registration and its rate limit, pairing slots, envelopes, attachments and the 30-day delete; not deployed; see `relay/README.md`)
+- `relay/` — the **blind relay** (Cloudflare Workers + Durable Objects, TypeScript): it holds sealed envelopes for at most 30 days and cannot open them (so far: signed requests, inbox registration and its rate limit, pairing slots, envelopes, attachments and the 30-day delete, FCM wake-ups; staging and production deploys are set up in `.github/workflows/deploy-relay.yml`; see `relay/README.md`)
 - [`PROTOCOL.md`](PROTOCOL.md), [`PRIVACY.md`](PRIVACY.md), [`SECURITY.md`](SECURITY.md)
 
-> **Status: v0.1.0 in progress.** The package and the relay are built in Phase 1 of the project. The relay is not deployed yet, and nothing has been independently reviewed. An independent security review is planned before version 1.0.0. What the relay and third parties can see: [`PRIVACY.md`](PRIVACY.md). Threat model and how to report a problem: [`SECURITY.md`](SECURITY.md).
+> **Status: v0.1.0 in progress.** The package and the relay are built in Phase 1 of the project. The relay has deploy workflows for staging and production (see `relay/README.md`), and nothing has been independently reviewed. An independent security review is planned before version 1.0.0. What the relay and third parties can see: [`PRIVACY.md`](PRIVACY.md). Threat model and how to report a problem: [`SECURITY.md`](SECURITY.md).
 
 The Mawaddah app itself is closed source and lives in a separate private repository. Licensed under [Apache-2.0](LICENSE).
 

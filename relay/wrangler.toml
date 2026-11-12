@@ -1,5 +1,6 @@
-# Chosen by the owner (2026-11-11). It becomes the public hostname
-# mawaddah-relay.<account>.workers.dev; the environments added in #25 get their own suffix.
+# Chosen by the owner (2026-11-11). Production is mawaddah-relay.<account>.workers.dev,
+# staging is mawaddah-relay-staging.<account>.workers.dev. The top level is what
+# `wrangler dev` and the tests use; deploys always name an environment (`npm run deploy:staging` / `deploy:production`); a bare `wrangler deploy` would deploy this top level, which has the production name.
 name = "mawaddah-relay"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
@@ -34,5 +35,63 @@ tag = "v1"
 new_sqlite_classes = ["DeviceObject", "RegistrationLimitObject"]
 
 [[migrations]]
+tag = "v2"
+new_sqlite_classes = ["LookupLimitObject", "PairingSlotsObject"]
+
+# Environments (#25). Wrangler does not inherit bindings or migrations into an
+# environment, so each one repeats them. Staging and production are two separate
+# Workers with separate Durable Object storage: staging data never reaches production.
+# Deploy with `npm run deploy:staging` / `npm run deploy:production` (relay/README.md).
+[env.staging]
+name = "mawaddah-relay-staging"
+workers_dev = true
+# No preview addresses (one more public address of the same code and storage) and no log push.
+preview_urls = false
+logpush = false
+[env.staging.observability]
+enabled = false
+[[env.staging.durable_objects.bindings]]
+name = "DEVICES"
+class_name = "DeviceObject"
+[[env.staging.durable_objects.bindings]]
+name = "REGISTRATION_LIMITS"
+class_name = "RegistrationLimitObject"
+[[env.staging.durable_objects.bindings]]
+name = "LOOKUP_LIMITS"
+class_name = "LookupLimitObject"
+[[env.staging.durable_objects.bindings]]
+name = "PAIRING_SLOTS"
+class_name = "PairingSlotsObject"
+[[env.staging.migrations]]
+tag = "v1"
+new_sqlite_classes = ["DeviceObject", "RegistrationLimitObject"]
+[[env.staging.migrations]]
+tag = "v2"
+new_sqlite_classes = ["LookupLimitObject", "PairingSlotsObject"]
+
+[env.production]
+name = "mawaddah-relay"
+workers_dev = true
+# No preview addresses (one more public address of the same code and storage) and no log push.
+preview_urls = false
+logpush = false
+[env.production.observability]
+enabled = false
+[[env.production.durable_objects.bindings]]
+name = "DEVICES"
+class_name = "DeviceObject"
+[[env.production.durable_objects.bindings]]
+name = "REGISTRATION_LIMITS"
+class_name = "RegistrationLimitObject"
+[[env.production.durable_objects.bindings]]
+name = "LOOKUP_LIMITS"
+class_name = "LookupLimitObject"
+[[env.production.durable_objects.bindings]]
+name = "PAIRING_SLOTS"
+class_name = "PairingSlotsObject"
+[[env.production.migrations]]
+tag = "v1"
+new_sqlite_classes = ["DeviceObject", "RegistrationLimitObject"]
+[[env.production.migrations]]
 tag = "v2"
 new_sqlite_classes = ["LookupLimitObject", "PairingSlotsObject"]
