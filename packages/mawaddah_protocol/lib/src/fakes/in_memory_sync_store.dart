@@ -91,6 +91,10 @@ final class InMemorySyncStore implements SyncStore {
   Future<List<Event>> outbox() async => List.unmodifiable(_s.outbox.values);
 
   @override
+  Future<bool> outboxContainsAll(Iterable<String> eventIds) async =>
+      eventIds.every(_s.outbox.containsKey);
+
+  @override
   Future<void> removeFromOutbox(Iterable<String> eventIds) async {
     _write('removeFromOutbox');
     eventIds.forEach(_s.outbox.remove);

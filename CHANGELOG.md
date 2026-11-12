@@ -52,6 +52,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `SyncStore.unappliedEnvelopes` orders envelopes with the same time by cursor as a number (`"99"` before `"100"`); the text order was only right for the old zero-padded fake cursors.
 - `mawaddah_protocol` now needs Dart 3.13 or later (required by `sodium` 4.x) and a C compiler the first time it is built or tested.
 
+### Fixed
+- `SyncEngine` no longer sends deleted content that is still waiting to be sent (spec 4.6, PROTOCOL.md section 17, #46). In the transaction of a `delete` (local or received), the entity's other events leave the outbox and a sealed envelope carrying one is dropped (its other events are sealed again); a local event of an already deleted entity is not queued; each deposit first checks, in a transaction, that its events are still in the outbox. New `SyncStore.outboxContainsAll` (implemented by `InMemorySyncStore`) and `SyncReport.envelopesDropped`. No wire change, no new vectors.
+
 ## [0.0.1] - 2026-11-10
 
 This first tag is a skeleton for the private app to pin; it contains no cryptography and nothing is deployed.

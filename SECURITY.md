@@ -109,7 +109,8 @@ Each case says what protects you and, honestly, what does not.
   - Release tags can still be moved by the repository owner (a protection rule for tags is planned).
   - Nothing is reproducibly built yet.
 
-### Deleted content still in the outbox
-- **Limit:** a message deleted before its envelope left the phone (offline) is still sent once with its content, followed by its delete, and the partner's phone then purges it (`PROTOCOL.md` section 16). A fix is tracked in this repository (issue #46).
+### Deleted content waiting to be sent
+- **Protection:** a delete removes the deleted item's events that are still waiting in the outbox, and drops an envelope already sealed with one of them, so deleted content that never left the phone is not sent; only the delete is (`PROTOCOL.md` section 17).
+- **Limit:** an upload that had already started, or that the relay took while its answer was lost, cannot be recalled: the partner's phone receives the content, then its delete, and purges it (`PROTOCOL.md` section 16).
 
 More limits, stated plainly: `PROTOCOL.md` section 16. What the relay and third parties see: `PRIVACY.md`.

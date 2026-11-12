@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:mawaddah_protocol/mawaddah_protocol.dart';
@@ -174,6 +175,12 @@ final class FlakyRelay extends DelegatingRelay {
     }
   });
 
+  /// The bytes of every deposit to [inbox] that reached the relay.
+  List<Uint8List> depositsTo(String inbox) => [
+    for (final (to, bytes) in deposited)
+      if (to == inbox) bytes,
+  ];
+
   /// Envelopes waiting in [inbox].
   Future<int> pending(String inbox) async =>
       (await inner.fetch(inbox)).envelopes.length;
@@ -240,6 +247,64 @@ final class Device {
   );
 
   Future<void> say(String text) => engine.commitLocal([message(text)]);
+
+  /// A `delete` (tombstone) of the message [entityId].
+  Event deletion(String entityId) => factory.make(
+    entityType: 'message',
+    entityId: entityId,
+    op: EventOp.delete,
+    payload: const {},
+  );
+
+  /// Deletes the message [entityId].
+  Future<void> unsay(String entityId) =>
+      engine.commitLocal([deletion(entityId)]);
+
+  /// The entity ID of the message whose text is [text] (deleted or not, as
+  /// long as it is still known).
+  String messageId(String text) => events.events.values
+      .firstWhere(
+        (e) =>
+            e.entityType == 'message' &&
+            e.op == EventOp.create &&
+            e.payload['text'] == text,
+      )
+      .entityId;
+
+  /// The plaintexts of [deposits] made for this phone, opened with a copy of
+  /// its stored session and replay window (nothing is changed). Call it
+  /// before this phone syncs.
+  Future<List<String>> openCopies(List<Uint8List> deposits) async {
+    final session = RatchetSession.fromStorageBytes(
+      crypto: crypto,
+      random: SeededRandom(seed * 104729),
+      clock: clock,
+      bytes: (await store.session())!,
+    );
+    final w = await store.replayWindow();
+    final window = w == null
+        ? ReplayWindow()
+        : ReplayWindow.fromStorageBytes(w);
+    final hlc = HlcClock(clock, last: await store.hlc());
+    try {
+      return [
+        for (final d in deposits)
+          utf8.decode(
+            Envelope.open(
+              crypto: crypto,
+              bytes: d,
+              self: identity.deviceId,
+              partner: pairing.partner,
+              session: session,
+              window: window,
+              clock: hlc,
+            ).plaintext,
+          ),
+      ];
+    } finally {
+      session.dispose();
+    }
+  }
 
   /// Chat texts, in the order they were written.
   List<String> messages() {

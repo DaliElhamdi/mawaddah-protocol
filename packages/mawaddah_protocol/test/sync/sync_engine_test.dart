@@ -706,6 +706,200 @@ void main() {
     });
   });
 
+  group('a delete before sending', () {
+    Future<bool> tombstoned(Device d, String id) async =>
+        (await d.events.entity('message', id))?.isDeleted ?? false;
+
+    test(
+      'a message deleted offline is never sent, only its tombstone',
+      () async {
+        final (:alice, :bob, :relay) = await couple(crypto);
+        relay.online = false;
+        await alice.say('keep');
+        await alice.say('secret');
+        final id = alice.messageId('secret');
+        await alice.unsay(id);
+        expect(alice.messages(), ['keep']);
+        expect(
+          [for (final e in await alice.store.outbox()) e.op],
+          [EventOp.create, EventOp.delete],
+        );
+
+        relay.online = true;
+        final r = await alice.sync();
+        expect(r.complete, isTrue);
+        expect(r.eventsSent, 2);
+        final sent = await bob.openCopies(relay.depositsTo(bob.inbox));
+        expect(sent, hasLength(1));
+        expect(sent.single, isNot(contains('secret')));
+        expect(sent.single, contains(id), reason: 'the tombstone is sent');
+
+        final got = await bob.sync();
+        expect(got.envelopeFailures, isEmpty);
+        expect(bob.messages(), ['keep']);
+        expect(
+          await tombstoned(bob, id),
+          isTrue,
+          reason:
+              'a tombstone of an '
+              'entity it never saw',
+        );
+      },
+    );
+
+    test('the initiator waiting for the first message never sends a message '
+        'deleted meanwhile', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      await bob.say('secret');
+      await bob.say('keep');
+      final id = bob.messageId('secret');
+      await bob.unsay(id);
+      expect((await bob.sync()).waitingForPartner, isTrue);
+
+      await alice.say('salam');
+      await alice.sync();
+      final r = await bob.sync();
+      expect(r.eventsSent, 2);
+      final sent = await alice.openCopies(relay.depositsTo(alice.inbox));
+      expect(sent.join(), isNot(contains('secret')));
+      await alice.sync();
+      expect(alice.messages(), ['salam', 'keep']);
+      expect(await tombstoned(alice, id), isTrue);
+    });
+
+    test('a sealed envelope not yet deposited is dropped and its other '
+        'events are sealed again', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      await alice.say('keep');
+      await alice.say('secret');
+      relay.failDeposits = 1;
+      expect((await alice.sync()).relayError, isNotNull);
+      expect(await alice.store.sealedEnvelopes(), hasLength(1));
+
+      final id = alice.messageId('secret');
+      await alice.unsay(id);
+      expect(
+        await alice.store.sealedEnvelopes(),
+        isEmpty,
+        reason: 'its bytes hold the deleted text',
+      );
+      expect(await alice.store.outbox(), hasLength(2));
+
+      final r = await alice.sync();
+      expect(r.complete, isTrue);
+      expect(r.envelopesSent, 1);
+      final deposits = relay.depositsTo(bob.inbox);
+      expect(Envelope.parse(deposits.single).counter, 2);
+      final sent = await bob.openCopies(deposits);
+      expect(sent.single, isNot(contains('secret')));
+
+      // The dropped envelope only leaves a skipped key on Bob's phone.
+      final got = await bob.sync();
+      expect(got.envelopeFailures, isEmpty);
+      expect(bob.messages(), ['keep']);
+      expect(await tombstoned(bob, id), isTrue);
+      await bob.say('got it');
+      await bob.sync();
+      await alice.sync();
+      expect(alice.messages(), ['keep', 'got it']);
+    });
+
+    test('a create and its delete committed together queue only the '
+        'delete', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      final create = alice.message('secret');
+      await alice.engine.commitLocal([create, alice.deletion(create.entityId)]);
+      final outbox = await alice.store.outbox();
+      expect([for (final e in outbox) e.op], [EventOp.delete]);
+      await alice.sync();
+      final sent = await bob.openCopies(relay.depositsTo(bob.inbox));
+      expect(sent.single, isNot(contains('secret')));
+      await bob.sync();
+      expect(await tombstoned(bob, create.entityId), isTrue);
+    });
+
+    test('a later local event of a deleted entity is not queued', () async {
+      final (:alice, bob: _, relay: _) = await couple(crypto);
+      final id = alice.factory.newEntityId();
+      await alice.unsay(id);
+      final late = alice.factory.make(
+        entityType: 'message',
+        entityId: id,
+        op: EventOp.create,
+        payload: {'text': 'secret'},
+      );
+      final result = await alice.engine.commitLocal([late]);
+      expect(result.applied, [late], reason: 'logged, changing nothing');
+      expect(
+        [for (final e in await alice.store.outbox()) e.op],
+        [EventOp.delete],
+      );
+      expect(alice.messages(), isEmpty);
+    });
+
+    test('a delete received from the partner removes queued events of that '
+        'entity', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      // Bob (the initiator) cannot send yet; Alice deletes the entity.
+      await bob.say('secret');
+      final id = bob.messageId('secret');
+      await alice.engine.commitLocal([alice.deletion(id)]);
+      await alice.sync();
+      final r = await bob.sync();
+      expect(r.eventsApplied, 1);
+      expect(await bob.store.outbox(), isEmpty);
+      expect(relay.depositsTo(alice.inbox), isEmpty);
+    });
+
+    for (final step in ['putLastCounter', 'putSealedEnvelope']) {
+      test('a delete committed while the run seals ($step) drops that '
+          'envelope', () async {
+        final (:alice, :bob, :relay) = await couple(crypto);
+        await alice.say('keep');
+        await alice.say('secret');
+        final id = alice.messageId('secret');
+        Future<void>? deleting;
+        alice.store.onWrite = (m) {
+          if (m != step || deleting != null) return;
+          // Outside the run's transaction, like a tap during the sync.
+          deleting = Zone.root.run(() => alice.unsay(id));
+        };
+        final r = await alice.sync();
+        await deleting;
+        alice.store.onWrite = null;
+        expect(r.envelopesDropped, 1);
+        expect(r.complete, isTrue);
+        expect(r.envelopesSent, 1, reason: 'the rest sealed again');
+        expect(await alice.store.outbox(), isEmpty);
+        expect(await alice.store.sealedEnvelopes(), isEmpty);
+        final sent = await bob.openCopies(relay.depositsTo(bob.inbox));
+        expect(sent.single, isNot(contains('secret')));
+        await bob.sync();
+        expect(bob.messages(), ['keep']);
+        expect(await tombstoned(bob, id), isTrue);
+      });
+    }
+
+    test(
+      'a store failure while removing keeps nothing of the delete',
+      () async {
+        final (:alice, bob: _, :relay) = await couple(crypto);
+        await alice.say('secret');
+        relay.failDeposits = 1;
+        await alice.sync();
+        alice.store.onWrite = (m) {
+          if (m == 'removeFromOutbox') throw StateError('disk full');
+        };
+        final id = alice.messageId('secret');
+        await expectLater(alice.unsay(id), throwsStateError);
+        alice.store.onWrite = null;
+        expect(alice.messages(), ['secret']);
+        expect(await alice.store.outbox(), hasLength(1));
+        expect(await alice.store.sealedEnvelopes(), hasLength(1));
+      },
+    );
+  });
+
   group('back-off', () {
     test('doubles from 5 s up to 15 min', () {
       const b = BackOff();

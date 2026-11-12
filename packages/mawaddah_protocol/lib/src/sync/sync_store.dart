@@ -141,16 +141,29 @@ abstract interface class SyncStore {
   /// The outbox, in the order events were added.
   Future<List<Event>> outbox();
 
+  /// Whether every one of these event IDs is in the outbox.
+  ///
+  /// The engine asks this before each deposit: the events of a sealed
+  /// envelope stay in the outbox until it is deposited, so a missing one
+  /// was removed by a delete meanwhile and the envelope is not sent
+  /// (PROTOCOL.md section 17).
+  Future<bool> outboxContainsAll(Iterable<String> eventIds);
+
   /// Removes the events with these IDs from the outbox (absent ones are
-  /// ignored).
+  /// ignored). Called after a deposit, and when a delete removes the queued
+  /// events of its entity.
   Future<void> removeFromOutbox(Iterable<String> eventIds);
 
-  /// Sealed envelopes not yet confirmed deposited, by counter.
+  /// Sealed envelopes not yet confirmed deposited, by counter. Every event
+  /// they carry is still in the [outbox].
   Future<List<SealedEnvelope>> sealedEnvelopes();
 
   /// Adds [envelope], or replaces the one with the same counter.
   Future<void> putSealedEnvelope(SealedEnvelope envelope);
 
+  /// Removes the sealed envelope [counter], if it is there: after its
+  /// deposit, when it is older than a day, or when it carries an event that
+  /// a delete removed from the outbox.
   Future<void> removeSealedEnvelope(int counter);
 
   /// The relay cursor of the last received envelope that was handled
