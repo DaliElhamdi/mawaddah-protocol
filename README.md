@@ -6,7 +6,7 @@ The public, verifiable half of **Mawaddah** (مودّة), a private two-person a
 - `relay/` — the **blind relay** (Cloudflare Workers + Durable Objects, TypeScript): it holds sealed envelopes for at most 30 days and cannot open them (so far: signed requests, inbox registration and its rate limit, pairing slots, envelopes, attachments and the 30-day delete; not deployed; see `relay/README.md`)
 - [`PROTOCOL.md`](PROTOCOL.md), [`PRIVACY.md`](PRIVACY.md), [`SECURITY.md`](SECURITY.md)
 
-> **Status: scaffolding only.** The package and the relay are built in Phase 1 of the project; nothing here is usable yet, and nothing has been independently reviewed. An independent security review is planned before version 1.0.0.
+> **Status: v0.1.0 in progress.** The package and the relay are built in Phase 1 of the project. The relay is not deployed yet, and nothing has been independently reviewed. An independent security review is planned before version 1.0.0. What the relay and third parties can see: [`PRIVACY.md`](PRIVACY.md). Threat model and how to report a problem: [`SECURITY.md`](SECURITY.md).
 
 The Mawaddah app itself is closed source and lives in a separate private repository. Licensed under [Apache-2.0](LICENSE).
 
