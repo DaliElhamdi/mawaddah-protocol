@@ -865,6 +865,7 @@ void main() {
           deleting = Zone.root.run(() => alice.unsay(id));
         };
         final r = await alice.sync();
+        expect(deleting, isNotNull, reason: 'the delete ran during the run');
         await deleting;
         alice.store.onWrite = null;
         expect(r.envelopesDropped, 1);
@@ -879,6 +880,84 @@ void main() {
         expect(await tombstoned(bob, id), isTrue);
       });
     }
+
+    test(
+      'a delete received from the partner drops a sealed envelope',
+      () async {
+        final (:alice, :bob, :relay) = await couple(crypto);
+        await alice.say('salam');
+        await alice.sync();
+        await bob.sync();
+        await alice.say('secret');
+        relay.failDeposits = 1;
+        await alice.sync();
+        expect(await alice.store.sealedEnvelopes(), hasLength(1));
+
+        final id = alice.messageId('secret');
+        await bob.engine.commitLocal([bob.deletion(id)]);
+        await bob.sync();
+        final before = relay.depositsTo(bob.inbox).length;
+        final r = await alice.sync();
+        expect(r.eventsApplied, 1);
+        expect(r.envelopesSent, 0);
+        expect(await alice.store.sealedEnvelopes(), isEmpty);
+        expect(await alice.store.outbox(), isEmpty);
+        expect(relay.depositsTo(bob.inbox), hasLength(before));
+        expect(alice.messages(), ['salam']);
+      },
+    );
+
+    test(
+      'several dropped envelopes in a row only leave skipped keys',
+      () async {
+        final (:alice, :bob, :relay) = await couple(crypto);
+        for (var i = 0; i < 5; i++) {
+          await alice.say('secret $i');
+          relay.failDeposits = 1;
+          await alice.sync();
+          await alice.unsay(alice.messageId('secret $i'));
+        }
+        await alice.say('keep');
+        await alice.sync();
+        final deposits = relay.depositsTo(bob.inbox);
+        expect(Envelope.parse(deposits.single).counter, 6);
+        final sent = await bob.openCopies(deposits);
+        expect(sent.single, isNot(contains('secret')));
+        final got = await bob.sync();
+        expect(got.envelopeFailures, isEmpty);
+        expect(bob.messages(), ['keep']);
+        await bob.say('ok');
+        await bob.sync();
+        await alice.sync();
+        expect(alice.messages(), ['keep', 'ok']);
+      },
+    );
+
+    test('a delete during the upload cannot stop it: the tombstone follows '
+        '(PROTOCOL.md section 16)', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      await alice.say('secret');
+      final id = alice.messageId('secret');
+      relay.duringUpload = () {
+        relay.duringUpload = null;
+        return alice.unsay(id);
+      };
+      final r = await alice.sync();
+      expect(r.envelopesSent, 1);
+      expect(r.envelopesDropped, 0);
+      expect(
+        [for (final e in await alice.store.outbox()) e.op],
+        [EventOp.delete],
+      );
+      await alice.sync();
+      final sent = await bob.openCopies(relay.depositsTo(bob.inbox));
+      expect(sent, hasLength(2));
+      expect(sent.first, contains('secret'));
+      expect(sent.last, isNot(contains('secret')));
+      await bob.sync();
+      expect(bob.messages(), isEmpty);
+      expect(await tombstoned(bob, id), isTrue);
+    });
 
     test(
       'a store failure while removing keeps nothing of the delete',

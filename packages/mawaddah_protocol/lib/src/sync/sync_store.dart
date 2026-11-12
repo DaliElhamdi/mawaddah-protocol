@@ -146,7 +146,9 @@ abstract interface class SyncStore {
   /// The engine asks this before each deposit: the events of a sealed
   /// envelope stay in the outbox until it is deposited, so a missing one
   /// was removed by a delete meanwhile and the envelope is not sent
-  /// (PROTOCOL.md section 17).
+  /// (PROTOCOL.md section 17). The engine asks inside [transaction], which
+  /// must see every transaction committed before it (a delete committed
+  /// first always wins).
   Future<bool> outboxContainsAll(Iterable<String> eventIds);
 
   /// Removes the events with these IDs from the outbox (absent ones are

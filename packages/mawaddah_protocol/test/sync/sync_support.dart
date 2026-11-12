@@ -114,6 +114,10 @@ final class FlakyRelay extends DelegatingRelay {
   /// When set, fetch returns at most this many envelopes.
   int? pageSize;
 
+  /// When set, every deposit that gets through runs it first (as if the
+  /// upload were under way), then reaches the relay.
+  Future<void> Function()? duringUpload;
+
   /// Every deposit that reached the relay: inbox and bytes.
   final deposited = <(String, Uint8List)>[];
   var fetches = 0, acks = 0, active = 0, maxActive = 0;
@@ -136,6 +140,7 @@ final class FlakyRelay extends DelegatingRelay {
           failDeposits--;
           throw const RelayDown('deposit');
         }
+        if (duringUpload case final f?) await f();
         deposited.add((inboxId, Uint8List.fromList(body)));
         await inner.deposit(inboxId, body, wake: wake);
       });

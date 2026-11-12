@@ -50,6 +50,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `RelayClient` covers every relay route: `registerInbox`, `createPairingSlot`, `lookupPairingSlot`, `replyToPairingSlot`, `readPairingReply`, `allowSender`, `putBlobChunk`, `getBlobChunk`, `deleteBlob`, `setPushToken`, `deleteInbox`; `fetch` returns a `RelayPage` with the relay's `more` flag. `FakeRelayClient` follows it: made with a signing key it applies the relay's rules and error codes (owner, allowed sender, slots, cursors, pages, blob order and quotas), and `as(key)` gives the partner's client on the same state; `failNext` injects errors.
 - `SyncEngine` stops fetching when the relay says nothing more waits (no extra empty fetch), and `SyncReport.relayError` is the relay's error code for a `RelayException`.
 - `SyncStore.unappliedEnvelopes` orders envelopes with the same time by cursor as a number (`"99"` before `"100"`); the text order was only right for the old zero-padded fake cursors.
+- `SyncStore` has a new required method, `outboxContainsAll` (implementations must add it), and every event of a sealed envelope must stay in the outbox until the envelope is deposited or dropped (#46).
 - `mawaddah_protocol` now needs Dart 3.13 or later (required by `sodium` 4.x) and a C compiler the first time it is built or tested.
 
 ### Fixed
