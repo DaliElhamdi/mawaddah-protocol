@@ -152,9 +152,9 @@ final class SyncReport {
 /// with [identity]'s device as its local device. [hlc] is the device's one
 /// HLC clock: the app's `EventFactory` uses the same object.
 ///
-/// Every run ends by compacting the log of each entity type that reached
+/// A run ends by compacting the log of each entity type that reached
 /// `compactAfter` logged events ([Compactor]), whether or not the relay
-/// answered.
+/// answered (not after a store failure, which throws).
 final class SyncEngine {
   SyncEngine({
     required this.crypto,
@@ -196,7 +196,7 @@ final class SyncEngine {
   final WakePolicy wake;
   final BackOff backOff;
 
-  /// Compacts the log at the end of every run, in a transaction with the HLC
+  /// Compacts the log at the end of each run, in a transaction with the HLC
   /// (a snapshot event takes the next HLC value).
   final Compactor compactor;
 
@@ -298,11 +298,15 @@ final class SyncEngine {
     } finally {
       session.dispose();
     }
-    final compacted = await store.transaction(() async {
-      final dropped = await compactor.compactIfNeeded();
-      if (dropped.isNotEmpty) await store.putHlc(hlc.last);
-      return dropped.values.fold(0, (a, b) => a + b);
-    });
+    // Counts are read first, so a run with nothing due opens no write
+    // transaction.
+    final compacted = !await compactor.isDue()
+        ? 0
+        : await store.transaction(() async {
+            final dropped = await compactor.compactIfNeeded();
+            if (dropped.isNotEmpty) await store.putHlc(hlc.last);
+            return dropped.values.fold(0, (a, b) => a + b);
+          });
     final now = _clock.now();
     final since = await store.clockAheadSince();
     final unfinished = r.relayError != null || r.leftOnRelay > 0 || r.morePages;

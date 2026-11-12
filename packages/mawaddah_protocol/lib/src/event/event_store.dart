@@ -147,13 +147,14 @@ abstract interface class EventStore {
   /// The number of logged events of [entityType], snapshots included.
   Future<int> loggedEventCount(String entityType);
 
-  /// Removes every logged event of [entityType] from the log, payloads and
-  /// all, and returns how many it removed (compaction, PROTOCOL.md section
-  /// 10). Entity states and unapplied events are not touched.
+  /// Removes every logged event of [entityType] from the log with its
+  /// payload, and returns how many it removed (compaction, PROTOCOL.md
+  /// section 10). Entity states and unapplied events are not touched.
   ///
-  /// The IDs of the removed events stay stored for good, so [containsEvent]
-  /// is still true for them: a late copy of one is a duplicate, not a new
-  /// event. Nothing else of them is kept.
+  /// The IDs of the removed events stay stored for good, written in the same
+  /// transaction as the removal, so [containsEvent] is still true for them:
+  /// a late copy of one is a duplicate, not a new event. Nothing else of
+  /// them is kept.
   Future<int> dropLoggedEvents(String entityType);
 
   /// The state of an entity, or null if no event touched it.

@@ -264,6 +264,12 @@ Future<void> _converge({required bool compact}) async {
         for (final e in snapshots) {
           expect(e.payload.keys, ['replaced'], reason: reason);
         }
+        // Repeats that came after a compaction were not logged again.
+        expect(
+          s.events.keys.where(s.droppedEventIds.contains),
+          isEmpty,
+          reason: reason,
+        );
       }
     }
   }

@@ -196,6 +196,31 @@ void main() {
     ]);
   });
 
+  test('a late event of an entity deleted before compaction', () async {
+    final id = b.newId();
+    final create = b.make('message', id, EventOp.create, {'text': 'gone'});
+    b.clock.advance(const Duration(seconds: 1));
+    final delete = b.make('message', id, EventOp.delete);
+    await applier.applyReceived(batch([create, delete]), sender: bob);
+    await compactor.compact('message');
+    final tomb = (await store.entity('message', id))!;
+
+    // A newer schema this release cannot apply, then a second delete.
+    b.clock.advance(const Duration(seconds: 1));
+    final late = b.make('message', id, EventOp.create, {'text': 'late'}, 2);
+    b.clock.advance(const Duration(seconds: 1));
+    final again = b.make('message', id, EventOp.delete);
+    final r = await applier.applyReceived(batch([late, again]), sender: bob);
+    expect(r.unapplied, isEmpty, reason: 'a tombstone is final');
+    expect((await store.event(late.eventId))!.payload, isEmpty);
+    final state = (await store.entity('message', id))!;
+    expect(state.fields, isEmpty);
+    expect(state.deleted, again.stamp, reason: 'the latest delete');
+    expect(tomb.deleted, delete.stamp);
+    expect(await _raw(store), isNot(contains('late')));
+    expect(await _raw(store), isNot(contains('gone')));
+  });
+
   test('a second compaction replaces the first snapshot', () async {
     await fill(5001);
     await compactor.compactIfNeeded();
@@ -275,6 +300,7 @@ void main() {
   });
 
   test('compact on an empty type writes no snapshot', () async {
+    expect(await compactor.isDue(), isFalse);
     expect(await compactor.compact('message'), 0);
     expect(store.events, isEmpty);
     expect(
