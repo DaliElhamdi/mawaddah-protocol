@@ -162,7 +162,10 @@ abstract interface class SyncStore {
   /// Adds [envelope], or replaces the one with the same ID.
   Future<void> putUnappliedEnvelope(UnappliedEnvelope envelope);
 
-  /// Every kept envelope, oldest first (by `receivedAt`, then ID).
+  /// Every kept envelope, oldest first: by `receivedAt`, then by ID in relay
+  /// order. Relay cursors are decimal numbers without leading zeros, so
+  /// relay order is shorter first, then by text (`"99"` before `"100"`; in
+  /// SQL `ORDER BY received_at, length(id), id`).
   Future<List<UnappliedEnvelope>> unappliedEnvelopes();
 
   Future<void> removeUnappliedEnvelope(String id);

@@ -406,7 +406,7 @@ How a phone sends and fetches envelopes (spec 4.6 and 8.7). It adds no wire form
 **Receiving.**
 1. If the stored cursor has not been acknowledged in this app session (an ACK lost, or the app stopped before it), acknowledge it again. If that fails, fetch all the same: the next ACK covers it.
 2. Fetch the envelopes after the stored cursor. Handle each in order as in section 8, and store its cursor in the same transaction as its events, session, replay window and HLC (or alone, for an envelope that is discarded).
-3. After each page, acknowledge the last cursor handled. An ACK is cumulative: the relay deletes every envelope up to and including that cursor.
+3. After each page, acknowledge the last cursor handled. An ACK is cumulative: the relay deletes every envelope up to and including that cursor. Fetch the next page only if the relay said `more` (and the page moved the cursor); otherwise receiving is done.
 4. An envelope whose time is ahead of the clock (section 8 step 5) stops the run's receiving: neither it nor anything after it is acknowledged, so it is fetched again next time. The phone stores when this first happened and shows the wrong-time card after 24 hours; the date is cleared once the envelope opens.
 5. Kept raw envelopes (unknown version, undecryptable, refused plaintext) are stored by their cursor; at most 100 per reason, the oldest deleted first (section 8 asks this for unknown versions; the others are capped too so the database cannot grow without limit).
 

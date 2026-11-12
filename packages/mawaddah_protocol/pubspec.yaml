@@ -1,5 +1,5 @@
 name: mawaddah_protocol
-description: Pure-Dart protocol package for Mawaddah (interfaces, fakes, libsodium crypto primitives and device identity).
+description: Pure-Dart protocol package for Mawaddah (crypto, pairing, Double Ratchet, envelopes, events, sync engine and the relay client).
 version: 0.0.1
 publish_to: none
 
@@ -15,6 +15,9 @@ dependencies:
   # API does not offer (PROTOCOL.md section 2, ADR 0006 point 3). The HKDF
   # tests also use its HMAC-SHA-256 as an independent cross-check.
   crypto: ^3.0.8
+  # HTTP client for HttpRelayClient (Dart team package; on Android the app
+  # may pass any http.Client, e.g. one with its own TLS settings).
+  http: ^1.6.0
 
 dev_dependencies:
   lints: ^6.1.0

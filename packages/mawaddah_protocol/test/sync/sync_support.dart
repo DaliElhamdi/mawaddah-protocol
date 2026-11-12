@@ -16,10 +16,76 @@ final class RelayDown implements Exception {
   String toString() => 'RelayDown($what)';
 }
 
+/// Passes every call to [inner]; subclasses override the calls they fake.
+class DelegatingRelay implements RelayClient {
+  DelegatingRelay(this.inner);
+  final RelayClient inner;
+
+  @override
+  Future<void> deposit(String inboxId, Uint8List body, {bool wake = false}) =>
+      inner.deposit(inboxId, body, wake: wake);
+  @override
+  Future<RelayPage> fetch(String inboxId, {String? after}) =>
+      inner.fetch(inboxId, after: after);
+  @override
+  Future<void> ack(String inboxId, String cursor) => inner.ack(inboxId, cursor);
+  @override
+  Future<String> registerInbox({
+    required String? pushToken,
+    required RelayPlatform platform,
+  }) => inner.registerInbox(pushToken: pushToken, platform: platform);
+  @override
+  Future<PairingSlot> createPairingSlot(PairingBundle bundle) =>
+      inner.createPairingSlot(bundle);
+  @override
+  Future<PairingSlotLookup> lookupPairingSlot(String handle) =>
+      inner.lookupPairingSlot(handle);
+  @override
+  Future<void> replyToPairingSlot(String slotId, PairingReply reply) =>
+      inner.replyToPairingSlot(slotId, reply);
+  @override
+  Future<PairingReply?> readPairingReply(String slotId) =>
+      inner.readPairingReply(slotId);
+  @override
+  Future<void> allowSender(String inboxId, Uint8List senderKey) =>
+      inner.allowSender(inboxId, senderKey);
+  @override
+  Future<void> putBlobChunk(
+    String inboxId,
+    String blobId, {
+    required int size,
+    required int chunk,
+    required Uint8List bytes,
+  }) => inner.putBlobChunk(
+    inboxId,
+    blobId,
+    size: size,
+    chunk: chunk,
+    bytes: bytes,
+  );
+  @override
+  Future<RelayBlobChunk> getBlobChunk(
+    String inboxId,
+    String blobId,
+    int chunk,
+  ) => inner.getBlobChunk(inboxId, blobId, chunk);
+  @override
+  Future<void> deleteBlob(String inboxId, String blobId) =>
+      inner.deleteBlob(inboxId, blobId);
+  @override
+  Future<void> setPushToken(String inboxId, String? pushToken) =>
+      inner.setPushToken(inboxId, pushToken);
+  @override
+  Future<void> deleteInbox(String inboxId) => inner.deleteInbox(inboxId);
+}
+
 /// A [FakeRelayClient] with faults: offline, failing deposits, lost ACKs,
 /// duplicate and repeated deliveries, and a gate that holds fetches.
-final class FlakyRelay implements RelayClient {
-  final inner = FakeRelayClient();
+final class FlakyRelay extends DelegatingRelay {
+  FlakyRelay() : super(FakeRelayClient());
+
+  @override
+  FakeRelayClient get inner => super.inner as FakeRelayClient;
 
   /// Every call fails before reaching the relay.
   var online = true;
@@ -37,7 +103,8 @@ final class FlakyRelay implements RelayClient {
   /// ACKs answer success but delete nothing.
   var dropAcks = false;
 
-  /// Fetch ignores `after` and returns every pending envelope twice.
+  /// Fetch ignores `after`, returns every pending envelope twice, and says
+  /// more are waiting.
   var duplicates = false;
 
   /// When set, fetch waits for it.
@@ -73,19 +140,23 @@ final class FlakyRelay implements RelayClient {
       });
 
   @override
-  Future<List<RelayEnvelope>> fetch(String inboxId, {String? after}) =>
+  Future<RelayPage> fetch(String inboxId, {String? after}) =>
       _call('fetch', () async {
         fetches++;
         if (gate case final g?) await g.future;
         if (!duplicates) {
           final page = await inner.fetch(inboxId, after: after);
           final n = pageSize;
-          return n == null || page.length <= n ? page : page.sublist(0, n);
+          if (n == null || page.envelopes.length <= n) return page;
+          return RelayPage(envelopes: page.envelopes.sublist(0, n), more: true);
         }
-        final all = await inner.fetch(inboxId);
-        return [
-          for (final e in all) ...[e, e],
-        ];
+        final all = (await inner.fetch(inboxId)).envelopes;
+        return RelayPage(
+          envelopes: [
+            for (final e in all) ...[e, e],
+          ],
+          more: all.isNotEmpty,
+        );
       });
 
   @override
@@ -104,7 +175,8 @@ final class FlakyRelay implements RelayClient {
   });
 
   /// Envelopes waiting in [inbox].
-  Future<int> pending(String inbox) async => (await inner.fetch(inbox)).length;
+  Future<int> pending(String inbox) async =>
+      (await inner.fetch(inbox)).envelopes.length;
 }
 
 /// One paired phone: its stores, HLC, event factory and sync engine.
@@ -204,6 +276,29 @@ final class Device {
   }
 }
 
+/// A phone of a pair, set up from its side of [pairing] (its ratchet session
+/// stored), syncing through [relay]. Its clock starts at [start].
+Future<Device> pairedDevice(
+  Crypto crypto, {
+  required String name,
+  required PairingResult pairing,
+  required RelayClient relay,
+  required DateTime start,
+  required int seed,
+}) async {
+  final d = Device._(name, crypto, pairing, FakeClock(start), relay, seed);
+  final session = RatchetSession.fromPairing(
+    crypto: crypto,
+    random: SeededRandom(seed),
+    clock: d.clock,
+    pairing: pairing,
+  );
+  await d.store.putSession(session.toStorageBytes());
+  session.dispose();
+  await d.restart();
+  return d;
+}
+
 /// A paired couple: `alice` is the joiner (sends first), `bob` the
 /// initiator. Each has its own clock, both start at the same time.
 Future<({Device alice, Device bob, FlakyRelay relay})> couple(
@@ -213,19 +308,14 @@ Future<({Device alice, Device bob, FlakyRelay relay})> couple(
   final p = pair(crypto);
   final relay = FlakyRelay();
   final t = start ?? DateTime.utc(2026, 11, 11, 12);
-  Future<Device> make(String name, PairingResult r, int seed) async {
-    final d = Device._(name, crypto, r, FakeClock(t), relay, seed);
-    final session = RatchetSession.fromPairing(
-      crypto: crypto,
-      random: SeededRandom(seed),
-      clock: d.clock,
-      pairing: r,
-    );
-    await d.store.putSession(session.toStorageBytes());
-    session.dispose();
-    await d.restart();
-    return d;
-  }
+  Future<Device> make(String name, PairingResult r, int seed) => pairedDevice(
+    crypto,
+    name: name,
+    pairing: r,
+    relay: relay,
+    start: t,
+    seed: seed,
+  );
 
   return (
     alice: await make('alice', p.joiner, 10),

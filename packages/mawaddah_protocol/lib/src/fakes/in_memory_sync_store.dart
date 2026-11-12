@@ -135,7 +135,9 @@ final class InMemorySyncStore implements SyncStore {
     final list = _s.unapplied.values.toList()
       ..sort((a, b) {
         final c = a.receivedAt.compareTo(b.receivedAt);
-        return c != 0 ? c : a.id.compareTo(b.id);
+        if (c != 0) return c;
+        final l = a.id.length.compareTo(b.id.length);
+        return l != 0 ? l : a.id.compareTo(b.id);
       });
     return List.unmodifiable(list);
   }

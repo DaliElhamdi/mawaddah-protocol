@@ -2,7 +2,7 @@
 
 The public, verifiable half of **Mawaddah** (مودّة), a private two-person app for engaged and married couples. This repository holds the code that carries and protects the couple's data, so anyone can check the privacy claims:
 
-- `packages/mawaddah_protocol/` — pure-Dart package: crypto envelopes, pairing, Double Ratchet, event model, sync engine, relay client (so far: interfaces, fakes, the libsodium primitives, device identity and the safety number, pairing, the Double Ratchet, signed envelopes, the hybrid logical clock, the event model with its idempotent apply, and the outbox and sync loop)
+- `packages/mawaddah_protocol/` — pure-Dart package: crypto envelopes, pairing, Double Ratchet, event model, sync engine, relay client (so far: interfaces, fakes, the libsodium primitives, device identity and the safety number, pairing, the Double Ratchet, signed envelopes, the hybrid logical clock, the event model with its idempotent apply, the outbox and sync loop, and the HTTP relay client)
 - `relay/` — the **blind relay** (Cloudflare Workers + Durable Objects, TypeScript): it holds sealed envelopes for at most 30 days and cannot open them (so far: signed requests, inbox registration and its rate limit, pairing slots, envelopes, attachments and the 30-day delete; not deployed; see `relay/README.md`)
 - [`PROTOCOL.md`](PROTOCOL.md), [`PRIVACY.md`](PRIVACY.md), [`SECURITY.md`](SECURITY.md)
 
@@ -18,10 +18,10 @@ Logic code takes its outside world as injected interfaces, so tests can control 
 | `Clock` | current time (UTC) | `FakeClock` (`set`, `advance`) |
 | `RandomSource` | random bytes (secure in the app) | `SeededRandom` (deterministic, **not secure**) |
 | `Storage` | async key-value bytes | `InMemoryStorage` |
-| `RelayClient` | deposit, fetch, ack sealed envelopes | `FakeRelayClient` |
+| `RelayClient` | every relay route: inbox, pairing slots, allow, envelopes, ACK, blobs, push token, delete | `FakeRelayClient` (checked when made with a signing key: the relay's rules and error codes) |
 | `EventStore` + `SyncStore` | events, merged state; sync state (one shared transaction) | `InMemoryEventStore` + `InMemorySyncStore` |
 
-The real `Clock`, `RandomSource`, `Storage` and `RelayClient` are supplied by the app. `NotificationGateway` lives in the private `core` package. Run the tests with `cd packages/mawaddah_protocol && dart test`.
+The real `Clock`, `RandomSource` and `Storage` are supplied by the app; the real `RelayClient` is `HttpRelayClient` (below), given the relay's address by the app. `NotificationGateway` lives in the private `core` package. Run the tests with `cd packages/mawaddah_protocol && dart test`.
 
 ## Crypto primitives (`packages/mawaddah_protocol/lib/src/crypto`)
 `Crypto` (implemented by `SodiumCrypto`) is a typed layer over libsodium 1.0.22 (sumo) through the [`sodium`](https://pub.dev/packages/sodium) package: X25519, Ed25519, XChaCha20-Poly1305 (IETF), BLAKE2b and HKDF-SHA-256 ([`PROTOCOL.md`](PROTOCOL.md) section 2). It adds no cryptography of its own.
@@ -59,8 +59,18 @@ The real `Clock`, `RandomSource`, `Storage` and `RelayClient` are supplied by th
 - `WakePolicy.v1` is the one table that decides `wake: 1` (a new chat message) or `wake: 0` (receipts, profile, hello).
 - The app implements `SyncStore` over the same database transaction as its `EventStore`; `dart test test/sync` covers 7 days offline, duplicates, partial failures and lost ACKs.
 
+## Relay client (`packages/mawaddah_protocol/lib/src/relay`)
+[`relay/README.md`](relay/README.md) lists the routes and error codes; [`PROTOCOL.md`](PROTOCOL.md) section 13 the signing.
+
+- `HttpRelayClient(baseUrl: …, signer: RelayRequestSigner(…))` implements `RelayClient` over HTTPS with `package:http`. The address is injected (plain `http` only to `localhost`, `127.0.0.1`, `[::1]` or the Android emulator's `10.0.2.2`); the package names no relay. One client signs as one device (one pairing attempt's identity). Without a signer only the unsigned code lookup works (the joiner looks the code up before its keys exist). `PairingInitiator.identity` gives the initiator's keys for signing during the attempt.
+- Every failure is a `RelayException` with a `RelayErrorCode` (the relay's stable codes, plus `network`, `timeout`, `bad_response`, `invalid_response` and `unknown`), the HTTP status, `retryAfter` (`rate_limited`), `serverTime` (`clock_skew`: show the wrong-time card) and `nextChunk` (`chunk_out_of_order`). `retryable` says whether the same request may pass later (`sender_not_allowed` just after pairing, `inbox_full`, `rate_limited`, …); `toString` names no URL, ID or body.
+- Retries: a try that gets no answer, times out (30 s), or meets a passing server fault is tried again after 1 s and 3 s, with a fresh signature. Refusals are thrown at once for the caller's back-off. Tried once only: `deposit` (a repeat after a lost answer would store the envelope twice and wake the partner twice; the sync engine resends the same bytes on its next run), `readPairingReply` (the reply can be read once) and a code lookup (a repeat could use up one of the network's 5 wrong guesses). `retry_after` is capped at one hour.
+- Every answer is checked before use: the inbox ID must be the one computed from the key, cursors must increase, envelopes and blob chunks must have the right sizes, at most 2 MiB is read, and redirects are not followed. An answer that parses but breaks these rules is `invalid_response`: a broken or hostile relay, never retried. Argument errors never quote the value (IDs, codes, cursors).
+- `uploadBlob` / `downloadBlob` move a whole encrypted file in 1 MiB relay chunks; an upload resumes at the chunk the relay names.
+- `scripts/relay-integration.sh` starts the relay with `wrangler dev`, runs `test/relay/relay_integration_test.dart` against it (pairing on both paths, two sync engines chatting over HTTP, pages, blobs, refusals, rate limits, delete), then stops it. `scripts/test.sh` and CI run it.
+
 ## Toolchain and checks
-Pinned versions: Dart in `.dart-version`, Node in `.node-version` (CI reads these files). `scripts/check.sh` = format, analyze, lint, typecheck, secret-file and fork-safety guards; `scripts/test.sh` = `dart test` and the relay's Vitest (the first `dart test` compiles libsodium, about 15 s). CI runs both plus gitleaks (`.gitleaks.toml` keeps the default rules and skips only the test-vector files, whose "secret" keys are public on purpose: printed in the RFCs, or generated from fixed seeds by `tool/gen_vectors.dart`). Workflows use `pull_request` only, never `pull_request_target`, and no secrets, so fork PRs cannot reach any.
+Pinned versions: Dart in `.dart-version`, Node in `.node-version` (CI reads these files). `scripts/check.sh` = format, analyze, lint, typecheck, secret-file and fork-safety guards; `scripts/test.sh` = `dart test`, the relay's Vitest, and the Dart client against `wrangler dev` (`scripts/relay-integration.sh`; the first `dart test` compiles libsodium, about 15 s). CI runs both plus gitleaks (`.gitleaks.toml` keeps the default rules and skips only the test-vector files, whose "secret" keys are public on purpose: printed in the RFCs, or generated from fixed seeds by `tool/gen_vectors.dart`). Workflows use `pull_request` only, never `pull_request_target`, and no secrets, so fork PRs cannot reach any.
 
 ## Releases
 Releases are tags `vX.Y.Z` on `main`. The `protocol-release` workflow runs the checks and tests, then publishes a GitHub Release with the matching CHANGELOG section (add `## [X.Y.Z] - date` first; `scripts/release-notes.sh vX.Y.Z` shows what will be published). The private app depends on the package by tag (`ref: vX.Y.Z`), never by branch.
