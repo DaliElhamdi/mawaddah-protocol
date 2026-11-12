@@ -55,10 +55,10 @@ The real `Clock`, `RandomSource` and `Storage` are supplied by the app; the real
 [`PROTOCOL.md`](PROTOCOL.md) section 17.
 
 - `SyncEngine.commitLocal(events)` applies this device's events and queues them in the outbox, in one transaction: the app works offline.
-- `SyncEngine.syncOnce()` (one run at a time) fetches after the stored cursor, opens, applies and commits each envelope with its cursor, then acknowledges (cumulative); then it seals and deposits the outbox. A failed deposit is retried as the same sealed bytes (a new counter and key only after 1 day). It returns a `SyncReport` (counts only, `clockWarning`, and an advisory `retryAt` from `BackOff` that the app schedules itself). Relay failures are reported, store failures throw.
+- `SyncEngine.syncOnce()` (one run at a time) fetches after the stored cursor, opens, applies and commits each envelope with its cursor, then acknowledges (cumulative); then it seals and deposits the outbox. A failed deposit is retried as the same sealed bytes (a new counter and key only after 1 day). A delete removes its entity's queued events and drops a sealed envelope that carries one, so deleted content that never left the phone is not sent. It returns a `SyncReport` (counts only, `clockWarning`, and an advisory `retryAt` from `BackOff` that the app schedules itself). Relay failures are reported, store failures throw.
 - `Compactor` (section 10): at the end of each run the engine replaces the log of each entity type that reached 5,000 events with one local `snapshot` event; the merged state does not change, dropped event IDs are kept to spot late copies, and snapshots are never sent. The app's `EventStore` implements `loggedEventCount` and `dropLoggedEvents`.
 - `WakePolicy.v1` is the one table that decides `wake: 1` (a new chat message) or `wake: 0` (receipts, profile, hello).
-- The app implements `SyncStore` over the same database transaction as its `EventStore`; `dart test test/sync` covers 7 days offline, duplicates, partial failures and lost ACKs.
+- The app implements `SyncStore` over the same database transaction as its `EventStore` (including `outboxContainsAll`, read inside that transaction before each deposit); `dart test test/sync` covers 7 days offline, duplicates, partial failures and lost ACKs.
 
 ## Relay client (`packages/mawaddah_protocol/lib/src/relay`)
 [`relay/README.md`](relay/README.md) lists the routes and error codes; [`PROTOCOL.md`](PROTOCOL.md) section 13 the signing.

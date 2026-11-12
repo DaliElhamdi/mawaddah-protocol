@@ -77,6 +77,7 @@ final class SyncReport {
     required this.relayError,
     required this.retryAt,
     this.eventsCompacted = 0,
+    this.envelopesDropped = 0,
   });
 
   /// Envelopes the relay took, and the outbox events they carried.
@@ -127,6 +128,13 @@ final class SyncReport {
   /// ([Compactor]).
   final int eventsCompacted;
 
+  /// Sealed envelopes not deposited because a delete committed meanwhile
+  /// removed one of their events from the outbox (or dropped the envelope
+  /// itself); their other events were sealed again (PROTOCOL.md section
+  /// 17). A delete committed while an upload is under way cannot stop it:
+  /// that envelope counts in [envelopesSent].
+  final int envelopesDropped;
+
   /// Whether everything was sent and fetched.
   bool get complete => retryAt == null;
 
@@ -137,7 +145,7 @@ final class SyncReport {
       'unapplied: $eventsUnapplied, failures: '
       '${envelopeFailures.map((k, v) => MapEntry(k.name, v))}, '
       'kept: $envelopesKept, leftOnRelay: $leftOnRelay, '
-      'compacted: $eventsCompacted, '
+      'compacted: $eventsCompacted, dropped: $envelopesDropped, '
       'retryAt: $retryAt)';
 }
 
@@ -213,6 +221,14 @@ final class SyncEngine {
   /// them to the outbox, in one transaction with the HLC. Events already
   /// stored are not queued again.
   ///
+  /// Deleted content is never sent (spec 4.6): after a `delete`, the
+  /// entity's other events still in the outbox are removed from it, and a
+  /// sealed envelope not yet deposited that carries one of them is dropped
+  /// (its other events stay queued and are sealed again). An event of an
+  /// entity that is already deleted is logged without effect and not
+  /// queued (it is still in [ApplyResult.applied]). The delete itself is
+  /// sent.
+  ///
   /// Throws [ArgumentError] before changing anything for an event that the
   /// applier refuses or that is too large for one envelope.
   Future<ApplyResult> commitLocal(List<Event> events) async {
@@ -227,7 +243,14 @@ final class SyncEngine {
     }
     return store.transaction(() async {
       final result = await applier.applyLocal(events);
-      await store.addToOutbox(result.applied);
+      final deleted = await _deletedEntities(result.applied);
+      await store.addToOutbox([
+        for (final e in result.applied)
+          if (e.op == EventOp.delete ||
+              !deleted.contains((e.entityType, e.entityId)))
+            e,
+      ]);
+      await _unqueueDeleted(deleted);
       await store.putHlc(hlc.last);
       return result;
     });
@@ -327,6 +350,7 @@ final class SyncEngine {
       relayError: r.relayError,
       retryAt: unfinished ? now.add(backOff.after(_failures)) : null,
       eventsCompacted: compacted,
+      envelopesDropped: r.dropped,
     );
   }
 
@@ -444,6 +468,13 @@ final class SyncEngine {
             plaintext,
             sender: partner.deviceId,
           );
+          // The partner deleted it: nothing queued here about it is sent.
+          await _unqueueDeleted(
+            await _deletedEntities([
+              for (final e in result.applied)
+                if (e.op == EventOp.delete) e,
+            ]),
+          );
           r.eventsApplied += result.applied.length;
           r.eventsUnapplied += result.unapplied.length;
           r.duplicates += result.duplicates;
@@ -496,11 +527,19 @@ final class SyncEngine {
       }
       await _deposit(s, r);
     }
+    // A delete committed while a batch is sealed drops that envelope
+    // ([_deposit]); the outbox is then read and split again.
+    while (await _sendOutbox(session, r)) {}
+  }
+
+  /// Seals and deposits the outbox. Returns true when an envelope was
+  /// dropped: the caller then reads and splits the outbox again.
+  Future<bool> _sendOutbox(RatchetSession session, _Run r) async {
     final pending = await store.outbox();
-    if (pending.isEmpty) return;
+    if (pending.isEmpty) return false;
     if (!session.canSend) {
       r.waitingForPartner = true;
-      return;
+      return false;
     }
     for (final batch in _batches(pending)) {
       // The counter is stored before sealing: a crash never reuses it.
@@ -540,11 +579,29 @@ final class SyncEngine {
         await store.putHlc(hlc.last);
         await store.putSealedEnvelope(sealed);
       });
-      await _deposit(sealed, r);
+      if (!await _deposit(sealed, r)) return true;
     }
+    return false;
   }
 
-  Future<void> _deposit(SealedEnvelope s, _Run r) async {
+  /// Deposits [s] unless a delete committed since it was sealed removed one
+  /// of its events from the outbox (or dropped it already): then it is
+  /// removed and false returned. The check is a transaction, so it comes
+  /// after any delete committed before it; a delete committed once the
+  /// upload has started cannot stop it.
+  Future<bool> _deposit(SealedEnvelope s, _Run r) async {
+    final current = await store.transaction(() async {
+      final stored = (await store.sealedEnvelopes()).any(
+        (x) => x.counter == s.counter,
+      );
+      if (stored && await store.outboxContainsAll(s.eventIds)) return true;
+      if (stored) await store.removeSealedEnvelope(s.counter);
+      return false;
+    });
+    if (!current) {
+      r.dropped++;
+      return false;
+    }
     await _relay(() => relay.deposit(_partnerInbox, s.bytes, wake: s.wake));
     await store.transaction(() async {
       await store.removeSealedEnvelope(s.counter);
@@ -552,6 +609,42 @@ final class SyncEngine {
     });
     r.envelopesSent++;
     r.eventsSent += s.eventIds.length;
+    return true;
+  }
+
+  /// The entities of [events] that are deleted now (looked up once each).
+  Future<Set<(String, String)>> _deletedEntities(List<Event> events) async {
+    final deleted = <(String, String)>{};
+    final checked = <(String, String)>{};
+    for (final e in events) {
+      final key = (e.entityType, e.entityId);
+      if (!checked.add(key)) continue;
+      final state = await applier.store.entity(e.entityType, e.entityId);
+      if (state?.isDeleted ?? false) deleted.add(key);
+    }
+    return deleted;
+  }
+
+  /// Removes from the outbox every event of the [deleted] entities except
+  /// deletes, and drops the sealed envelopes carrying one of them (their
+  /// other events stay in the outbox). Runs inside the caller's
+  /// transaction. The dropped ratchet message only leaves a skipped key on
+  /// the partner's phone (PROTOCOL.md section 6).
+  Future<void> _unqueueDeleted(Set<(String, String)> deleted) async {
+    if (deleted.isEmpty) return;
+    final ids = {
+      for (final e in await store.outbox())
+        if (e.op != EventOp.delete &&
+            deleted.contains((e.entityType, e.entityId)))
+          e.eventId,
+    };
+    if (ids.isEmpty) return;
+    for (final s in await store.sealedEnvelopes()) {
+      if (s.eventIds.any(ids.contains)) {
+        await store.removeSealedEnvelope(s.counter);
+      }
+    }
+    await store.removeFromOutbox(ids);
   }
 
   /// `{"events":[` and `]}`.
@@ -608,7 +701,7 @@ final class _RelayFailure implements Exception {
 final class _Run {
   var envelopesSent = 0, eventsSent = 0, resealed = 0;
   var envelopesOpened = 0, eventsApplied = 0, eventsUnapplied = 0;
-  var duplicates = 0, kept = 0, leftOnRelay = 0;
+  var duplicates = 0, kept = 0, leftOnRelay = 0, dropped = 0;
   var waitingForPartner = false, morePages = false;
   final failures = <EnvelopeFailure, int>{};
   String? relayError;
