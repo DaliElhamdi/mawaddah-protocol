@@ -1,6 +1,6 @@
 # Privacy
 
-> **Status: describes protocol v0.1.0.** The relay is not deployed yet. Everything about the relay and third parties is what the code in this repository does. The section "On the phones" describes the app, which is not public, so it cannot be checked here. The legal part (Tunisia, EU) is still to be written and reviewed before the app is released (last section).
+> **Status: describes protocol v0.1.0.** A staging relay and a production relay are running (since 2026-11-12), but no released app uses them yet. Everything about the relay and third parties is what the code in this repository does. The section "On the phones" describes the app, which is not public, so it cannot be checked here. The legal part (Tunisia, EU) is still to be written and reviewed before the app is released (last section).
 
 ## In plain words
 English:
@@ -51,7 +51,7 @@ Details of that metadata:
 | A pairing slot: the inviting phone's public keys and, once the partner answers, the partner phone's public keys. No names, no QR secret | The keys as soon as the inviting phone reads the answer. The rest (code, slot ID, the two public signing keys) 10 minutes after the slot was made |
 | Times of recent inbox registrations and of wrong code lookups, under a hash of the IP address (see above) | About 1 hour (registrations) or 10 minutes (lookups) after the last one (design bound: 24 hours) |
 
-The relay writes no request logs. Cloudflare's logging for it is off in its configuration, and the deployment steps check that the dashboard has no log export either (`relay/README.md`, "No request logs"). Exact tables: `relay/README.md`, "What is stored".
+The relay writes no request logs. Cloudflare's logging for it is off in its configuration, and the deployment steps list the dashboard settings that must be off (no log export, no live-log shipping; `relay/README.md`, "No request logs"). Cloudflare's dashboard and `wrangler tail` can still show live request details to the account owner while they watch, which the relay cannot prevent, and (`relay/README.md`, "No request logs"). Exact tables: `relay/README.md`, "What is stored".
 
 ## Third parties
 - **Cloudflare** hosts the relay. It sees IP addresses at its edge, the metadata above, and the encrypted bytes in storage. It also keeps its own recovery copies of the relay's storage for up to 30 days (point-in-time recovery), which the relay cannot switch off. Those copies hold the same encrypted bytes.

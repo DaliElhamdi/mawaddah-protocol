@@ -7,7 +7,7 @@ Please test against a local relay (`relay/README.md`, "Develop and test"), never
 
 ## Status
 - Protocol v0.1.0. Nothing here has been independently reviewed yet. At least one independent review of this repository is planned before version 1.0.0; its findings will be tracked as issues.
-- The relay is not deployed yet.
+- A staging relay and a production relay are running (since 2026-11-12), but no released app uses them yet. Their dashboard settings are checked by the operator against the list in `relay/README.md` ("No request logs"); that check is not recorded in this repository.
 - The threat model below names which protections live in this repository (the protocol package and the relay, which you can check) and which live in the app (not public). App protections are marked **built** or **planned**.
 
 ## What the design protects

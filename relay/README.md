@@ -2,7 +2,7 @@
 
 The **blind relay** (spec 4.5): a Cloudflare Worker with SQLite-backed Durable Objects. It carries sealed envelopes between the two phones of a pair and cannot open them. The wire format is in [`../PROTOCOL.md`](../PROTOCOL.md); what the relay can see is in [`../PRIVACY.md`](../PRIVACY.md).
 
-> **Status: built; deployment set up in #25.** Done: request signing, nonce memory, inbox registration and its rate limit (protocol #19), pairing slots (#20), allow-list, envelopes, ACK, push token and inbox delete (#21), blobs and the 30-day delete (#22), FCM wake-ups (#23), staging and production deploys (#25, see [Deploy](#deploy)).
+> **Status: built and deployed (2026-11-12).** Done: request signing, nonce memory, inbox registration and its rate limit (protocol #19), pairing slots (#20), allow-list, envelopes, ACK, push token and inbox delete (#21), blobs and the 30-day delete (#22), FCM wake-ups (#23), staging and production deploys (#25, see [Deploy](#deploy)).
 
 ## Endpoints so far
 | Endpoint | Signed | Purpose |
@@ -167,6 +167,7 @@ It registers two inboxes (A sends, B receives), allows A, then measures 300 requ
 - **Registration limit:** a run registers 2 inboxes and deletes them at the end, and the relay allows 5 new inboxes per IP per hour, so two runs per hour per address. After a `429`, wait. `--requests` is capped at 5000 and `--concurrency` at 50. `--seed <text>` makes the keys (use throwaway text).
 - Percentiles are printed from 20 samples (p95) and 100 samples (p99) on: the fetch and ACK lines have one sample per page of 100 envelopes, so read the deposit, poll and health lines for latency.
 - All traffic of one run goes to one inbox, so one Durable Object: that is what one couple does. It does not show how many couples one Worker carries; Durable Objects of different inboxes run in parallel. The numbers include the network from where you run it.
+- **First staging run (2026-11-12, from a home connection, free plan, 300 requests per scenario, concurrency 10):** no failed request. Deposit p50 117 ms, p95 135 ms, p99 148 ms; poll of an empty inbox p50 98 ms, p95 113 ms; `/health` p50 59 ms, p95 414 ms (the first requests open the TLS connections, so the tail is the connection set-up, not the Worker). Fetch and ACK had 3 samples each, so no percentile. These include the network from the test machine. No CPU-limit error (1102) appeared at this load.
 - Free-plan accounts allow 100,000 Worker requests and 100,000 Durable Object rows written per day; a default run is about 950 requests and a few thousand rows.
 
 ## Monthly cost
