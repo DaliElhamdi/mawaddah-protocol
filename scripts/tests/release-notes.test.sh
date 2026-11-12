@@ -11,6 +11,11 @@ cat > "$tmp" <<'CL'
 ### Added
 - not yet released
 
+## [0.3.0-dev.1] - 2026-03-01
+
+### Added
+- dev tag
+
 ## [0.2.0] - 2026-02-01
 
 ### Added
@@ -27,6 +32,7 @@ out=$(scripts/release-notes.sh v0.2.0 "$tmp") || { echo "FAIL: v0.2.0 should ext
 case "$out" in *"- second"*) ;; *) echo "FAIL: missing v0.2.0 content"; fail=1;; esac
 case "$out" in *"- first"*|*"not yet released"*) echo "FAIL: leaked other sections"; fail=1;; esac
 scripts/release-notes.sh v0.1.0 "$tmp" | grep -q -- "- first" || { echo "FAIL: v0.1.0"; fail=1; }
+scripts/release-notes.sh v0.3.0-dev.1 "$tmp" | grep -q -- "- dev tag" || { echo "FAIL: dev tag"; fail=1; }
 scripts/release-notes.sh v9.9.9 "$tmp" >/dev/null 2>&1 && { echo "FAIL: missing section should fail"; fail=1; }
 scripts/release-notes.sh v0.0.9 "$tmp" >/dev/null 2>&1 && { echo "FAIL: empty section should fail"; fail=1; }
 scripts/release-notes.sh main "$tmp" >/dev/null 2>&1 && { echo "FAIL: non-tag should fail"; fail=1; }
