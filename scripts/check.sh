@@ -31,6 +31,19 @@ if git ls-files 2>/dev/null | grep -Ei '(^|/)(\.env[^/]*|[^/]*\.(jks|keystore|p1
   bad "secret-like file is tracked"
 fi
 
+step "privacy wording (spec 13.2: phrases the public docs must never use)"
+# CLAUDE.md and .github/ quote the phrases in order to forbid them. git grep handles any
+# file name and also reads untracked docs; exit 0 = found, 1 = none, more = an error.
+git grep -niE --untracked \
+  -e 'no server' -e 'data (lives )?only on your (two )?phones' -e 'cannot know who you are' \
+  -e '(100%|fully|completely|totally) anonymous' \
+  -- '*.md' ':!CLAUDE.md' ':!.github/'
+case $? in
+  0) bad "forbidden privacy phrase in the docs (spec 13.2)" ;;
+  1) ;;
+  *) bad "could not search the docs for forbidden privacy phrases" ;;
+esac
+
 step "workflows are safe for fork PRs (no pull_request_target)"
 if grep -rn 'pull_request_target' .github/workflows; then
   bad "pull_request_target runs fork code with secrets; use pull_request"
