@@ -204,6 +204,9 @@ final class Device {
   late EventFactory factory;
   var _restarts = 0;
 
+  /// The engine's `compactAfter` from the next [restart].
+  int compactAfter = Compactor.defaultThreshold;
+
   DeviceIdentity get identity => pairing.identity;
   String get inbox => identity.deviceId.toBase64Url();
 
@@ -225,6 +228,7 @@ final class Device {
       identity: identity,
       partner: pairing.partner,
       hlc: hlc,
+      compactAfter: compactAfter,
     );
   }
 

@@ -126,11 +126,13 @@ abstract interface class EventStore {
   /// Runs [action] atomically: if it throws, no change it made is kept.
   Future<T> transaction<T>(Future<T> Function() action);
 
-  /// Whether an event with [eventId] is in the log or unapplied.
+  /// Whether an event with [eventId] is in the log or unapplied, or was in
+  /// the log until [dropLoggedEvents] removed it.
   Future<bool> containsEvent(String eventId);
 
   /// Adds [event] to the log. Does nothing if an event with the same ID is
-  /// already logged (the [Applier] checks [containsEvent] first).
+  /// already logged or was dropped (the [Applier] checks [containsEvent]
+  /// first).
   Future<void> putEvent(Event event);
 
   /// The logged event with [eventId], or null.
@@ -141,6 +143,18 @@ abstract interface class EventStore {
   /// every unapplied event whose JSON names the same `entity_type` and
   /// `entity_id` (keeping the rest of its JSON and its reason).
   Future<void> purgePayloads(String entityType, String entityId);
+
+  /// The number of logged events of [entityType], snapshots included.
+  Future<int> loggedEventCount(String entityType);
+
+  /// Removes every logged event of [entityType] from the log, payloads and
+  /// all, and returns how many it removed (compaction, PROTOCOL.md section
+  /// 10). Entity states and unapplied events are not touched.
+  ///
+  /// The IDs of the removed events stay stored for good, so [containsEvent]
+  /// is still true for them: a late copy of one is a duplicate, not a new
+  /// event. Nothing else of them is kept.
+  Future<int> dropLoggedEvents(String entityType);
 
   /// The state of an entity, or null if no event touched it.
   Future<EntityState?> entity(String entityType, String entityId);

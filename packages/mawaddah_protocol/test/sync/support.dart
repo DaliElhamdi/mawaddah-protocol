@@ -61,8 +61,9 @@ String _stamp(EventStamp? s) =>
     s == null ? '-' : '${s.hlc.toHex()}/${s.author.toBase64Url()}/${s.eventId}';
 
 /// Everything a store holds, as comparable text: entities with field stamps,
-/// the event log and the unapplied events.
-Future<String> dump(InMemoryEventStore store) async {
+/// the event log (unless [log] is false: compaction makes it differ between
+/// phones) and the unapplied events.
+Future<String> dump(InMemoryEventStore store, {bool log = true}) async {
   final entities = [
     for (final e in store.entities)
       {
@@ -83,7 +84,11 @@ Future<String> dump(InMemoryEventStore store) async {
     for (final u in await store.unapplied()) '${u.eventId}:${u.reason.name}',
   ];
   return const JsonEncoder.withIndent(' ').convert(
-    _sorted({'entities': entities, 'events': events, 'unapplied': unapplied}),
+    _sorted({
+      'entities': entities,
+      if (log) 'events': events,
+      'unapplied': unapplied,
+    }),
   );
 }
 

@@ -496,6 +496,16 @@ final class _FailingStore implements EventStore {
   Future<Event?> event(String eventId) => inner.event(eventId);
 
   @override
+  Future<int> loggedEventCount(String entityType) =>
+      inner.loggedEventCount(entityType);
+
+  @override
+  Future<int> dropLoggedEvents(String entityType) async {
+    _tick();
+    return inner.dropLoggedEvents(entityType);
+  }
+
+  @override
   Future<void> purgePayloads(String entityType, String entityId) =>
       inner.purgePayloads(entityType, entityId);
 

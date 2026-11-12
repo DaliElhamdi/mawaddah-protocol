@@ -15,6 +15,7 @@ final class InMemoryEventStore implements EventStore {
   var _events = <String, Event>{};
   var _entities = <(String, String), EntityState>{};
   var _unapplied = <String, UnappliedEvent>{};
+  var _dropped = <String>{};
   final _watchers = <MultiStreamController<List<UnappliedEvent>>>{};
 
   static final _inTransaction = Object();
@@ -23,6 +24,9 @@ final class InMemoryEventStore implements EventStore {
 
   /// Logged events by ID (read-only view).
   Map<String, Event> get events => Map.unmodifiable(_events);
+
+  /// IDs of the events [dropLoggedEvents] removed (read-only view).
+  Set<String> get droppedEventIds => Set.unmodifiable(_dropped);
 
   /// Every entity state (read-only view).
   List<EntityState> get entities => List.unmodifiable(_entities.values);
@@ -37,6 +41,7 @@ final class InMemoryEventStore implements EventStore {
       final events = Map.of(_events);
       final entities = Map.of(_entities);
       final unapplied = Map.of(_unapplied);
+      final dropped = Set.of(_dropped);
       _unappliedChanged = false;
       try {
         final result = await runZoned(
@@ -49,6 +54,7 @@ final class InMemoryEventStore implements EventStore {
         _events = events;
         _entities = entities;
         _unapplied = unapplied;
+        _dropped = dropped;
         rethrow;
       } finally {
         _unappliedChanged = false;
@@ -76,11 +82,31 @@ final class InMemoryEventStore implements EventStore {
 
   @override
   Future<bool> containsEvent(String eventId) async =>
-      _events.containsKey(eventId) || _unapplied.containsKey(eventId);
+      _events.containsKey(eventId) ||
+      _unapplied.containsKey(eventId) ||
+      _dropped.contains(eventId);
 
   @override
   Future<void> putEvent(Event event) async {
+    if (_dropped.contains(event.eventId)) return;
     _events.putIfAbsent(event.eventId, () => event);
+  }
+
+  @override
+  Future<int> loggedEventCount(String entityType) async =>
+      _events.values.where((e) => e.entityType == entityType).length;
+
+  @override
+  Future<int> dropLoggedEvents(String entityType) async {
+    final ids = [
+      for (final e in _events.values)
+        if (e.entityType == entityType) e.eventId,
+    ];
+    for (final id in ids) {
+      _events.remove(id);
+      _dropped.add(id);
+    }
+    return ids.length;
   }
 
   @override
