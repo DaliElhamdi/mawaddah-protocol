@@ -2,7 +2,7 @@
 
 The **blind relay** (spec 4.5): a Cloudflare Worker with SQLite-backed Durable Objects. It carries sealed envelopes between the two phones of a pair and cannot open them. The wire format is in [`../PROTOCOL.md`](../PROTOCOL.md); what the relay can see is in [`../PRIVACY.md`](../PRIVACY.md).
 
-> **Status: in progress, not deployed.** Done so far: request signing, nonce memory, inbox registration and its rate limit (protocol #19), pairing slots (#20), allow-list, envelopes, ACK, push token and inbox delete (#21), blobs and the 30-day delete (#22), FCM wake-ups (#23). Still to come: deployment (#25).
+> **Status: built; deployment set up in #25.** Done: request signing, nonce memory, inbox registration and its rate limit (protocol #19), pairing slots (#20), allow-list, envelopes, ACK, push token and inbox delete (#21), blobs and the 30-day delete (#22), FCM wake-ups (#23), staging and production deploys (#25, see [Deploy](#deploy)).
 
 ## Endpoints so far
 | Endpoint | Signed | Purpose |
@@ -120,6 +120,71 @@ Use the `< file` form: pasting a multi-line JSON key at the prompt may store onl
 
 **Cost:** FCM messages are free. Each wake-up is one or two outbound requests from the Worker (FCM, plus a token request about once an hour per Worker instance), counted in the Worker's subrequests and CPU time.
 
+## Deploy
+Two environments, two separate Workers with separate Durable Object storage (staging data never reaches production):
+
+| | Worker | Address | Deployed by |
+|---|---|---|---|
+| staging | `mawaddah-relay-staging` | `https://mawaddah-relay-staging.<account>.workers.dev` | every change to `relay/` merged into `main`, or *Actions → deploy-relay → Run workflow* on `main` |
+| production | `mawaddah-relay` | `https://mawaddah-relay.<account>.workers.dev` | a final release tag `vX.Y.Z` (no suffix such as `-dev.1`) that is on `main` |
+
+`.github/workflows/deploy-relay.yml` runs lint, type-check and the tests, then `wrangler deploy --env <name>`, then checks `GET /health` on the address wrangler printed. It starts only on `push` (never on a pull request, so a fork cannot reach the secrets), only in `DaliElhamdi/mawaddah-protocol`, one deploy at a time per environment. It also warns (it does not fail) when `FCM_SERVICE_ACCOUNT` is not set on the Worker.
+
+**One-command deploy by hand** (needs the same two variables as the workflow):
+```sh
+cd relay && npm ci
+CLOUDFLARE_ACCOUNT_ID=<account id> CLOUDFLARE_API_TOKEN=<token> npm run deploy:staging      # or deploy:production
+curl https://mawaddah-relay-staging.<account>.workers.dev/health    # {"ok":true,...}
+```
+
+**Owner setup, once** (also in the private repository's `docs/owner-setup.md`, Phase 1):
+1. A Cloudflare account; in *Workers & Pages* choose the account's `workers.dev` subdomain (the first time only; the deploy fails without it and says so).
+2. An API token, limited to this one account: the *Edit Cloudflare Workers* template is enough (Workers Scripts: Edit, plus the read permissions the template adds). Durable Objects need nothing more. Do not use the Global API Key.
+3. Repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the public repository (done 2026-11-10).
+4. Per environment, when you want wake-ups: the FCM secret ([Wake-ups](#wake-ups-fcm)): `npx wrangler secret put FCM_SERVICE_ACCOUNT --env staging < service-account.json` (and `--env production`). Secrets belong to one Worker, so each environment needs its own.
+5. Optional: *Settings → Environments → production* in GitHub, with *Required reviewers*, so a tag waits for your click before it goes live.
+
+**Things to know**
+- `wrangler.toml` repeats the Durable Object bindings and migrations in each environment, because wrangler does not inherit them. `test/wrangler_config.test.ts` fails if an environment drifts from the top level. Migrations are append-only: a new class needs a new tag, added at the top level and in both environments.
+- A Durable Object migration is applied when the Worker is deployed; there is no automatic rollback of a migration. Roll back code by deploying an earlier tag or commit. Do not rename or delete a class that has stored data.
+- Production is deployed from a tag, so cut the tag only when staging has run the same commit (the staging deploy happens when the change reaches `main`).
+- `workers.dev` addresses are not on a zone of yours, so Cloudflare's zone-level rules (WAF custom rules, rate-limiting rules) cannot be attached to them. The per-IP registration limit lives in the Worker (above); the cost and abuse limit noted in #19 (any valid signature from a fresh key creates a small object that lives 15 minutes) stays open until the relay has its own domain, where an edge rate-limiting rule can go in front. Until then watch the Worker's request graph in the dashboard.
+
+## Load test
+`loadtest/loadtest.mjs` (Node 22, no dependencies) plays one couple against a running relay:
+```sh
+npm run dev &                                                    # a local relay, or use a deployed one
+node loadtest/loadtest.mjs http://127.0.0.1:8787                 # local
+node loadtest/loadtest.mjs https://mawaddah-relay-staging.<account>.workers.dev --requests 300 --concurrency 10
+```
+It registers two inboxes (A sends, B receives), allows A, then measures 300 requests each of `GET /health`, signed deposits of 1 KiB envelopes (`Maw-Wake: 0`, so no push), paged fetch with a cumulative ACK for every page, and polls of the then empty inbox; at the end it deletes both inboxes. It prints requests per second and p50, p95, p99 and max latency, plus the HTTP status counts, and exits non-zero if any request failed. `--json` prints the same as JSON.
+- **Run it from your own machine or a runner, never against production**: it refuses a non-local address that is not a `-staging.` Worker unless you add `--allow-production`.
+- **Registration limit:** a run registers 2 inboxes and the relay allows 5 per IP per hour. Run again at once with the same `--seed <text>` (registering the same key again is free). After a `429`, wait or change address.
+- All traffic of one run goes to one inbox, so one Durable Object: that is what one couple does. It does not show how many couples one Worker carries; Durable Objects of different inboxes run in parallel. The numbers include the network from where you run it.
+- Free-plan accounts allow 100,000 Worker requests and 100,000 Durable Object rows written per day; a default run uses about 1,500 requests and a few thousand rows.
+
+## Monthly cost
+An estimate for the Phase 1 report, from Cloudflare's published prices as read on 2026-11-12 ([Workers](https://developers.cloudflare.com/workers/platform/pricing/), [Durable Objects](https://developers.cloudflare.com/durable-objects/platform/pricing/)) and the assumptions below. It is a model, not a measurement: replace it with the dashboard's numbers after the first month of real use.
+
+| | Free plan | Workers Paid plan |
+|---|---|---|
+| Price | $0 | $5 a month per account (both Workers) |
+| Worker requests | 100,000 a day; 10 ms CPU per request | 10 million a month included, then $0.30 per million |
+| DO requests | 100,000 a day | 1 million a month included, then $0.15 per million |
+| DO rows written | 100,000 a day | 50 million a month included, then $1.00 per million |
+| DO rows read | 5 million a day | 25 billion a month included |
+| DO stored data | 5 GB in all | 5 GB-month included, then $0.20 per GB-month |
+
+**Assumptions (per couple, per day):** 100 chat messages, each costing 3 requests (deposit by one phone, fetch and ACK by the other), plus 20 app-opens per phone that poll once: about 340 requests, so about 10,000 a month. Each request is one Worker request and one Durable Object request, and writes about 4 rows (its nonce, the envelope or cursor change, and their later deletes). Photos as in [Storage choice and cost](#storage-choice-and-cost).
+
+| Couples | Requests a month | Rows written a month | Plan | Estimate |
+|---|---|---|---|---|
+| 10 | 0.1 million | 0.4 million | Free | $0 |
+| 50 | 0.5 million | 2 million | Free is near its rows-written limit (about 70 couples); use Paid before launch | $0 to $5 |
+| 1,000 | 10 million | 40 million | Paid | $5 + DO requests 9 million × $0.15 = about $1.35 → **about $6.50**, plus photos: the 1,000-couple example above adds about $5.40 for blobs → **about $12** |
+
+Staging is a second Worker on the same account, so the $5 is paid once; its traffic is negligible. FCM is free. Not counted: Durable Object duration (400,000 GB-s a month included; these requests are milliseconds long) and the `workers.dev` address (free). The free plan's 10 ms of CPU per request has not been measured here (Ed25519 verification plus SQL): if a staging run shows error 1102 (CPU limit exceeded), use the Paid plan, which has no per-request limit this small.
+
 ## Request signing
 Every request except `GET /health` and `GET /v1/pairing-slot/{slot_id or code}` carries the four headers of PROTOCOL.md section 13 (`Maw-Key`, `Maw-Timestamp`, `Maw-Nonce`, `Maw-Signature`). The relay checks, in this order:
 1. Body size (`413 body_too_large` before anything else).
@@ -195,10 +260,12 @@ Cost (Cloudflare's published prices and limits as read in November 2026, Workers
 Stored data is what waits on the relay, not what passes through it: an attachment is deleted as soon as the receiver has it. One 3 MiB photo costs about 20 rows written in all (3 chunks, the blob row, their index entries, then the deletes) and about 3 rows read to download. **Example:** 1,000 couples, each sending 20 photos of 3 MiB a day: about 60 GiB a day pass through. If each photo waits 12 hours on average, about 32 GB wait at any time: about $5.40 a month above the 5 GB included (R2: about $0.35). About 12 million rows written a month, inside the 50 million included. Both choices also pay the same Workers and Durable Object request and duration charges per call (each chunk is one request), not counted here. In the worst case one inbox holds 200 MiB for 30 days: about $0.04 a month (R2: about $0.003). If stored blobs ever cost more than the simplicity is worth, they can move to R2 behind the same routes (the API does not depend on it). On the free plan, Durable Objects storage is capped at 5 GB for the account.
 
 ## No request logs
-The relay writes nothing to the console and keeps no request logs (spec 4.5). `wrangler.toml` sets `[observability] enabled = false`. When deploying (#25), also check in the Cloudflare dashboard, for the Worker:
-- **Workers Logs / Observability:** off.
-- **Logpush:** no job for this Worker (it would export request fields including IP addresses).
+The relay writes nothing to the console and keeps no request logs (spec 4.5). `wrangler.toml` sets `[observability] enabled = false` at the top level and in both environments (`test/wrangler_config.test.ts` checks it, and that no variables, routes, tail consumers or log push are set). The dashboard can still turn things on that the file does not control, so after the first deploy of each Worker (*Workers & Pages → the Worker*) check:
+- **Observability / Workers Logs:** off (no logs, no traces, no invocation logs).
+- **Logpush:** no job for this Worker, and none at account level that covers it (it would export request fields including IP addresses).
 - **Tail Workers:** none attached.
+- **Account-level:** no Logpush or audit-style export that reads Worker requests; *Analytics* graphs (counts only) are fine.
+- **Preview URLs:** off, or left alone: they are separate `*.workers.dev` addresses of the same code and storage.
 
 Cloudflare itself still sees IP addresses at its edge (PRIVACY.md, third parties).
 
@@ -215,4 +282,5 @@ npm run dev       # local relay at http://localhost:8787
 - `test/worker.integration.test.ts` starts the real Worker with its Durable Objects (`unstable_startWorker` from wrangler, no network, nothing persisted) and talks to it over HTTP. It gives the Worker a throwaway service account (an RSA key made for the run) and intercepts every outbound `fetch` with a fake Google that checks the JWT signature, so wake-ups are tested without Firebase.
 - `test/push.test.ts` tests the FCM sender with a fake `fetch` (the exact message, the JWT claims, the token cache, `UNREGISTERED`, failures) and the deposit route with a recording push sender.
 - The Dart client (`HttpRelayClient`) is tested against this Worker too: `scripts/relay-integration.sh` (from the repository root) starts `wrangler dev` with empty storage, runs `packages/mawaddah_protocol/test/relay/relay_integration_test.dart` (both pairing paths, two sync engines chatting, pages, blobs, refusals, rate limits, delete), then stops it. It runs in `scripts/test.sh` and CI. The tests set `cf-connecting-ip` themselves so each has its own rate-limit bucket; the local runtime takes that header as given, Cloudflare's edge replaces it.
-- Not covered automatically: Durable Object alarms firing (they need real minutes to pass; the tests check the time the alarm is set for and what the alarm's clean-up deletes), and anything on Cloudflare's network (needs #25).
+- `test/wrangler_config.test.ts` reads `wrangler.toml` as wrangler does and checks that staging and production have the same bindings and migrations as the top level, differently named Workers and observability off.
+- Not covered automatically: Durable Object alarms firing (they need real minutes to pass; the tests check the time the alarm is set for and what the alarm's clean-up deletes), and anything on Cloudflare's network (the deploy workflow's health check and a manual staging run cover that).

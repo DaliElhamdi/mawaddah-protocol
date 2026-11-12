@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- Relay deployment (issue #25): `[env.staging]` (`mawaddah-relay-staging`) and `[env.production]` (`mawaddah-relay`) in `relay/wrangler.toml`, with their own Durable Object storage; `npm run deploy:staging` / `deploy:production`; the `deploy-relay` workflow (staging when `relay/` changes on `main`, production on a final `vX.Y.Z` tag on `main`, push events only, tests first, `/health` check afterwards, warning when the FCM secret is missing); `test/wrangler_config.test.ts` (environments match the top level, observability off); `relay/loadtest/loadtest.mjs` (a one-couple load test with p50/p95/p99); `relay/README.md` gets Deploy, Load test, Monthly cost and a fuller dashboard checklist for "no request logs".
+
 ## [0.1.0-dev.1] - 2026-11-12
 
 Pre-release so the app can start using the package (issue #27). The final `0.1.0` follows at the Phase 1 gate; the wire format may still change until the owner approves it.

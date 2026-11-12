@@ -12,7 +12,10 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p test",
     "test": "vitest run",
-    "dev": "WRANGLER_SEND_METRICS=false wrangler dev"
+    "dev": "WRANGLER_SEND_METRICS=false wrangler dev",
+    "deploy:staging": "WRANGLER_SEND_METRICS=false wrangler deploy --env staging",
+    "deploy:production": "WRANGLER_SEND_METRICS=false wrangler deploy --env production",
+    "loadtest": "node loadtest/loadtest.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261110.1",
