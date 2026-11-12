@@ -14,6 +14,7 @@ import '../envelope/envelope.dart';
 import '../envelope/hlc.dart';
 import '../envelope/replay_window.dart';
 import '../event/applier.dart';
+import '../event/compactor.dart';
 import '../event/event.dart';
 import '../identity/identity.dart';
 import '../random_source.dart';
@@ -75,6 +76,7 @@ final class SyncReport {
     required this.clockWarning,
     required this.relayError,
     required this.retryAt,
+    this.eventsCompacted = 0,
   });
 
   /// Envelopes the relay took, and the outbox events they carried.
@@ -121,6 +123,10 @@ final class SyncReport {
   /// push).
   final DateTime? retryAt;
 
+  /// Logged events replaced by a snapshot at the end of this run
+  /// ([Compactor]).
+  final int eventsCompacted;
+
   /// Whether everything was sent and fetched.
   bool get complete => retryAt == null;
 
@@ -131,6 +137,7 @@ final class SyncReport {
       'unapplied: $eventsUnapplied, failures: '
       '${envelopeFailures.map((k, v) => MapEntry(k.name, v))}, '
       'kept: $envelopesKept, leftOnRelay: $leftOnRelay, '
+      'compacted: $eventsCompacted, '
       'retryAt: $retryAt)';
 }
 
@@ -144,6 +151,10 @@ final class SyncReport {
 /// [applier] must work on the `EventStore` whose transaction [store] joins,
 /// with [identity]'s device as its local device. [hlc] is the device's one
 /// HLC clock: the app's `EventFactory` uses the same object.
+///
+/// A run ends by compacting the log of each entity type that reached
+/// `compactAfter` logged events ([Compactor]), whether or not the relay
+/// answered (not after a store failure, which throws).
 final class SyncEngine {
   SyncEngine({
     required this.crypto,
@@ -156,7 +167,17 @@ final class SyncEngine {
     required this.hlc,
     this.wake = WakePolicy.v1,
     this.backOff = const BackOff(),
-  }) {
+    int compactAfter = Compactor.defaultThreshold,
+  }) : compactor = Compactor(
+         applier.store,
+         factory: EventFactory(
+           hlc: hlc,
+           random: random,
+           author: identity.deviceId,
+         ),
+         registry: applier.registry,
+         threshold: compactAfter,
+       ) {
     if (applier.localDevice != identity.deviceId) {
       throw ArgumentError.value(applier, 'applier', 'not this device');
     }
@@ -174,6 +195,10 @@ final class SyncEngine {
   final HlcClock hlc;
   final WakePolicy wake;
   final BackOff backOff;
+
+  /// Compacts the log at the end of each run, in a transaction with the HLC
+  /// (a snapshot event takes the next HLC value).
+  final Compactor compactor;
 
   Clock get _clock => hlc.clock;
   String get _inbox => identity.deviceId.toBase64Url();
@@ -273,6 +298,15 @@ final class SyncEngine {
     } finally {
       session.dispose();
     }
+    // Counts are read first, so a run with nothing due opens no write
+    // transaction.
+    final compacted = !await compactor.isDue()
+        ? 0
+        : await store.transaction(() async {
+            final dropped = await compactor.compactIfNeeded();
+            if (dropped.isNotEmpty) await store.putHlc(hlc.last);
+            return dropped.values.fold(0, (a, b) => a + b);
+          });
     final now = _clock.now();
     final since = await store.clockAheadSince();
     final unfinished = r.relayError != null || r.leftOnRelay > 0 || r.morePages;
@@ -292,6 +326,7 @@ final class SyncEngine {
       clockWarning: since != null && now.difference(since) >= clockWarningAfter,
       relayError: r.relayError,
       retryAt: unfinished ? now.add(backOff.after(_failures)) : null,
+      eventsCompacted: compacted,
     );
   }
 

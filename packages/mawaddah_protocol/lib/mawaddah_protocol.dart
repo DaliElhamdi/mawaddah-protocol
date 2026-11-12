@@ -10,6 +10,7 @@ export 'src/envelope/envelope.dart';
 export 'src/envelope/hlc.dart';
 export 'src/envelope/replay_window.dart';
 export 'src/event/applier.dart';
+export 'src/event/compactor.dart';
 export 'src/event/event.dart';
 export 'src/event/event_store.dart';
 export 'src/event/registry.dart';
