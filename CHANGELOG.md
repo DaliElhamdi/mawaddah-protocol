@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.1.0-dev.2] - 2026-11-13
+
+Pre-release for the app's photos and voice notes (private #69, #70): adds attachment encryption (issue #54) and the relay deployment notes. No wire change since `0.1.0-dev.1`; the final `0.1.0` still waits for the Phase 1 gate.
+
 ### Changed
 - The relay now runs on Cloudflare: staging (`mawaddah-relay-staging`, deployed by the `deploy-relay` workflow) and production (`mawaddah-relay`), both on `workers.dev` addresses. First staging load test recorded in `relay/README.md`; the status lines in `PRIVACY.md` and `SECURITY.md` no longer say "not deployed" (issue #25).
 
