@@ -170,6 +170,12 @@ void main() {
     });
   });
 
+  test('the constants match libsodium', () {
+    expect(attachmentHeaderLength, 24);
+    expect(attachmentChunkOverhead, 17);
+    expect(attachmentKeyLength, 32);
+  });
+
   group('keys and ids', () {
     test('generateKey and generateBlobId draw from the injected source', () {
       final a = AttachmentCipher(crypto, SeededRandom(5));

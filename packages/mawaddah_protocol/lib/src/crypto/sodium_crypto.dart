@@ -299,30 +299,46 @@ final class SodiumCrypto implements Crypto {
       }
     }
 
-    final out = BytesBuilder(copy: false);
+    final chunks = <Uint8List>[];
     var seen = 0;
     var finalSeen = false;
+    var ok = false;
     try {
       await for (final m in stream.pullEx(
         cipherStream: messages(),
         key: live,
       )) {
+        chunks.add(m.message);
         final isLast = seen == count - 1;
         final isFinal = m.tag == na.SecretStreamMessageTag.finalPush;
-        if (finalSeen || isFinal != isLast) {
+        final wanted = isLast
+            ? na.SecretStreamMessageTag.finalPush
+            : na.SecretStreamMessageTag.message;
+        if (finalSeen || m.tag != wanted) {
           throw const DecryptionFailedException();
         }
         finalSeen = isFinal;
         seen++;
-        out.add(m.message);
       }
+      if (!finalSeen || seen != count) throw const DecryptionFailedException();
+      final out = Uint8List(chunks.fold<int>(0, (n, c) => n + c.length));
+      var at = 0;
+      for (final c in chunks) {
+        out.setRange(at, at += c.length, c);
+      }
+      ok = true;
+      return out;
     } on na.SodiumException {
       throw const DecryptionFailedException();
     } on na.StreamClosedEarlyException {
       throw const DecryptionFailedException();
+    } finally {
+      // Plaintext of a refused file, and our working copies, are wiped.
+      for (final c in chunks) {
+        c.fillRange(0, c.length, 0);
+      }
+      if (!ok) chunks.clear();
     }
-    if (!finalSeen || seen != count) throw const DecryptionFailedException();
-    return out.takeBytes();
   }
 
   // --- Padding -----------------------------------------------------------

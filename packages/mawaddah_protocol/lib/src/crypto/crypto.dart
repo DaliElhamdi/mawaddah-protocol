@@ -155,7 +155,8 @@ abstract interface class Crypto {
   /// The plaintext is cut into [chunkSize]-byte chunks; the last one (the
   /// only one, for an empty or short input) may be shorter, may be empty only
   /// when [plaintext] is empty, and carries the `FINAL` tag. Every other
-  /// chunk carries the `MESSAGE` tag. [key] is not disposed.
+  /// chunk carries the `MESSAGE` tag. [key] is not disposed. No size limit
+  /// is applied here (the 10 MiB cap is `AttachmentCipher`'s).
   Future<Uint8List> streamEncrypt({
     required SecretBytes key,
     required Uint8List plaintext,
@@ -165,7 +166,9 @@ abstract interface class Crypto {
   /// Reverses [streamEncrypt]. Throws [DecryptionFailedException], and
   /// returns nothing, when the header is missing, any chunk fails
   /// authentication, a chunk is not full size before the last one, a `FINAL`
-  /// tag is missing or comes early, or bytes follow the final chunk.
+  /// tag is missing or comes early, a non-final chunk has any tag but
+  /// `MESSAGE`, or bytes follow the final chunk. Plaintext of a refused
+  /// stream is zeroed.
   Future<Uint8List> streamDecrypt({
     required SecretBytes key,
     required Uint8List ciphertext,
