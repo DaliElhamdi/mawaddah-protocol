@@ -148,6 +148,33 @@ abstract interface class Crypto {
   /// [blockSize] long, or does not end with valid padding.
   Uint8List unpad(Uint8List data, int blockSize);
 
+  // --- Secretstream ------------------------------------------------------
+
+  /// Encrypts [plaintext] with libsodium secretstream XChaCha20-Poly1305 and
+  /// returns the 24-byte stream header followed by the encrypted chunks.
+  /// The plaintext is cut into [chunkSize]-byte chunks; the last one (the
+  /// only one, for an empty or short input) may be shorter, may be empty only
+  /// when [plaintext] is empty, and carries the `FINAL` tag. Every other
+  /// chunk carries the `MESSAGE` tag. [key] is not disposed. No size limit
+  /// is applied here (the 10 MiB cap is `AttachmentCipher`'s).
+  Future<Uint8List> streamEncrypt({
+    required SecretBytes key,
+    required Uint8List plaintext,
+    required int chunkSize,
+  });
+
+  /// Reverses [streamEncrypt]. Throws [DecryptionFailedException], and
+  /// returns nothing, when the header is missing, any chunk fails
+  /// authentication, a chunk is not full size before the last one, a `FINAL`
+  /// tag is missing or comes early, a non-final chunk has any tag but
+  /// `MESSAGE`, or bytes follow the final chunk. Plaintext of a refused
+  /// stream is zeroed.
+  Future<Uint8List> streamDecrypt({
+    required SecretBytes key,
+    required Uint8List ciphertext,
+    required int chunkSize,
+  });
+
   // --- Secret bytes ------------------------------------------------------
 
   /// Copies [bytes] into guarded memory and zeroes [bytes].

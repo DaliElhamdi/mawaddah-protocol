@@ -13,6 +13,7 @@ useDefault = true
 [allowlist]
 description = "Published RFC / draft / libsodium test vectors and generated protocol vectors (public values, not secrets)"
 paths = [
+  '''^packages/mawaddah_protocol/test/vectors/attachment\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/identity\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/safety_number\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/pairing\.json$''',

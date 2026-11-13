@@ -227,6 +227,120 @@ final class SodiumCrypto implements Crypto {
     }
   }
 
+  // --- Secretstream ------------------------------------------------------
+
+  @override
+  Future<Uint8List> streamEncrypt({
+    required SecretBytes key,
+    required Uint8List plaintext,
+    required int chunkSize,
+  }) async {
+    RangeError.checkValueInInterval(chunkSize, 1, 1 << 24, 'chunkSize');
+    final live = key._live;
+    final count = plaintext.isEmpty
+        ? 1
+        : (plaintext.length + chunkSize - 1) ~/ chunkSize;
+    Stream<na.SecretStreamPlainMessage> messages() async* {
+      for (var i = 0; i < count; i++) {
+        final start = i * chunkSize;
+        final end = (start + chunkSize).clamp(0, plaintext.length);
+        yield na.SecretStreamPlainMessage(
+          Uint8List.sublistView(plaintext, start, end),
+          tag: i == count - 1
+              ? na.SecretStreamMessageTag.finalPush
+              : na.SecretStreamMessageTag.message,
+        );
+      }
+    }
+
+    final out = BytesBuilder(copy: false);
+    await for (final m in _sodium.crypto.secretStream.pushEx(
+      messageStream: messages(),
+      key: live,
+    )) {
+      out.add(m.message);
+    }
+    return out.takeBytes();
+  }
+
+  @override
+  Future<Uint8List> streamDecrypt({
+    required SecretBytes key,
+    required Uint8List ciphertext,
+    required int chunkSize,
+  }) async {
+    RangeError.checkValueInInterval(chunkSize, 1, 1 << 24, 'chunkSize');
+    final live = key._live;
+    final stream = _sodium.crypto.secretStream;
+    final header = stream.headerBytes;
+    final frame = chunkSize + stream.aBytes;
+    // A well-formed stream is the header plus at least one chunk, every chunk
+    // but the last full size: the cut points follow from the length.
+    if (ciphertext.length < header + stream.aBytes) {
+      throw const DecryptionFailedException();
+    }
+    final body = ciphertext.length - header;
+    final count = (body + frame - 1) ~/ frame;
+    // The last chunk must at least hold its tag.
+    if (body - (count - 1) * frame < stream.aBytes) {
+      throw const DecryptionFailedException();
+    }
+
+    Stream<na.SecretStreamCipherMessage> messages() async* {
+      yield na.SecretStreamCipherMessage(
+        Uint8List.sublistView(ciphertext, 0, header),
+      );
+      for (var i = 0; i < count; i++) {
+        final start = header + i * frame;
+        final end = (start + frame).clamp(0, ciphertext.length);
+        yield na.SecretStreamCipherMessage(
+          Uint8List.sublistView(ciphertext, start, end),
+        );
+      }
+    }
+
+    final chunks = <Uint8List>[];
+    var seen = 0;
+    var finalSeen = false;
+    var ok = false;
+    try {
+      await for (final m in stream.pullEx(
+        cipherStream: messages(),
+        key: live,
+      )) {
+        chunks.add(m.message);
+        final isLast = seen == count - 1;
+        final isFinal = m.tag == na.SecretStreamMessageTag.finalPush;
+        final wanted = isLast
+            ? na.SecretStreamMessageTag.finalPush
+            : na.SecretStreamMessageTag.message;
+        if (finalSeen || m.tag != wanted) {
+          throw const DecryptionFailedException();
+        }
+        finalSeen = isFinal;
+        seen++;
+      }
+      if (!finalSeen || seen != count) throw const DecryptionFailedException();
+      final out = Uint8List(chunks.fold<int>(0, (n, c) => n + c.length));
+      var at = 0;
+      for (final c in chunks) {
+        out.setRange(at, at += c.length, c);
+      }
+      ok = true;
+      return out;
+    } on na.SodiumException {
+      throw const DecryptionFailedException();
+    } on na.StreamClosedEarlyException {
+      throw const DecryptionFailedException();
+    } finally {
+      // Plaintext of a refused file, and our working copies, are wiped.
+      for (final c in chunks) {
+        c.fillRange(0, c.length, 0);
+      }
+      if (!ok) chunks.clear();
+    }
+  }
+
   // --- Padding -----------------------------------------------------------
 
   @override
