@@ -4,6 +4,7 @@
 /// Pure-Dart protocol package for Mawaddah. No Flutter imports.
 library;
 
+export 'src/attachment/attachment_cipher.dart';
 export 'src/clock.dart';
 export 'src/crypto/crypto.dart';
 export 'src/envelope/envelope.dart';

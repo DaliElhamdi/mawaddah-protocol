@@ -30,6 +30,7 @@ Future<void> main() async {
   _write('uuid7', _uuid7Cases());
   _write('event', await _eventCases());
   _write('relay_signing', _relaySigningCases(crypto));
+  _write('attachment', await _attachmentCases(crypto));
 }
 
 void _write(String file, List<Map<String, Object?>> cases) {
@@ -1855,5 +1856,53 @@ List<Map<String, Object?>> _relaySigningCases(Crypto crypto) {
       body: (_, _) => Uint8List(0),
       timestamp: 0,
     ),
+  ];
+}
+
+/// Byte `i` of a pattern file: `(i * 7 + 3) mod 256`.
+Uint8List _pattern(int length) =>
+    Uint8List.fromList([for (var i = 0; i < length; i++) (i * 7 + 3) & 0xff]);
+
+/// Attachment vectors (PROTOCOL.md section 12). libsodium draws the stream
+/// header itself, so the ciphertexts were produced once by this generator and
+/// are recorded; the tests and an independent PyNaCl script check that they
+/// decrypt, and that the refused mutations are refused.
+Future<List<Map<String, Object?>>> _attachmentCases(Crypto crypto) async {
+  final cipher = AttachmentCipher(crypto, SeededRandom(900));
+  final key = _hex(SeededRandom(901).nextBytes(32));
+  final other = _hex(SeededRandom(902).nextBytes(32));
+  Future<String> enc(int length) async {
+    final k = crypto.importSecret(_unhex(key));
+    final ct = await cipher.encrypt(key: k, plaintext: _pattern(length));
+    k.dispose();
+    return _hex(ct);
+  }
+
+  return [
+    for (final length in [0, 5, 65536, 65537])
+      {
+        'name': 'valid, $length bytes',
+        'input': {'key': key, 'pattern_length': length},
+        'output': {'ciphertext': await enc(length), 'verdict': 'ok'},
+      },
+    for (final (name, mutation, k) in [
+      ('drop the final chunk', 'drop_last_chunk', key),
+      ('cut 5 bytes off the end', 'cut_5', key),
+      ('drop the first chunk', 'drop_first_chunk', key),
+      ('swap the two chunks', 'swap_chunks', key),
+      ('one byte after the end', 'append_byte', key),
+      ('flip a bit in the header', 'flip_header', key),
+      ('flip a bit in the first chunk', 'flip_first_chunk', key),
+      ('flip a bit in the final chunk', 'flip_last_chunk', key),
+      ('header only', 'header_only', key),
+      ('23 bytes', 'short_header', key),
+      ('nothing', 'empty', key),
+      ('wrong key', 'none', other),
+    ])
+      {
+        'name': 'refused: $name',
+        'input': {'key': k, 'base': 'valid, 65537 bytes', 'mutation': mutation},
+        'output': {'verdict': 'refused'},
+      },
   ];
 }
