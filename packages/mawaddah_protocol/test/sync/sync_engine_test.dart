@@ -567,6 +567,226 @@ void main() {
     });
   });
 
+  group('kept for an unknown version, opened again after an update', () {
+    Future<void> sayAlone(Device d, String text) async {
+      await d.say(text);
+      await d.sync();
+    }
+
+    test(
+      'they are applied first, in relay order, and leave the list',
+      () async {
+        final (:alice, :bob, :relay) = await couple(crypto);
+        await sayAlone(alice, 'one');
+        await sayAlone(alice, 'two');
+        final kept = await keepAsUnknown(bob, relay);
+        expect(kept, hasLength(2));
+        await sayAlone(alice, 'three');
+
+        await bob.restart(); // the updated release
+        final r = await bob.sync();
+        expect(r.envelopesReopened, 2);
+        expect(r.envelopesOpened, 3);
+        expect(r.envelopeFailures, isEmpty);
+        expect(r.complete, isTrue);
+        expect(bob.messages(), ['one', 'two', 'three']);
+        expect(await bob.store.unappliedEnvelopes(), isEmpty);
+
+        // The session and window moved on: replies work, a copy is a replay.
+        await bob.say('reply');
+        await bob.sync();
+        await alice.sync();
+        expect(alice.messages(), ['one', 'two', 'three', 'reply']);
+        await relay.inner.deposit(bob.inbox, kept.first);
+        expect((await bob.sync()).envelopeFailures, {
+          EnvelopeFailure.replayed: 1,
+        });
+        expect(bob.messages(), ['one', 'two', 'three', 'reply']);
+      },
+    );
+
+    test('still unknown: stays kept and is not counted again', () async {
+      final (alice: _, :bob, :relay) = await couple(crypto);
+      await relay.inner.deposit(
+        bob.inbox,
+        Uint8List(600)
+          ..[0] = 2
+          ..[1] = 1,
+      );
+      expect((await bob.sync()).envelopesKept, 1);
+      await bob.restart();
+      final r = await bob.sync();
+      expect(r.envelopesReopened, 0);
+      expect(r.envelopesKept, 0);
+      expect(r.envelopeFailures, isEmpty);
+      expect(r.complete, isTrue);
+      final kept = await bob.store.unappliedEnvelopes();
+      expect(kept.single.reason, UnappliedEnvelopeReason.unknownVersion);
+    });
+
+    test(
+      'opened once per engine: the release changes only at a restart',
+      () async {
+        final (:alice, :bob, :relay) = await couple(crypto);
+        expect((await bob.sync()).envelopesReopened, 0);
+        await sayAlone(alice, 'later');
+        await keepAsUnknown(bob, relay);
+        expect((await bob.sync()).envelopesReopened, 0);
+        expect(bob.messages(), isEmpty);
+        await bob.restart();
+        expect((await bob.sync()).envelopesReopened, 1);
+        expect(bob.messages(), ['later']);
+      },
+    );
+
+    test(
+      'too old counts from when it was received, not from the update',
+      () async {
+        final (:alice, :bob, :relay) = await couple(crypto);
+        await sayAlone(alice, 'kept long');
+        await keepAsUnknown(bob, relay);
+        advanceBoth(alice, bob, const Duration(days: 40));
+        await bob.restart();
+        final r = await bob.sync();
+        expect(r.envelopeFailures, isEmpty);
+        expect(bob.messages(), ['kept long']);
+      },
+    );
+
+    test('too old already when it was received: discarded', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      await sayAlone(alice, 'stale');
+      await keepAsUnknown(
+        bob,
+        relay,
+        at: bob.clock.now().add(const Duration(days: 32)),
+      );
+      advanceBoth(alice, bob, const Duration(days: 33));
+      await bob.restart();
+      final r = await bob.sync();
+      expect(r.envelopeFailures, {EnvelopeFailure.tooOld: 1});
+      expect(r.envelopesReopened, 1);
+      expect(bob.messages(), isEmpty);
+      expect(await bob.store.unappliedEnvelopes(), isEmpty);
+    });
+
+    test(
+      'ahead of the clock: stays kept, opens once the clock catches up',
+      () async {
+        final (:alice, :bob, :relay) = await couple(crypto);
+        alice.clock.advance(const Duration(hours: 2));
+        await sayAlone(alice, 'early');
+        await keepAsUnknown(bob, relay);
+        await bob.restart();
+        final first = await bob.sync();
+        expect(first.envelopeFailures, {EnvelopeFailure.fromTheFuture: 1});
+        expect(first.envelopesReopened, 0);
+        expect(first.leftOnRelay, 0);
+        expect(first.complete, isFalse, reason: 'retried with back-off');
+        expect(await bob.store.clockAheadSince(), isNotNull);
+        expect(await bob.store.unappliedEnvelopes(), hasLength(1));
+        bob.clock.advance(const Duration(minutes: 30));
+        expect((await bob.sync()).clockWarning, isFalse);
+        bob.clock.advance(const Duration(hours: 2));
+        final second = await bob.sync(); // same engine
+        expect(second.envelopesReopened, 1);
+        expect(second.complete, isTrue);
+        expect(await bob.store.clockAheadSince(), isNull);
+        expect(bob.messages(), ['early']);
+        expect(await bob.store.unappliedEnvelopes(), isEmpty);
+      },
+    );
+
+    test(
+      'a counter that fell out of the replay window meanwhile is lost',
+      () async {
+        final (:alice, :bob, :relay) = await couple(crypto);
+        await bob.sync(); // this engine has opened its kept envelopes
+        await sayAlone(alice, 'kept');
+        await keepAsUnknown(bob, relay);
+        await alice.store.putLastCounter(1100);
+        await sayAlone(alice, 'newer');
+        await bob.sync(); // same release: 'newer' (counter 1101) opens
+        expect(bob.messages(), ['newer']);
+        await bob.restart();
+        final r = await bob.sync();
+        expect(r.envelopeFailures, {EnvelopeFailure.replayed: 1});
+        expect(r.envelopesReopened, 1);
+        expect(bob.messages(), ['newer']);
+        expect(await bob.store.unappliedEnvelopes(), isEmpty);
+      },
+    );
+
+    test('a refused plaintext stays kept under its own reason', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      await alice.sendRaw(utf8.encode('{"events":[]}'));
+      final receivedAt = bob.clock.now();
+      await keepAsUnknown(bob, relay);
+      final id = (await bob.store.unappliedEnvelopes()).single.id;
+      bob.clock.advance(const Duration(minutes: 5));
+      await bob.restart();
+      final r = await bob.sync();
+      expect(r.envelopesOpened, 1);
+      expect(r.envelopesReopened, 1);
+      expect(r.envelopesKept, 1);
+      final kept = (await bob.store.unappliedEnvelopes()).single;
+      expect(kept.id, id);
+      expect(kept.receivedAt, receivedAt);
+      expect(kept.reason, UnappliedEnvelopeReason.refused);
+      expect(kept.reason.needsUpdate, isFalse);
+      // Only unknown versions are opened again.
+      await bob.restart();
+      expect((await bob.sync()).envelopeFailures, isEmpty);
+      expect(
+        (await bob.store.unappliedEnvelopes()).single.reason,
+        UnappliedEnvelopeReason.refused,
+      );
+      // The session moved on all the same.
+      await sayAlone(alice, 'after');
+      await bob.sync();
+      expect(bob.messages(), ['after']);
+    });
+
+    test('a changed one is discarded and uses up nothing', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      await sayAlone(alice, 'genuine');
+      final bytes = (await relay.inner.fetch(bob.inbox)).envelopes.single;
+      final changed = Uint8List.fromList(bytes.body);
+      changed[changed.length - 100] ^= 1;
+      await bob.store.putUnappliedEnvelope(
+        UnappliedEnvelope(
+          id: '0',
+          bytes: changed,
+          reason: UnappliedEnvelopeReason.unknownVersion,
+          receivedAt: bob.clock.now(),
+        ),
+      );
+      await bob.restart();
+      final r = await bob.sync();
+      expect(r.envelopeFailures, {EnvelopeFailure.badSignature: 1});
+      expect(r.envelopesReopened, 1);
+      expect(bob.messages(), ['genuine'], reason: 'its counter stayed free');
+      expect(await bob.store.unappliedEnvelopes(), isEmpty);
+    });
+
+    test('a store failure keeps it, and the next engine opens it', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      await sayAlone(alice, 'retry me');
+      await keepAsUnknown(bob, relay);
+      await bob.restart();
+      bob.store.onWrite = (m) {
+        if (m == 'removeUnappliedEnvelope') throw StateError('disk full');
+      };
+      await expectLater(bob.sync(), throwsStateError);
+      bob.store.onWrite = null;
+      expect(bob.messages(), isEmpty);
+      expect(await bob.store.unappliedEnvelopes(), hasLength(1));
+      await bob.restart();
+      expect((await bob.sync()).envelopesReopened, 1);
+      expect(bob.messages(), ['retry me']);
+    });
+  });
+
   group('envelopes that do not open', () {
     test('garbage is acknowledged and discarded', () async {
       final (alice: _, :bob, :relay) = await couple(crypto);

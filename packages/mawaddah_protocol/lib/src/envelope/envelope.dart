@@ -13,6 +13,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' show min;
 import 'dart:typed_data';
 
 import '../crypto/crypto.dart';
@@ -315,6 +316,12 @@ final class Envelope {
   /// the envelope to the relay (step 8). If that transaction fails, reload
   /// all three from the database: the objects here are ahead of it.
   ///
+  /// For an envelope kept earlier as [EnvelopeFailure.unknownVersion] and
+  /// opened again after an update, pass the time it was received as
+  /// [receivedAt]: the [maxEnvelopeAge] bound is then measured from that
+  /// time, when the relay still held it (PROTOCOL.md section 8). The
+  /// [maxEnvelopeClockAhead] bound is always measured from now.
+  ///
   /// Throws [EnvelopeException]; its [EnvelopeFailure] says whether to
   /// acknowledge and whether to keep the raw bytes. Only
   /// [EnvelopeFailure.undecryptable] changes anything (the window).
@@ -326,6 +333,7 @@ final class Envelope {
     required RatchetSession session,
     required ReplayWindow window,
     required HlcClock clock,
+    DateTime? receivedAt,
   }) {
     // 1. Parse.
     final envelope = Envelope.parse(bytes);
@@ -359,7 +367,9 @@ final class Envelope {
     if (t > now + maxEnvelopeClockAhead.inMilliseconds) {
       throw const EnvelopeException(EnvelopeFailure.fromTheFuture);
     }
-    if (t < now - maxEnvelopeAge.inMilliseconds) {
+    // Never stricter than for an envelope received now.
+    final received = min(receivedAt?.millisecondsSinceEpoch ?? now, now);
+    if (t < received - maxEnvelopeAge.inMilliseconds) {
       throw const EnvelopeException(EnvelopeFailure.tooOld);
     }
     // The HLC merge must not fail after the commit below: try it on a copy

@@ -186,6 +186,58 @@ void main() {
       expect(bob.open(edge), 'edge');
     });
 
+    test('a kept envelope: too old counts from when it was received', () {
+      final (:alice, :bob, :clock) = paired(crypto);
+      final start = clock.now();
+      const days31 = Duration(days: 31);
+      final edge = alice.send('edge', hlc: alice.hlc.send());
+      final old = alice.send('old', hlc: alice.hlc.send());
+      clock.advance(const Duration(days: 40));
+      expect(failureOf(() => bob.open(old)), EnvelopeFailure.tooOld);
+      // Received 31 days after it was sealed: still accepted then.
+      expect(bob.open(edge, receivedAt: start.add(days31)), 'edge');
+      // Received 31 days and 1 ms after: too old then already.
+      expect(
+        failureOf(
+          () => bob.open(
+            old,
+            receivedAt: start.add(days31 + const Duration(milliseconds: 1)),
+          ),
+        ),
+        EnvelopeFailure.tooOld,
+      );
+      expect(bob.open(old, receivedAt: start), 'old');
+    });
+
+    test('a kept envelope received "later than now" is judged as now', () {
+      final (:alice, :bob, :clock) = paired(crypto);
+      final now = clock.now();
+      final aged = alice.send(
+        'aged',
+        hlc: Hlc(now.millisecondsSinceEpoch - 25 * 86400000, 0),
+      );
+      // The clock was set back since: never stricter than a fresh receive.
+      expect(
+        bob.open(aged, receivedAt: now.add(const Duration(days: 9))),
+        'aged',
+      );
+    });
+
+    test('a kept envelope still waits when ahead of the clock now', () {
+      final (:alice, :bob, :clock) = paired(crypto);
+      final now = clock.now();
+      final ahead = alice.send(
+        'ahead',
+        hlc: Hlc(now.millisecondsSinceEpoch + 7200000, 0),
+      );
+      expect(
+        failureOf(
+          () => bob.open(ahead, receivedAt: now.add(const Duration(hours: 3))),
+        ),
+        EnvelopeFailure.fromTheFuture,
+      );
+    });
+
     test('an envelope for another device', () {
       final (:alice, :bob, clock: _) = paired(crypto);
       final other = DeviceIdentity.generate(crypto, SeededRandom(99));

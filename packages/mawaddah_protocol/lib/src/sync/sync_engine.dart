@@ -78,6 +78,7 @@ final class SyncReport {
     required this.retryAt,
     this.eventsCompacted = 0,
     this.envelopesDropped = 0,
+    this.envelopesReopened = 0,
   });
 
   /// Envelopes the relay took, and the outbox events they carried.
@@ -135,6 +136,12 @@ final class SyncReport {
   /// that envelope counts in [envelopesSent].
   final int envelopesDropped;
 
+  /// Envelopes kept for an unknown version that this run opened again and
+  /// that left that state: applied, kept under another reason, or
+  /// discarded (PROTOCOL.md section 17). Those still unknown are not
+  /// counted, nor counted in [envelopeFailures] again.
+  final int envelopesReopened;
+
   /// Whether everything was sent and fetched.
   bool get complete => retryAt == null;
 
@@ -146,6 +153,7 @@ final class SyncReport {
       '${envelopeFailures.map((k, v) => MapEntry(k.name, v))}, '
       'kept: $envelopesKept, leftOnRelay: $leftOnRelay, '
       'compacted: $eventsCompacted, dropped: $envelopesDropped, '
+      'reopened: $envelopesReopened, '
       'retryAt: $retryAt)';
 }
 
@@ -216,6 +224,7 @@ final class SyncEngine {
   Future<SyncReport>? _queued;
   String? _ackedCursor;
   var _failures = 0;
+  var _reopened = false;
 
   /// Applies [events] (made on this device by its `EventFactory`) and adds
   /// them to the outbox, in one transaction with the HLC. Events already
@@ -308,6 +317,7 @@ final class SyncEngine {
       final window = windowBytes == null
           ? ReplayWindow()
           : ReplayWindow.fromStorageBytes(windowBytes);
+      if (!_reopened) await _reopenKept(session, window, r);
       try {
         await _receive(session, window, r);
       } on _RelayFailure catch (e) {
@@ -332,7 +342,8 @@ final class SyncEngine {
           });
     final now = _clock.now();
     final since = await store.clockAheadSince();
-    final unfinished = r.relayError != null || r.leftOnRelay > 0 || r.morePages;
+    final unfinished =
+        r.relayError != null || r.leftOnRelay > 0 || r.keptAhead || r.morePages;
     _failures = unfinished ? _failures + 1 : 0;
     return SyncReport(
       envelopesSent: r.envelopesSent,
@@ -351,6 +362,7 @@ final class SyncEngine {
       retryAt: unfinished ? now.add(backOff.after(_failures)) : null,
       eventsCompacted: compacted,
       envelopesDropped: r.dropped,
+      envelopesReopened: r.reopened,
     );
   }
 
@@ -405,21 +417,47 @@ final class SyncEngine {
     }
     // Only a finished fetch tells whether an envelope is still ahead.
     final since = await store.clockAheadSince();
-    if (leftOnRelay && since == null) {
+    // A kept envelope ahead of the clock counts as one left on the relay.
+    final ahead = leftOnRelay || r.keptAhead;
+    if (ahead && since == null) {
       await store.transaction(() => store.putClockAheadSince(_clock.now()));
-    } else if (!leftOnRelay && since != null) {
+    } else if (!ahead && since != null) {
       await store.transaction(() => store.putClockAheadSince(null));
     }
   }
 
-  /// Opens, applies and commits one envelope. Returns false when it must
-  /// stay on the relay (and nothing after it may be acknowledged).
-  Future<bool> _handle(
-    RelayEnvelope item,
+  /// Opens again the envelopes kept as [UnappliedEnvelopeReason.unknownVersion]
+  /// (PROTOCOL.md sections 8 and 17), oldest first, before anything new is
+  /// fetched: nothing of them was used (no signature checked, no counter in
+  /// the window, no ratchet step), so each is handled as if just received.
+  ///
+  /// A release only changes when the app restarts, so this runs once per
+  /// engine, and again only while one waits because its time is ahead of
+  /// the clock.
+  Future<void> _reopenKept(
     RatchetSession session,
     ReplayWindow window,
     _Run r,
   ) async {
+    for (final kept in await store.unappliedEnvelopes()) {
+      if (!kept.reason.needsUpdate) continue;
+      final item = RelayEnvelope(cursor: kept.id, body: kept.bytes);
+      await _handle(item, session, window, r, kept: kept);
+    }
+    _reopened = !r.keptAhead;
+  }
+
+  /// Opens, applies and commits one envelope: one fetched from the relay,
+  /// or one [kept] earlier for an unknown version and opened again. Returns
+  /// false when it stays where it is: on the relay (and nothing after it
+  /// may be acknowledged), or kept.
+  Future<bool> _handle(
+    RelayEnvelope item,
+    RatchetSession session,
+    ReplayWindow window,
+    _Run r, {
+    UnappliedEnvelope? kept,
+  }) async {
     final OpenedEnvelope opened;
     try {
       opened = Envelope.open(
@@ -430,12 +468,22 @@ final class SyncEngine {
         session: session,
         window: window,
         clock: hlc,
+        receivedAt: kept?.receivedAt,
       );
     } on EnvelopeException catch (e) {
       final f = e.failure;
+      // Still a version this release does not know: it stays kept, and is
+      // not counted again.
+      if (kept != null && f == EnvelopeFailure.unknownVersion) return false;
       r.failures[f] = (r.failures[f] ?? 0) + 1;
       if (!f.acknowledge) {
-        r.leftOnRelay++;
+        // Ahead of the clock: a fetched one stays on the relay, a kept one
+        // stays kept; both are tried at the next run.
+        if (kept == null) {
+          r.leftOnRelay++;
+        } else {
+          r.keptAhead = true;
+        }
         return false;
       }
       await store.transaction(() async {
@@ -445,24 +493,31 @@ final class SyncEngine {
           await store.putReplayWindow(window.toStorageBytes());
         }
         if (f.keepUnapplied) {
+          // A kept one is replaced under its new reason (same ID).
           await _keep(
             item,
             f == EnvelopeFailure.unknownVersion
                 ? UnappliedEnvelopeReason.unknownVersion
                 : UnappliedEnvelopeReason.undecryptable,
+            receivedAt: kept?.receivedAt,
           );
           r.kept++;
+        } else if (kept != null) {
+          await store.removeUnappliedEnvelope(kept.id);
         }
-        await store.putCursor(item.cursor);
+        if (kept == null) await store.putCursor(item.cursor);
       });
+      if (kept != null) r.reopened++;
       return true;
     }
     r.envelopesOpened++;
+    if (kept != null) r.reopened++;
     final plaintext = opened.plaintext;
     try {
       // PROTOCOL.md section 8 step 8: events, session, window and HLC in
       // one transaction, and only then the ACK.
       await store.transaction(() async {
+        var refused = false;
         try {
           final result = await applier.applyReceived(
             plaintext,
@@ -481,13 +536,22 @@ final class SyncEngine {
         } on EventException {
           // Refused before changing anything; the envelope opened all the
           // same (PROTOCOL.md section 10).
-          await _keep(item, UnappliedEnvelopeReason.refused);
+          refused = true;
+          await _keep(
+            item,
+            UnappliedEnvelopeReason.refused,
+            receivedAt: kept?.receivedAt,
+          );
           r.kept++;
         }
         await _saveSession(session);
         await store.putReplayWindow(window.toStorageBytes());
         await store.putHlc(hlc.last);
-        await store.putCursor(item.cursor);
+        if (kept == null) {
+          await store.putCursor(item.cursor);
+        } else if (!refused) {
+          await store.removeUnappliedEnvelope(kept.id);
+        }
       });
     } finally {
       plaintext.fillRange(0, plaintext.length, 0);
@@ -495,7 +559,13 @@ final class SyncEngine {
     return true;
   }
 
-  Future<void> _keep(RelayEnvelope item, UnappliedEnvelopeReason reason) async {
+  /// Keeps [item] as raw bytes under [reason] (replacing a kept envelope of
+  /// the same ID), received at [receivedAt] (default now).
+  Future<void> _keep(
+    RelayEnvelope item,
+    UnappliedEnvelopeReason reason, {
+    DateTime? receivedAt,
+  }) async {
     // At most [SyncStore.maxKeptEnvelopes] per reason, oldest dropped.
     final kept = (await store.unappliedEnvelopes())
         .where((e) => e.reason == reason && e.id != item.cursor)
@@ -509,7 +579,7 @@ final class SyncEngine {
         id: item.cursor,
         bytes: item.body,
         reason: reason,
-        receivedAt: _clock.now(),
+        receivedAt: receivedAt ?? _clock.now(),
       ),
     );
   }
@@ -701,8 +771,11 @@ final class _RelayFailure implements Exception {
 final class _Run {
   var envelopesSent = 0, eventsSent = 0, resealed = 0;
   var envelopesOpened = 0, eventsApplied = 0, eventsUnapplied = 0;
-  var duplicates = 0, kept = 0, leftOnRelay = 0, dropped = 0;
+  var duplicates = 0, kept = 0, leftOnRelay = 0, dropped = 0, reopened = 0;
   var waitingForPartner = false, morePages = false;
+
+  /// A kept envelope stayed kept because its time is ahead of the clock.
+  var keptAhead = false;
   final failures = <EnvelopeFailure, int>{};
   String? relayError;
 
