@@ -36,7 +36,7 @@ final class Side {
   );
 
   /// Opens [bytes] from the partner and returns the text.
-  String open(Uint8List bytes) => utf8.decode(
+  String open(Uint8List bytes, {DateTime? receivedAt}) => utf8.decode(
     Envelope.open(
       crypto: crypto,
       bytes: bytes,
@@ -45,6 +45,7 @@ final class Side {
       session: session,
       window: window,
       clock: hlc,
+      receivedAt: receivedAt,
     ).plaintext,
   );
 }

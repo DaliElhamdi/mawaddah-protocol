@@ -403,3 +403,31 @@ void advanceBoth(Device a, Device b, Duration by) {
   a.clock.advance(by);
   b.clock.advance(by);
 }
+
+/// Moves every envelope waiting in [d]'s inbox into its kept list as
+/// `unknownVersion`, received at [at] (default: [d]'s clock), as a release
+/// that did not know their version would have done: kept, cursor stored,
+/// acknowledged. Returns the bytes in relay order.
+Future<List<Uint8List>> keepAsUnknown(
+  Device d,
+  FlakyRelay relay, {
+  DateTime? at,
+}) async {
+  final page = await relay.inner.fetch(d.inbox);
+  for (final e in page.envelopes) {
+    await d.store.putUnappliedEnvelope(
+      UnappliedEnvelope(
+        id: e.cursor,
+        bytes: e.body,
+        reason: UnappliedEnvelopeReason.unknownVersion,
+        receivedAt: at ?? d.clock.now(),
+      ),
+    );
+  }
+  if (page.envelopes.isNotEmpty) {
+    final last = page.envelopes.last.cursor;
+    await d.store.putCursor(last);
+    await relay.inner.ack(d.inbox, last);
+  }
+  return [for (final e in page.envelopes) Uint8List.fromList(e.body)];
+}
