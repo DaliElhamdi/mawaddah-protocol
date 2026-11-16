@@ -682,11 +682,37 @@ void main() {
         expect(first.envelopeFailures, {EnvelopeFailure.fromTheFuture: 1});
         expect(first.envelopesReopened, 0);
         expect(first.leftOnRelay, 0);
+        expect(first.complete, isFalse, reason: 'retried with back-off');
+        expect(await bob.store.clockAheadSince(), isNotNull);
         expect(await bob.store.unappliedEnvelopes(), hasLength(1));
+        bob.clock.advance(const Duration(minutes: 30));
+        expect((await bob.sync()).clockWarning, isFalse);
         bob.clock.advance(const Duration(hours: 2));
         final second = await bob.sync(); // same engine
         expect(second.envelopesReopened, 1);
+        expect(second.complete, isTrue);
+        expect(await bob.store.clockAheadSince(), isNull);
         expect(bob.messages(), ['early']);
+        expect(await bob.store.unappliedEnvelopes(), isEmpty);
+      },
+    );
+
+    test(
+      'a counter that fell out of the replay window meanwhile is lost',
+      () async {
+        final (:alice, :bob, :relay) = await couple(crypto);
+        await bob.sync(); // this engine has opened its kept envelopes
+        await sayAlone(alice, 'kept');
+        await keepAsUnknown(bob, relay);
+        await alice.store.putLastCounter(1100);
+        await sayAlone(alice, 'newer');
+        await bob.sync(); // same release: 'newer' (counter 1101) opens
+        expect(bob.messages(), ['newer']);
+        await bob.restart();
+        final r = await bob.sync();
+        expect(r.envelopeFailures, {EnvelopeFailure.replayed: 1});
+        expect(r.envelopesReopened, 1);
+        expect(bob.messages(), ['newer']);
         expect(await bob.store.unappliedEnvelopes(), isEmpty);
       },
     );

@@ -342,7 +342,8 @@ final class SyncEngine {
           });
     final now = _clock.now();
     final since = await store.clockAheadSince();
-    final unfinished = r.relayError != null || r.leftOnRelay > 0 || r.morePages;
+    final unfinished =
+        r.relayError != null || r.leftOnRelay > 0 || r.keptAhead || r.morePages;
     _failures = unfinished ? _failures + 1 : 0;
     return SyncReport(
       envelopesSent: r.envelopesSent,
@@ -416,9 +417,11 @@ final class SyncEngine {
     }
     // Only a finished fetch tells whether an envelope is still ahead.
     final since = await store.clockAheadSince();
-    if (leftOnRelay && since == null) {
+    // A kept envelope ahead of the clock counts as one left on the relay.
+    final ahead = leftOnRelay || r.keptAhead;
+    if (ahead && since == null) {
       await store.transaction(() => store.putClockAheadSince(_clock.now()));
-    } else if (!leftOnRelay && since != null) {
+    } else if (!ahead && since != null) {
       await store.transaction(() => store.putClockAheadSince(null));
     }
   }
@@ -436,15 +439,12 @@ final class SyncEngine {
     ReplayWindow window,
     _Run r,
   ) async {
-    var waiting = false;
     for (final kept in await store.unappliedEnvelopes()) {
       if (!kept.reason.needsUpdate) continue;
       final item = RelayEnvelope(cursor: kept.id, body: kept.bytes);
-      if (!await _handle(item, session, window, r, kept: kept)) {
-        waiting = waiting || r.lastFailure == EnvelopeFailure.fromTheFuture;
-      }
+      await _handle(item, session, window, r, kept: kept);
     }
-    _reopened = !waiting;
+    _reopened = !r.keptAhead;
   }
 
   /// Opens, applies and commits one envelope: one fetched from the relay,
@@ -458,7 +458,6 @@ final class SyncEngine {
     _Run r, {
     UnappliedEnvelope? kept,
   }) async {
-    r.lastFailure = null;
     final OpenedEnvelope opened;
     try {
       opened = Envelope.open(
@@ -473,7 +472,6 @@ final class SyncEngine {
       );
     } on EnvelopeException catch (e) {
       final f = e.failure;
-      r.lastFailure = f;
       // Still a version this release does not know: it stays kept, and is
       // not counted again.
       if (kept != null && f == EnvelopeFailure.unknownVersion) return false;
@@ -481,7 +479,11 @@ final class SyncEngine {
       if (!f.acknowledge) {
         // Ahead of the clock: a fetched one stays on the relay, a kept one
         // stays kept; both are tried at the next run.
-        if (kept == null) r.leftOnRelay++;
+        if (kept == null) {
+          r.leftOnRelay++;
+        } else {
+          r.keptAhead = true;
+        }
         return false;
       }
       await store.transaction(() async {
@@ -772,8 +774,8 @@ final class _Run {
   var duplicates = 0, kept = 0, leftOnRelay = 0, dropped = 0, reopened = 0;
   var waitingForPartner = false, morePages = false;
 
-  /// Why the last envelope handled did not open, or null.
-  EnvelopeFailure? lastFailure;
+  /// A kept envelope stayed kept because its time is ahead of the clock.
+  var keptAhead = false;
   final failures = <EnvelopeFailure, int>{};
   String? relayError;
 
