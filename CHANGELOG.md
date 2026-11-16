@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.1.0-dev.3] - 2026-11-16
+
+Pre-release for the app's update card (private #134): envelopes kept for an unknown version are opened again after an update (issue #62). No wire change since `0.1.0-dev.2`; the final `0.1.0` still waits for the Phase 1 gate.
+
 ### Added
 - Envelopes kept for an unknown version are opened again after an update (PROTOCOL.md sections 8, 16 and 17, issue #62). Once per `SyncEngine` (an update restarts the app), before fetching, each kept `unknownVersion` envelope is handled as if just received: applied and removed from the kept list in one transaction, kept under `refused` / `undecryptable`, removed when rejected, or left kept while the release still cannot read it or its time is ahead of the clock (then tried at every run; like an envelope left on the relay, it makes the run unfinished and counts for the wrong-time card). `Envelope.open` takes `receivedAt`: the 31-day age bound is measured from it (never later than now). `SyncReport.envelopesReopened`. No wire change, no new vectors.
 
