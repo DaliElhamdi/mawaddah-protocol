@@ -15,6 +15,7 @@ description = "Published RFC / draft / libsodium test vectors and generated prot
 paths = [
   '''^packages/mawaddah_protocol/test/vectors/attachment\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/event\.json$''',
+  '''^packages/mawaddah_protocol/tool/gen_vectors\.dart$''',
   '''^packages/mawaddah_protocol/test/sync/chat_payloads_test\.dart$''',
   '''^packages/mawaddah_protocol/test/vectors/identity\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/safety_number\.json$''',
