@@ -66,6 +66,7 @@ Each case says what protects you and, honestly, what does not.
   - QR path: the QR carries the initiator's keys and a one-time secret. A relay that swaps keys fails the key confirmation.
   - Code path: a 6-digit code cannot authenticate keys. So both phones require each person to compare the safety number (20 digits, about 66 bits). Until then they send and show nothing but the device hello. The joiner's identity keys are new for each attempt and revealed only after the bundle. So a relay cannot search in advance for a fake key that gives the same number (`PROTOCOL.md` section 5).
   - A reply that claims the code path always requires the comparison on the initiator's phone too.
+  - The app (**built**) is stricter than `PROTOCOL.md` section 4.5: it keeps sync fully off, with no device hello either, until the person has confirmed the safety number on that phone. Only then does it send the hello and the profile (first name, gender and stage), and both only inside the encrypted channel. The pair starts only when both phones picked the same stage; if the picks differ, each phone shows both and waits.
 - **Limits:**
   - The QR is a bearer secret for its 10 minutes. Someone who photographs it can pair instead of the partner. The partner's phone then reports "already used", and the people must notice and unpair. Comparing the safety number, recommended on the QR path too, catches it.
   - Codes can be guessed slowly (5 wrong lookups per address per 10 minutes). A found code only blocks that attempt, because the comparison then fails.
