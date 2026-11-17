@@ -4,35 +4,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-17
+
+First release with the protocol: pairing, the Double Ratchet, signed envelopes, events and sync, attachments, the relay and its Dart client. It gathers `0.1.0-dev.1` to `0.1.0-dev.3` and the changes made since; the wire format is the one the owner approved at the Phase 1 gate.
+
 ### Added
 - Payload rules for `message`, `reaction` and `receipt` in PROTOCOL.md section 10 and in `EntityRegistry.v1` (issue #53): `validateMessagePayload`, `validateReactionPayload`, `validateReceiptPayload`, `isValidAttachmentPayload` and their limits (`maxMessageLength` 4,000, `maxReactionLength` 32, `maxVoiceMs`, `maxVoiceWave`, `maxPhotoSide`). A chat event that breaks them is kept unapplied as `invalid_payload`. The rules are the ones the app already enforces (private #66, #67, #69, #70), so a current app sends nothing the package refuses. New vector case `apply: chat payload rules` in `event.json` (8 valid, 25 invalid payloads), re-checked by an independent Python script. The wire format is unchanged.
-
-### Changed
-- Docs for the app's background sync and profile exchange (issue #52): `PRIVACY.md` says that every paired phone polls the relay about every 15 minutes (and about every 30 seconds while the app is open), so the relay and Cloudflare see regular fetch times and the IP address; `SECURITY.md` says the app keeps sync off until the safety number is confirmed (stricter than section 4.5), then exchanges the profile only inside the encrypted channel, and starts the pair only when both phones picked the same stage; `PROTOCOL.md` section 17 says apps may poll on a timer. No wire change, no vectors.
-
-## [0.1.0-dev.3] - 2026-11-16
-
-Pre-release for the app's update card (private #134): envelopes kept for an unknown version are opened again after an update (issue #62). No wire change since `0.1.0-dev.2`; the final `0.1.0` still waits for the Phase 1 gate.
-
-### Added
 - Envelopes kept for an unknown version are opened again after an update (PROTOCOL.md sections 8, 16 and 17, issue #62). Once per `SyncEngine` (an update restarts the app), before fetching, each kept `unknownVersion` envelope is handled as if just received: applied and removed from the kept list in one transaction, kept under `refused` / `undecryptable`, removed when rejected, or left kept while the release still cannot read it or its time is ahead of the clock (then tried at every run; like an envelope left on the relay, it makes the run unfinished and counts for the wrong-time card). `Envelope.open` takes `receivedAt`: the 31-day age bound is measured from it (never later than now). `SyncReport.envelopesReopened`. No wire change, no new vectors.
-
-## [0.1.0-dev.2] - 2026-11-13
-
-Pre-release for the app's photos and voice notes (private #69, #70): adds attachment encryption (issue #54) and the relay deployment notes. No wire change since `0.1.0-dev.1`; the final `0.1.0` still waits for the Phase 1 gate.
-
-### Changed
-- The relay now runs on Cloudflare: staging (`mawaddah-relay-staging`, deployed by the `deploy-relay` workflow) and production (`mawaddah-relay`), both on `workers.dev` addresses. First staging load test recorded in `relay/README.md`; the status lines in `PRIVACY.md` and `SECURITY.md` no longer say "not deployed" (issue #25).
-
-### Added
 - Attachment encryption (PROTOCOL.md section 12, issue #54): `AttachmentCipher` (`encrypt`, `decrypt`, `generateKey`, `generateBlobId`) over libsodium secretstream XChaCha20-Poly1305 in 65,536-byte chunks, last chunk `FINAL`, 10 MiB limit; `Crypto.streamEncrypt` / `streamDecrypt`. Section 12 now states the chunk rule (an exact multiple ends with a full `FINAL` chunk; an empty file is one empty chunk) and what is refused. Vectors `attachment.json` (16 cases, re-checked by an independent PyNaCl script); `.gitleaks.toml` allowlists it. No wire change.
 - Relay deployment (issue #25): `[env.staging]` (`mawaddah-relay-staging`) and `[env.production]` (`mawaddah-relay`) in `relay/wrangler.toml`, with their own Durable Object storage; `npm run deploy:staging` / `deploy:production`; the `deploy-relay` workflow (staging when `relay/` changes on `main`, production on a final `vX.Y.Z` tag on `main`, push events only, tests first, `/health` check afterwards, warning when the FCM secret is missing); `test/wrangler_config.test.ts` (environments match the top level, observability off); `relay/loadtest/loadtest.mjs` (a one-couple load test with p50/p95/p99); `relay/README.md` gets Deploy, Load test, Monthly cost and a fuller dashboard checklist for "no request logs".
-
-## [0.1.0-dev.1] - 2026-11-12
-
-Pre-release so the app can start using the package (issue #27). The final `0.1.0` follows at the Phase 1 gate; the wire format may still change until the owner approves it.
-
-### Added
 - `PRIVACY.md` completed (spec 4.3, 13.2): the approved wording in English, Arabic and French; who can read what; the relay's metadata in detail (padding, times, cleartext clock and counter, wake-up flag, hashed IP addresses); what is stored and when it is deleted; Cloudflare and Google FCM; retention and erasure; what the app keeps on the phone. `SECURITY.md` completed (spec 13.3): how to report, what the design protects and does not, and a threat model with every spec 13.3 case plus a hostile relay, a leaked FCM key, clocks, abuse and the supply chain, each with its honest limits. `scripts/check.sh` fails if the public docs use a forbidden privacy phrase.
 - `PROTOCOL.md`: the v1 wire format (draft, implemented in v0.1.0): identity keys and device ID, pairing (X3DH adapted, QR payload, code path), safety number, Double Ratchet parameters, envelope layout and receive checks, HLC, event schema and versioning, attachments, relay request signing, constants, test-vector layout and known limits.
 - `Crypto` interface and `SodiumCrypto` in `packages/mawaddah_protocol`: X25519, Ed25519, XChaCha20-Poly1305 (IETF), BLAKE2b and HKDF-SHA-256 from libsodium 1.0.22 (sumo) via the `sodium` 4.x package, whose build hook compiles libsodium (no system install). Typed keys; secrets in libsodium guarded memory with `dispose()`; key and nonce randomness from the injected `RandomSource` (`SodiumRandomSource` by default).
@@ -69,6 +49,8 @@ Pre-release so the app can start using the package (issue #27). The final `0.1.0
 - New dependency `http` (Dart team, HTTP client).
 
 ### Changed
+- Docs for the app's background sync and profile exchange (issue #52): `PRIVACY.md` says that every paired phone polls the relay about every 15 minutes (and about every 30 seconds while the app is open), so the relay and Cloudflare see regular fetch times and the IP address; `SECURITY.md` says the app keeps sync off until the safety number is confirmed (stricter than section 4.5), then exchanges the profile only inside the encrypted channel, and starts the pair only when both phones picked the same stage; `PROTOCOL.md` section 17 says apps may poll on a timer. No wire change, no vectors.
+- The relay now runs on Cloudflare: staging (`mawaddah-relay-staging`, deployed by the `deploy-relay` workflow) and production (`mawaddah-relay`), both on `workers.dev` addresses. First staging load test recorded in `relay/README.md`; the status lines in `PRIVACY.md` and `SECURITY.md` no longer say "not deployed" (issue #25).
 - `package:crypto` moved from dev to normal dependencies: the device ID and relay body hashes need SHA-256, which the `sodium` Dart API does not offer (ADR 0006 point 3).
 - `RatchetSession.fromPairing`, `initAlice` and `initBob` now take a `Clock`. `RatchetFailure.skippedMessage` is replaced by `tooManySkipped`, because out-of-order messages are now accepted.
 - `Storage.write` must not keep a reference to the value it is given (callers zero secrets once it completes).
