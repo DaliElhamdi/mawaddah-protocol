@@ -4,7 +4,7 @@
 # themselves (for example RFC 7748 section 6.1), and GENERATED protocol
 # vectors made by tool/gen_vectors.dart from SeededRandom (fixed seeds 1, 2,
 # 3, ...; their secrets are test inputs that any implementation must be able
-# to reproduce). Never add other paths here: a real secret must never be
+# to reproduce). The chat payload vectors and test hold a made-up counting-pattern file key (bytes 0..31) that only looks like a secret. Never add other paths here: a real secret must never be
 # committed to this public repository.
 
 [extend]
@@ -14,6 +14,8 @@ useDefault = true
 description = "Published RFC / draft / libsodium test vectors and generated protocol vectors (public values, not secrets)"
 paths = [
   '''^packages/mawaddah_protocol/test/vectors/attachment\.json$''',
+  '''^packages/mawaddah_protocol/test/vectors/event\.json$''',
+  '''^packages/mawaddah_protocol/test/sync/chat_payloads_test\.dart$''',
   '''^packages/mawaddah_protocol/test/vectors/identity\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/safety_number\.json$''',
   '''^packages/mawaddah_protocol/test/vectors/pairing\.json$''',
