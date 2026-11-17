@@ -529,6 +529,914 @@
           }
         ]
       }
+    },
+    {
+      "name": "apply: chat payload rules",
+      "input": {
+        "local_device": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+        "batches": [
+          {
+            "sender": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+            "events": [
+              {
+                "event_id": "019a72c9-9588-7286-82b0-cf6460e02fdb",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-76af-8251-5667e27e89c6",
+                "op": "create",
+                "payload": {
+                  "text": "salam"
+                },
+                "hlc": "019a72c995880001",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7820-aa95-2d46096fa692",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-7af6-921c-069b32f2b97d",
+                "op": "create",
+                "payload": {
+                  "text": "a reply",
+                  "reply_to": "019a72c9-9588-7817-bc41-76e877ddd9cb"
+                },
+                "hlc": "019a72c995880002",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7044-a23a-154bdbac3ec2",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-75aa-af6d-683aa45a825e",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "photo",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 1000,
+                    "w": 1200,
+                    "h": 1600
+                  }
+                },
+                "hlc": "019a72c995880003",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7e40-b830-43be14cbe6e3",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-7cf3-81e0-eb16417b587b",
+                "op": "create",
+                "payload": {
+                  "text": "caption",
+                  "attachment": {
+                    "kind": "voice",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 1000,
+                    "ms": 4000,
+                    "wave": [
+                      0,
+                      128,
+                      255
+                    ]
+                  }
+                },
+                "hlc": "019a72c995880004",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7f8b-973c-7169d34e7afa",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-707e-85e4-aa880f997640",
+                "op": "create",
+                "payload": {
+                  "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                  "future_field": 1
+                },
+                "hlc": "019a72c995880005",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-73cf-9a19-9a961e97f85a",
+                "entity_type": "reaction",
+                "entity_id": "019a72c9-9588-7275-9848-630ea95275b4",
+                "op": "update",
+                "payload": {
+                  "message_id": "019a72c9-9588-7817-bc41-76e877ddd9cb",
+                  "emoji": "👍"
+                },
+                "hlc": "019a72c995880006",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7710-8e54-8966295def04",
+                "entity_type": "reaction",
+                "entity_id": "019a72c9-9588-7f4c-a3a9-b07dc21997c3",
+                "op": "update",
+                "payload": {
+                  "emoji": ""
+                },
+                "hlc": "019a72c995880007",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-72db-82d5-168485ab8986",
+                "entity_type": "receipt",
+                "entity_id": "019a72c9-9588-7580-afd8-a2c8fcaabd98",
+                "op": "update",
+                "payload": {
+                  "delivered": "019a72c995880000",
+                  "read": "019a72c995880000"
+                },
+                "hlc": "019a72c995880008",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              }
+            ]
+          },
+          {
+            "sender": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+            "events": [
+              {
+                "event_id": "019a72c9-9588-7354-8c9e-71d23f5fd547",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-74ab-8e2f-78e7b9084272",
+                "op": "create",
+                "payload": {},
+                "hlc": "019a72c995880009",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7aeb-bff6-87a6d0339ccc",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-7ddc-830d-557048b5a9b4",
+                "op": "create",
+                "payload": {
+                  "text": "   "
+                },
+                "hlc": "019a72c99588000a",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7b83-bbb9-3cd72966ec83",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-7e03-a6cc-1e89ea4781a7",
+                "op": "create",
+                "payload": {
+                  "text": 5
+                },
+                "hlc": "019a72c99588000b",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7a16-9ef8-2f41bf7d09e5",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-79e1-ad54-3a46d51de168",
+                "op": "create",
+                "payload": {
+                  "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                },
+                "hlc": "019a72c99588000c",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-745d-869b-ff491a3ee28b",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-76b1-9efe-2de919cb6eb5",
+                "op": "create",
+                "payload": {
+                  "text": "a",
+                  "reply_to": "not-an-id"
+                },
+                "hlc": "019a72c99588000d",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-72d1-9519-2b2bf7b2e1d2",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-78c6-af81-91a5b92aebb4",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "photo",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "short",
+                    "size": 1000,
+                    "w": 1200,
+                    "h": 1600
+                  }
+                },
+                "hlc": "019a72c99588000e",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7897-9f96-b24b301db69f",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-7f79-8c7e-6665d4a6c29e",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "video",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 1000,
+                    "w": 1200,
+                    "h": 1600
+                  }
+                },
+                "hlc": "019a72c99588000f",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-750a-abb1-1edd1313dece",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-7274-852f-300809a41128",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "photo",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 10,
+                    "w": 1200,
+                    "h": 1600
+                  }
+                },
+                "hlc": "019a72c995880010",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-76d6-9051-62c9ebc1b0d7",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-77b2-8f57-6ac5bce3bd96",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "photo",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 10485761,
+                    "w": 1200,
+                    "h": 1600
+                  }
+                },
+                "hlc": "019a72c995880011",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7c6a-b77e-a03143b0e0b9",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-7d9c-b6ff-a7d7e8cb289e",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "photo",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 1000,
+                    "w": 20001,
+                    "h": 1600
+                  }
+                },
+                "hlc": "019a72c995880012",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-73c8-ba53-41d5e3072954",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-7200-a42e-3dafb6a91c85",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "voice",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 1000,
+                    "ms": 185001,
+                    "wave": [
+                      0,
+                      128,
+                      255
+                    ]
+                  }
+                },
+                "hlc": "019a72c995880013",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7c50-b346-8319bf456f96",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-72f5-804e-65c74f80c6a9",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "voice",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 1000,
+                    "ms": 0,
+                    "wave": [
+                      0,
+                      128,
+                      255
+                    ]
+                  }
+                },
+                "hlc": "019a72c995880014",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7388-8d79-29329c9eb0fc",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-7d8b-b404-d6eb02ffc3ca",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "voice",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 1000,
+                    "ms": 4000,
+                    "wave": []
+                  }
+                },
+                "hlc": "019a72c995880015",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-76f2-a519-0134fff916db",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-75ab-acc7-c7c0b674404c",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "voice",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 1000,
+                    "ms": 4000,
+                    "wave": [
+                      256
+                    ]
+                  }
+                },
+                "hlc": "019a72c995880016",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7354-9d5a-c8c2d4b52679",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-7c0c-8409-78e22a5c529e",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "voice",
+                    "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 1000,
+                    "ms": 4000,
+                    "wave": [
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1
+                    ]
+                  }
+                },
+                "hlc": "019a72c995880017",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7cb7-b9eb-46b03f6f21b6",
+                "entity_type": "message",
+                "entity_id": "019a72c9-9588-759d-ac68-f87fa628543c",
+                "op": "create",
+                "payload": {
+                  "text": "",
+                  "attachment": {
+                    "kind": "photo",
+                    "blob_id": "AECAwQFBgcICQoLDA0ODw",
+                    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                    "size": 1000,
+                    "w": 1200,
+                    "h": 1600
+                  }
+                },
+                "hlc": "019a72c995880018",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7081-85a1-ff9e8223f35c",
+                "entity_type": "reaction",
+                "entity_id": "019a72c9-9588-72cf-98dc-e8caf5634fc7",
+                "op": "update",
+                "payload": {},
+                "hlc": "019a72c995880019",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7591-b7ad-5b46d13fb5f3",
+                "entity_type": "reaction",
+                "entity_id": "019a72c9-9588-76ae-9c8f-19a7e219bd27",
+                "op": "update",
+                "payload": {
+                  "emoji": "a b"
+                },
+                "hlc": "019a72c99588001a",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-748a-863b-d4d90616ecc2",
+                "entity_type": "reaction",
+                "entity_id": "019a72c9-9588-7cd4-8ac2-e1aec84d5050",
+                "op": "update",
+                "payload": {
+                  "emoji": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                },
+                "hlc": "019a72c99588001b",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7dd7-b7ae-5b5e11e3b257",
+                "entity_type": "reaction",
+                "entity_id": "019a72c9-9588-75f3-938d-760f3089628b",
+                "op": "update",
+                "payload": {
+                  "k": 1
+                },
+                "hlc": "019a72c99588001c",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-78e2-9798-190a6ddfa3f2",
+                "entity_type": "reaction",
+                "entity_id": "019a72c9-9588-793e-ba6d-e70f90cc04fb",
+                "op": "update",
+                "payload": {
+                  "message_id": "x"
+                },
+                "hlc": "019a72c99588001d",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-755d-8df2-4afa50718732",
+                "entity_type": "receipt",
+                "entity_id": "019a72c9-9588-7506-8696-d48dc9d1d9f4",
+                "op": "update",
+                "payload": {},
+                "hlc": "019a72c99588001e",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7f83-84c6-2ab02787b8b5",
+                "entity_type": "receipt",
+                "entity_id": "019a72c9-9588-7f0c-9a72-4b8ede9cd6fe",
+                "op": "update",
+                "payload": {
+                  "read": "ABCDEF"
+                },
+                "hlc": "019a72c99588001f",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-7fa8-a6a4-4c90996cbf60",
+                "entity_type": "receipt",
+                "entity_id": "019a72c9-9588-765c-9f5f-ee18c43c2fda",
+                "op": "update",
+                "payload": {
+                  "read": "A19A72C99588AAAA"
+                },
+                "hlc": "019a72c995880020",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-9588-73b1-bc50-acfb0a34ca44",
+                "entity_type": "receipt",
+                "entity_id": "019a72c9-9588-76ff-ba23-29d6179ef333",
+                "op": "update",
+                "payload": {
+                  "seen": "019a72c995880000"
+                },
+                "hlc": "019a72c995880021",
+                "author_device": "DQ0NDQ0NDQ0NDQ0NDQ0NDQ",
+                "protocol_version": 1,
+                "schema_version": 1
+              }
+            ]
+          }
+        ]
+      },
+      "output": {
+        "entities": [
+          {
+            "entity_type": "message",
+            "entity_id": "019a72c9-9588-707e-85e4-aa880f997640",
+            "fields": {
+              "future_field": {
+                "value": 1,
+                "event_id": "019a72c9-9588-7f8b-973c-7169d34e7afa"
+              },
+              "text": {
+                "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "event_id": "019a72c9-9588-7f8b-973c-7169d34e7afa"
+              }
+            },
+            "created": "019a72c9-9588-7f8b-973c-7169d34e7afa",
+            "deleted": null
+          },
+          {
+            "entity_type": "message",
+            "entity_id": "019a72c9-9588-75aa-af6d-683aa45a825e",
+            "fields": {
+              "attachment": {
+                "value": {
+                  "kind": "photo",
+                  "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                  "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                  "size": 1000,
+                  "w": 1200,
+                  "h": 1600
+                },
+                "event_id": "019a72c9-9588-7044-a23a-154bdbac3ec2"
+              },
+              "text": {
+                "value": "",
+                "event_id": "019a72c9-9588-7044-a23a-154bdbac3ec2"
+              }
+            },
+            "created": "019a72c9-9588-7044-a23a-154bdbac3ec2",
+            "deleted": null
+          },
+          {
+            "entity_type": "message",
+            "entity_id": "019a72c9-9588-76af-8251-5667e27e89c6",
+            "fields": {
+              "text": {
+                "value": "salam",
+                "event_id": "019a72c9-9588-7286-82b0-cf6460e02fdb"
+              }
+            },
+            "created": "019a72c9-9588-7286-82b0-cf6460e02fdb",
+            "deleted": null
+          },
+          {
+            "entity_type": "message",
+            "entity_id": "019a72c9-9588-7af6-921c-069b32f2b97d",
+            "fields": {
+              "reply_to": {
+                "value": "019a72c9-9588-7817-bc41-76e877ddd9cb",
+                "event_id": "019a72c9-9588-7820-aa95-2d46096fa692"
+              },
+              "text": {
+                "value": "a reply",
+                "event_id": "019a72c9-9588-7820-aa95-2d46096fa692"
+              }
+            },
+            "created": "019a72c9-9588-7820-aa95-2d46096fa692",
+            "deleted": null
+          },
+          {
+            "entity_type": "message",
+            "entity_id": "019a72c9-9588-7cf3-81e0-eb16417b587b",
+            "fields": {
+              "attachment": {
+                "value": {
+                  "kind": "voice",
+                  "blob_id": "AAECAwQFBgcICQoLDA0ODw",
+                  "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                  "size": 1000,
+                  "ms": 4000,
+                  "wave": [
+                    0,
+                    128,
+                    255
+                  ]
+                },
+                "event_id": "019a72c9-9588-7e40-b830-43be14cbe6e3"
+              },
+              "text": {
+                "value": "caption",
+                "event_id": "019a72c9-9588-7e40-b830-43be14cbe6e3"
+              }
+            },
+            "created": "019a72c9-9588-7e40-b830-43be14cbe6e3",
+            "deleted": null
+          },
+          {
+            "entity_type": "reaction",
+            "entity_id": "019a72c9-9588-7275-9848-630ea95275b4",
+            "fields": {
+              "emoji": {
+                "value": "👍",
+                "event_id": "019a72c9-9588-73cf-9a19-9a961e97f85a"
+              },
+              "message_id": {
+                "value": "019a72c9-9588-7817-bc41-76e877ddd9cb",
+                "event_id": "019a72c9-9588-73cf-9a19-9a961e97f85a"
+              }
+            },
+            "created": null,
+            "deleted": null
+          },
+          {
+            "entity_type": "reaction",
+            "entity_id": "019a72c9-9588-7f4c-a3a9-b07dc21997c3",
+            "fields": {
+              "emoji": {
+                "value": "",
+                "event_id": "019a72c9-9588-7710-8e54-8966295def04"
+              }
+            },
+            "created": null,
+            "deleted": null
+          },
+          {
+            "entity_type": "receipt",
+            "entity_id": "019a72c9-9588-7580-afd8-a2c8fcaabd98",
+            "fields": {
+              "delivered": {
+                "value": "019a72c995880000",
+                "event_id": "019a72c9-9588-72db-82d5-168485ab8986"
+              },
+              "read": {
+                "value": "019a72c995880000",
+                "event_id": "019a72c9-9588-72db-82d5-168485ab8986"
+              }
+            },
+            "created": null,
+            "deleted": null
+          }
+        ],
+        "log": [
+          {
+            "event_id": "019a72c9-9588-7044-a23a-154bdbac3ec2",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-9588-7286-82b0-cf6460e02fdb",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-9588-72db-82d5-168485ab8986",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-9588-73cf-9a19-9a961e97f85a",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-9588-7710-8e54-8966295def04",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-9588-7820-aa95-2d46096fa692",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-9588-7e40-b830-43be14cbe6e3",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-9588-7f8b-973c-7169d34e7afa",
+            "payload_purged": false
+          }
+        ],
+        "unapplied": [
+          {
+            "event_id": "019a72c9-9588-7354-8c9e-71d23f5fd547",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7aeb-bff6-87a6d0339ccc",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7b83-bbb9-3cd72966ec83",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7a16-9ef8-2f41bf7d09e5",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-745d-869b-ff491a3ee28b",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-72d1-9519-2b2bf7b2e1d2",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7897-9f96-b24b301db69f",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-750a-abb1-1edd1313dece",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-76d6-9051-62c9ebc1b0d7",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7c6a-b77e-a03143b0e0b9",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-73c8-ba53-41d5e3072954",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7c50-b346-8319bf456f96",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7388-8d79-29329c9eb0fc",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-76f2-a519-0134fff916db",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7354-9d5a-c8c2d4b52679",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7cb7-b9eb-46b03f6f21b6",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7081-85a1-ff9e8223f35c",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7591-b7ad-5b46d13fb5f3",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-748a-863b-d4d90616ecc2",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7dd7-b7ae-5b5e11e3b257",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-78e2-9798-190a6ddfa3f2",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-755d-8df2-4afa50718732",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7f83-84c6-2ab02787b8b5",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-7fa8-a6a4-4c90996cbf60",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-9588-73b1-bc50-acfb0a34ca44",
+            "reason": "invalid_payload"
+          }
+        ]
+      }
     }
   ]
 }

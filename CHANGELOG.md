@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- Payload rules for `message`, `reaction` and `receipt` in PROTOCOL.md section 10 and in `EntityRegistry.v1` (issue #53): `validateMessagePayload`, `validateReactionPayload`, `validateReceiptPayload`, `isValidAttachmentPayload` and their limits (`maxMessageLength` 4,000, `maxReactionLength` 32, `maxVoiceMs`, `maxVoiceWave`, `maxPhotoSide`). A chat event that breaks them is kept unapplied as `invalid_payload`. The rules are the ones the app already enforces (private #66, #67, #69, #70), so a current app sends nothing the package refuses. New vector case `apply: chat payload rules` in `event.json` (8 valid, 25 invalid payloads), re-checked by an independent Python script. The wire format is unchanged.
+
 ## [0.1.0-dev.3] - 2026-11-16
 
 Pre-release for the app's update card (private #134): envelopes kept for an unknown version are opened again after an update (issue #62). No wire change since `0.1.0-dev.2`; the final `0.1.0` still waits for the Phase 1 gate.

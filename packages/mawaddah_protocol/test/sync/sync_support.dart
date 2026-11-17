@@ -9,6 +9,17 @@ import 'package:mawaddah_protocol/mawaddah_protocol.dart';
 
 import '../ratchet/support.dart' show pair;
 
+/// The v1 registry with no payload check on `message`: the engine tests use
+/// messages of any size to fill envelopes (the real rules, such as the 4,000
+/// character limit, are tested with the payload checks).
+final EntityRegistry sizeTestRegistry = EntityRegistry.v1.withRule(
+  'message',
+  const EntityRule(
+    merge: MergeRule.appendOnly,
+    ops: {EventOp.create, EventOp.delete},
+  ),
+);
+
 /// The relay could not be reached.
 final class RelayDown implements Exception {
   const RelayDown(this.what);
@@ -236,7 +247,11 @@ final class Device {
       random: SeededRandom(seed * 1000 + 500 + _restarts),
       relay: relay,
       store: store,
-      applier: Applier(events, localDevice: identity.deviceId),
+      applier: Applier(
+        events,
+        localDevice: identity.deviceId,
+        registry: sizeTestRegistry,
+      ),
       identity: identity,
       partner: pairing.partner,
       hlc: hlc,
