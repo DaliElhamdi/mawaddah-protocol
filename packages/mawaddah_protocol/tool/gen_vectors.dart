@@ -1754,6 +1754,121 @@ Future<List<Map<String, Object?>>> _eventCases() async {
       ),
     ]),
   );
+
+  // Chat payload rules (PROTOCOL.md section 10): valid events apply; each
+  // invalid one is kept unapplied as `invalid_payload`.
+  final chat = _EventMaker(0x0d, 603, t0 + 5000);
+  final peer = chat.newId();
+  final blob = 'AAECAwQFBgcICQoLDA0ODw'; // 22 characters, canonical
+  final key = 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8'; // 32 bytes
+  Map<String, Object?> photo([Map<String, Object?> more = const {}]) => {
+    'kind': 'photo',
+    'blob_id': blob,
+    'key': key,
+    'size': 1000,
+    'w': 1200,
+    'h': 1600,
+    ...more,
+  };
+  Map<String, Object?> voice([Map<String, Object?> more = const {}]) => {
+    'kind': 'voice',
+    'blob_id': blob,
+    'key': key,
+    'size': 1000,
+    'ms': 4000,
+    'wave': [0, 128, 255],
+    ...more,
+  };
+  Event chatMsg(Map<String, Object?> payload) =>
+      chat.make('message', chat.newId(), EventOp.create, payload);
+  final reactId = chat.newId();
+  final hlcText = chat.factory.hlc.send().toHex();
+  final validChat = [
+    chatMsg({'text': 'salam'}),
+    chatMsg({'text': 'a reply', 'reply_to': peer}),
+    chatMsg({'text': '', 'attachment': photo()}),
+    chatMsg({'text': 'caption', 'attachment': voice()}),
+    chatMsg({'text': 'x' * 4000, 'future_field': 1}),
+    chat.make('reaction', reactId, EventOp.update, {
+      'message_id': peer,
+      'emoji': '👍',
+    }),
+    chat.make('reaction', chat.newId(), EventOp.update, {'emoji': ''}),
+    chat.make('receipt', chat.newId(), EventOp.update, {
+      'delivered': hlcText,
+      'read': hlcText,
+    }),
+  ];
+  final invalidChat = [
+    chatMsg({}),
+    chatMsg({'text': '   '}),
+    chatMsg({'text': 5}),
+    chatMsg({'text': 'x' * 4001}),
+    chatMsg({'text': 'a', 'reply_to': 'not-an-id'}),
+    chatMsg({
+      'text': '',
+      'attachment': photo({'key': 'short'}),
+    }),
+    chatMsg({
+      'text': '',
+      'attachment': photo({'kind': 'video'}),
+    }),
+    chatMsg({
+      'text': '',
+      'attachment': photo({'size': 10}),
+    }),
+    chatMsg({
+      'text': '',
+      'attachment': photo({'size': 10485761}),
+    }),
+    chatMsg({
+      'text': '',
+      'attachment': photo({'w': 20001}),
+    }),
+    chatMsg({
+      'text': '',
+      'attachment': voice({'ms': 185001}),
+    }),
+    chatMsg({
+      'text': '',
+      'attachment': voice({'ms': 0}),
+    }),
+    chatMsg({
+      'text': '',
+      'attachment': voice({'wave': <int>[]}),
+    }),
+    chatMsg({
+      'text': '',
+      'attachment': voice({
+        'wave': [256],
+      }),
+    }),
+    chatMsg({
+      'text': '',
+      'attachment': voice({'wave': List.filled(65, 1)}),
+    }),
+    chatMsg({
+      'text': '',
+      'attachment': photo({'blob_id': blob.substring(1)}),
+    }),
+    chat.make('reaction', chat.newId(), EventOp.update, {}),
+    chat.make('reaction', chat.newId(), EventOp.update, {'emoji': 'a b'}),
+    chat.make('reaction', chat.newId(), EventOp.update, {'emoji': 'x' * 33}),
+    chat.make('reaction', chat.newId(), EventOp.update, {'k': 1}),
+    chat.make('reaction', chat.newId(), EventOp.update, {'message_id': 'x'}),
+    chat.make('receipt', chat.newId(), EventOp.update, {}),
+    chat.make('receipt', chat.newId(), EventOp.update, {'read': 'ABCDEF'}),
+    chat.make('receipt', chat.newId(), EventOp.update, {
+      'read': hlcText.toUpperCase().replaceAll('0', 'A'),
+    }),
+    chat.make('receipt', chat.newId(), EventOp.update, {'seen': hlcText}),
+  ];
+  cases.add(
+    await applyCase('chat payload rules', a.device, [
+      (chat.device, [for (final e in validChat) e.toJson()]),
+      (chat.device, [for (final e in invalidChat) e.toJson()]),
+    ]),
+  );
   return cases;
 }
 

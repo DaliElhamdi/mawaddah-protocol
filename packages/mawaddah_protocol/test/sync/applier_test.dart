@@ -36,7 +36,7 @@ void main() {
 
     test('a duplicate inside one batch counts once', () async {
       final e = partner.make('reaction', partner.newId(), EventOp.update, {
-        'k': 1,
+        'emoji': '+1',
       });
       final r = await applier.applyReceived(batch([e, e]), sender: bob);
       expect(r.applied, [e]);
@@ -47,7 +47,7 @@ void main() {
       'a local event applied twice (a repeated Done tap) counts once',
       () async {
         final e = me.make('reaction', me.newId(), EventOp.update, {
-          'done': true,
+          'emoji': '+1',
         });
         await applier.applyLocal([e]);
         final before = await dump(store);

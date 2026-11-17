@@ -78,7 +78,7 @@ const _modes = ['engaged', 'contracted', 'married_cohab', 'married_remote'];
       case 4:
         out.add(
           m.make('reaction', pick(reactions), EventOp.update, {
-            m.device.toBase64Url(): pick(['+1', 'heart', null]),
+            'emoji': pick(['+1', 'heart', '']),
           }),
         );
       case 5:
