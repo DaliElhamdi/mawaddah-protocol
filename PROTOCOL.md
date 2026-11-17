@@ -428,6 +428,8 @@ How a phone sends and fetches envelopes (spec 4.6 and 8.7). It adds no wire form
 4. Just before each deposit, in a transaction, the phone checks that the envelope is still stored and that every event it carries is still in the outbox. If a delete committed meanwhile removed one (see **Deletes** above), the envelope is dropped and the rest of the outbox is split and sealed again. Because the check is a transaction, a delete committed before it always wins; one committed after the upload has started cannot stop it (section 16).
 5. Sending stops at the first deposit that fails, so at most one sealed envelope waits while the relay cannot be reached.
 
+**When to run.** A phone runs a sync when it opens, after each local change, when a wake-up arrives and at the time a previous report gave. Apps may also poll on a timer, with or without push (the app does so about every 15 minutes in the background and about every 30 seconds while open). Like the push, the timer is best effort: Android may delay it, and a phone must still catch up fully at the next run. The relay sees each poll as a fetch (section 16, metadata).
+
 **Compaction.** A run ends by compacting each entity type with 5,000 logged events or more (section 10), whether or not the relay answered, in one transaction that also saves the HLC (the snapshot takes the next value). A run stopped by a database failure skips it; the next run catches up.
 
 **Wake-up flag.** The sender asks for a push (deposit header `Maw-Wake: 1`) when any event of the envelope deserves a notification; otherwise `Maw-Wake: 0`. One table, by `entity_type` and `op`; a type or op not listed does not wake:

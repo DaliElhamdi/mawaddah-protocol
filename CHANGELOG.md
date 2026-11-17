@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- Docs for the app's background sync and profile exchange (issue #52): `PRIVACY.md` says that every paired phone polls the relay about every 15 minutes (and about every 30 seconds while the app is open), so the relay and Cloudflare see regular fetch times and the IP address; `SECURITY.md` says the app keeps sync off until the safety number is confirmed (stricter than section 4.5), then exchanges the profile only inside the encrypted channel, and starts the pair only when both phones picked the same stage; `PROTOCOL.md` section 17 says apps may poll on a timer. No wire change, no vectors.
+
 ## [0.1.0-dev.3] - 2026-11-16
 
 Pre-release for the app's update card (private #134): envelopes kept for an unknown version are opened again after an update (issue #62). No wire change since `0.1.0-dev.2`; the final `0.1.0` still waits for the Phase 1 gate.
