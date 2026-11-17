@@ -287,15 +287,15 @@ Registry (v1). Each feature issue adds its types here, with the payload fields, 
 | `reaction` | `update` | LWW per field; one entity per (message, author). Payload: see below | #53 |
 | `receipt` | `update` | LWW per field, values only go up. Payload: see below | #53 |
 
-**Chat payloads** (issue #53; the checks are in `EntityRegistry.v1`). An event whose payload fails its check is kept unapplied as `invalid_payload` (section 11) like any other. "Unit" means a UTF-16 code unit, which is what a text field counts.
+**Chat payloads** (issue #53; the checks are in `EntityRegistry.v1`). An event whose payload fails its check is kept unapplied as `invalid_payload` (section 11) like any other. "Unit" means a UTF-16 code unit, which is what a text field counts. "White space" means the characters Dart's `String.trim()` removes and its `\s` matches (the reference implementation is the package); an ID is "UUID-shaped": 8-4-4-4-12 lowercase hex digits, the version and variant digits are not checked.
 
 - `message` `create`:
   - `text` (required): a string of at most 4,000 units. It may not be empty or only white space unless the message has an `attachment`.
-  - `reply_to` (optional): the `entity_id` of the message answered (UUID v7 text, lowercase). The quote is read from that message when shown, never copied into the payload.
+  - `reply_to` (optional): the `entity_id` of the message answered (UUID-shaped text). The quote is read from that message when shown, never copied into the payload.
   - `attachment` (optional): an object with `kind` `photo` or `voice`, `blob_id` (the 22-character relay blob ID, section 12), `key` (the 32-byte file key, 43 characters of unpadded base64url whose last character is canonical) and `size` (an integer: the bytes of ciphertext on the relay, from the size of an empty file, 41 bytes, to 10,485,760). A `photo` may add `w` and `h` (integers from 1 to 20,000: pixel sizes, a hint for the layout). A `voice` needs `ms` (an integer from 1 to 185,000: the length, 3 minutes plus 5 seconds of encoder slack) and may add `wave` (1 to 64 integers from 0 to 255: loudness bars). The key travels inside the ratchet like the rest of the message; the blob rules are in section 12.
   - Unknown extra fields are ignored (a later release may add some), inside `attachment` too.
 - `reaction` `update`: any of `message_id` (the `entity_id` of the message reacted to) and `emoji` (at most 32 units, no white space or control characters; `""` means "removed"), at least one, no other field. The `entity_id` is one per (message, author), made by the reacting device; a change or a removal is an `update` of `emoji`.
-- `receipt` `update`: any of `delivered` and `read`, each 16 lowercase hex digits: the HLC (section 9) of the newest message of the other person that this person has received (`delivered`) or read (`read`). At least one, no other field. Senders only move a value up, so the last writer is also the highest. A receipt event does not wake the partner (`wake: 0`, section 17).
+- `receipt` `update`: any of `delivered` and `read`, each 16 lowercase hex digits: the HLC (section 9) of the newest message of the other person that this person has received (`delivered`) or read (`read`). At least one, no other field. Senders only move a value up, so the last writer is also the highest; receivers do not check this. A receipt event does not wake the partner (`wake: 0`, section 17).
 
 ## 11. Versions and compatibility
 - `PROTOCOL_VERSION = 1` and `MIN_SUPPORTED_PROTOCOL = 1` are constants of each package release. The envelope `version` byte, the QR, bundle and reply formats are all `1` in protocol v1.
