@@ -6,6 +6,7 @@
 library;
 
 import '../pairing/profile.dart';
+import 'chat_payloads.dart';
 import 'event.dart';
 
 /// How the events of one entity type combine.
@@ -54,9 +55,6 @@ final class EntityRegistry {
 
   /// The registry of protocol v1 (PROTOCOL.md section 10).
   ///
-  /// `message`, `reaction` and `receipt` have no payload check yet: the chat
-  /// work adds their payload fields to PROTOCOL.md and passes the check with
-  /// [withValidators].
   static const v1 = EntityRegistry({
     'device': EntityRule(
       merge: MergeRule.lastWriterWins,
@@ -71,14 +69,17 @@ final class EntityRegistry {
     'message': EntityRule(
       merge: MergeRule.appendOnly,
       ops: {EventOp.create, EventOp.delete},
+      validate: validateMessagePayload,
     ),
     'reaction': EntityRule(
       merge: MergeRule.lastWriterWins,
       ops: {EventOp.update},
+      validate: validateReactionPayload,
     ),
     'receipt': EntityRule(
       merge: MergeRule.lastWriterWins,
       ops: {EventOp.update},
+      validate: validateReceiptPayload,
     ),
   });
 
