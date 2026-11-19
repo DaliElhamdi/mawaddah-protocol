@@ -1869,6 +1869,217 @@ Future<List<Map<String, Object?>>> _eventCases() async {
       (chat.device, [for (final e in invalidChat) e.toJson()]),
     ]),
   );
+
+  // Question payload rules (PROTOCOL.md section 10, "Question payloads"):
+  // valid creates and updates apply; each invalid event is kept unapplied as
+  // `invalid_payload` (or `unknown_op` for an op the type does not have).
+  final qm = _EventMaker(0x0e, 604, t0 + 9000);
+  final session = qm.newId();
+  final own = qm.newId();
+  const day = '2026-11-19';
+  final reveal = qm.newId(), thread = qm.newId(), understanding = qm.newId();
+  final pin = qm.newId(), ownQ = qm.newId(), preset = qm.newId();
+  final block = qm.newId(), topic = qm.newId(), optIn = qm.newId();
+  final setting = qm.newId(), joke = qm.newId(), assignment = qm.newId();
+  Event q(String type, String id, String op, JsonMap payload) =>
+      qm.make(type, id, op, payload);
+  Event qNew(String type, JsonMap payload) =>
+      q(type, qm.newId(), EventOp.create, payload);
+  final options = [
+    {'id': 'a', 'text': 'Tea'},
+    {'id': 'b', 'text': 'Coffee'},
+  ];
+  final validQuestion = [
+    q('quiz_session', session, EventOp.create, {
+      'kind': 'shuffle',
+      'question_ids': ['kn_001', own],
+      'status': 'open',
+    }),
+    qNew('answer_lock', {
+      'round': session,
+      'question_id': 'kn_001',
+      'skipped': false,
+    }),
+    qNew('answer_lock', {'round': day, 'question_id': own, 'skipped': true}),
+    qNew('answer', {
+      'round': session,
+      'question_id': 'kn_001',
+      'choice': ['a', 'c'],
+    }),
+    qNew('answer', {'round': day, 'question_id': 'sc_1', 'scale': 10}),
+    qNew('answer', {'round': day, 'question_id': 'ft_1', 'text': '😊' * 500}),
+    qNew('answer', {
+      'round': day,
+      'question_id': 'rk_1',
+      'order': ['x', 'y', 'z'],
+    }),
+    qNew('answer', {'round': day, 'question_id': 'rd_1', 'gave_up': true}),
+    q('reveal_mark', reveal, EventOp.create, {
+      'round': session,
+      'question_id': 'kn_001',
+      'mark': 'none',
+    }),
+    q('reveal_mark', reveal, EventOp.update, {'mark': 'discuss'}),
+    q('topic_thread', thread, EventOp.create, {
+      'origin': 'question',
+      'origin_id': '$session/kn_001',
+      'title': 'Sleep',
+      'archived': false,
+    }),
+    q('topic_thread', thread, EventOp.update, {'archived': true}),
+    q('understanding', understanding, EventOp.create, {
+      'source': 'quiz',
+      'source_id': '$session/kn_001',
+      'text': 'Lights off at eleven',
+      'followup_on': '2027-02-28',
+    }),
+    q('understanding', understanding, EventOp.update, {'followup_on': null}),
+    q('daily_assignment', assignment, EventOp.create, {
+      'date': day,
+      'question_id': 'kn_001',
+      'source': 'random',
+      'plan_version': 1,
+      'content_version': 1,
+    }),
+    q('daily_assignment', assignment, EventOp.delete, {}),
+    q('daily_pin', pin, EventOp.create, {
+      'on': '--02-29',
+      'pin': 'category',
+      'target': 'faith',
+    }),
+    q('daily_pin', pin, EventOp.update, {'pin': 'own', 'target': own}),
+    q('own_question', ownQ, EventOp.create, {
+      'text': 'Tea or coffee?',
+      'type': 'single_choice',
+      'options': options,
+      'pooled': true,
+    }),
+    q('own_question', ownQ, EventOp.update, {'pooled': false}),
+    qNew('own_question', {'text': 'Fajr?', 'type': 'yes_no', 'pooled': true}),
+    q('shuffle_preset', preset, EventOp.create, {
+      'name': 'Evening',
+      'categories': ['fun', 'faith'],
+      'count': 10,
+      'depth': 'any',
+      'no_typing': true,
+    }),
+    q('shuffle_preset', preset, EventOp.update, {'count': 20}),
+    q('category_block', block, EventOp.create, {
+      'category': 'intimacy',
+      'blocked': true,
+    }),
+    q('category_block', block, EventOp.update, {'blocked': false}),
+    q('nikah_topic', topic, EventOp.create, {
+      'topic_id': 'mahr',
+      'state': 'not_yet',
+    }),
+    q('nikah_topic', topic, EventOp.update, {'state': 'agreed'}),
+    q('intimacy_opt_in', optIn, EventOp.create, {
+      'enabled': false,
+      'adult_married': false,
+    }),
+    q('intimacy_opt_in', optIn, EventOp.update, {
+      'enabled': true,
+      'adult_married': true,
+    }),
+    q('pair_setting', setting, EventOp.create, {
+      'daily_timezone': 'Africa/Tunis',
+    }),
+    q('joke_reaction', joke, EventOp.create, {
+      'question_id': 'jk_001',
+      'reaction': '😂',
+    }),
+    q('joke_reaction', joke, EventOp.update, {'reaction': '', 'later': 1}),
+    qm.make('message', qm.newId(), EventOp.create, {
+      'text': 'about sleep',
+      'thread_id': thread,
+      'content_ref': 'jk_001',
+    }),
+  ];
+  final invalidQuestion = [
+    qNew('answer_lock', {'round': day, 'question_id': 'q'}),
+    qNew('answer_lock', {
+      'round': '2026-02-29',
+      'question_id': 'q',
+      'skipped': false,
+    }),
+    qNew('answer', {'round': day, 'question_id': 'q'}),
+    qNew('answer', {'round': day, 'question_id': 'q', 'scale': 3, 'text': 'x'}),
+    qNew('answer', {
+      'round': day,
+      'question_id': 'q',
+      'choice': ['a', 'a'],
+    }),
+    qNew('answer', {'round': day, 'question_id': 'q', 'scale': 11}),
+    qNew('answer', {'round': day, 'question_id': 'q', 'text': ' '}),
+    qNew('answer', {'round': day, 'question_id': 'q', 'text': 'x' * 1001}),
+    qNew('answer', {
+      'round': day,
+      'question_id': 'q',
+      'order': ['a', 'b'],
+    }),
+    qNew('answer', {'round': day, 'question_id': 'q', 'gave_up': false}),
+    qNew('answer', {'round': day, 'question_id': 'Q1', 'scale': 1}),
+    q('answer', qm.newId(), EventOp.update, {'scale': 2}),
+    q('reveal_mark', reveal, EventOp.update, {'round': day, 'mark': 'agree'}),
+    q('topic_thread', thread, EventOp.update, {'origin_id': 'elsewhere'}),
+    qNew('topic_thread', {
+      'origin': 'manual',
+      'origin_id': 'x' * 129,
+      'title': 't',
+      'archived': false,
+    }),
+    q('understanding', understanding, EventOp.update, {'text': ''}),
+    qNew('daily_assignment', {
+      'date': day,
+      'question_id': 'q',
+      'source': 'random',
+      'plan_version': 0,
+      'content_version': 1,
+    }),
+    q('daily_pin', pin, EventOp.update, {'pin': 'category', 'target': own}),
+    qNew('own_question', {
+      'text': 't',
+      'type': 'scale',
+      'options': options,
+      'pooled': true,
+    }),
+    qNew('own_question', {'text': 't', 'type': 'multi_choice', 'pooled': true}),
+    q('own_question', ownQ, EventOp.update, {'type': 'yes_no'}),
+    q('shuffle_preset', preset, EventOp.update, {'count': 5.0}),
+    q('shuffle_preset', preset, EventOp.update, {'categories': <String>[]}),
+    qNew('quiz_session', {
+      'kind': 'shuffle',
+      'question_ids': List.generate(21, (i) => 'q$i'),
+      'status': 'open',
+    }),
+    q('quiz_session', session, EventOp.delete, {}),
+    q('category_block', block, EventOp.update, {'category': 'fun'}),
+    q('nikah_topic', topic, EventOp.update, {}),
+    q('intimacy_opt_in', optIn, EventOp.update, {'enabled': false}),
+    q('intimacy_opt_in', optIn, EventOp.update, {
+      'enabled': true,
+      'adult_married': false,
+    }),
+    q('pair_setting', setting, EventOp.update, {
+      'daily_timezone': 'Africa/ Tunis',
+    }),
+    q('joke_reaction', joke, EventOp.update, {'reaction': '👍'}),
+    qm.make('message', qm.newId(), EventOp.create, {
+      'text': 'x',
+      'thread_id': 'general',
+    }),
+    qm.make('message', qm.newId(), EventOp.create, {
+      'text': 'x',
+      'content_ref': 'Joke-1',
+    }),
+  ];
+  cases.add(
+    await applyCase('question payload rules', a.device, [
+      (qm.device, [for (final e in validQuestion) e.toJson()]),
+      (qm.device, [for (final e in invalidQuestion) e.toJson()]),
+    ]),
+  );
   return cases;
 }
 

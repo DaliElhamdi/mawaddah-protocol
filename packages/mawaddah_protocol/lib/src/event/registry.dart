@@ -8,6 +8,7 @@ library;
 import '../pairing/profile.dart';
 import 'chat_payloads.dart';
 import 'event.dart';
+import 'question_payloads.dart';
 
 /// How the events of one entity type combine.
 enum MergeRule {
@@ -53,8 +54,9 @@ final class EntityRule {
 final class EntityRegistry {
   const EntityRegistry(this.rules);
 
-  /// The registry of protocol v1 (PROTOCOL.md section 10).
-  ///
+  /// The registry of protocol v1 (PROTOCOL.md section 10). The question
+  /// types came with package 0.2.0 (ADR 0014 of the app); an older release
+  /// keeps their events unapplied as `unknown_entity_type`.
   static const v1 = EntityRegistry({
     'device': EntityRule(
       merge: MergeRule.lastWriterWins,
@@ -80,6 +82,81 @@ final class EntityRegistry {
       merge: MergeRule.lastWriterWins,
       ops: {EventOp.update},
       validate: validateReceiptPayload,
+    ),
+    'answer_lock': EntityRule(
+      merge: MergeRule.appendOnly,
+      ops: {EventOp.create},
+      validate: validateAnswerLockPayload,
+    ),
+    'answer': EntityRule(
+      merge: MergeRule.appendOnly,
+      ops: {EventOp.create},
+      validate: validateAnswerPayload,
+    ),
+    'reveal_mark': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update},
+      validate: validateRevealMarkPayload,
+    ),
+    'topic_thread': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update},
+      validate: validateTopicThreadPayload,
+    ),
+    'understanding': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update, EventOp.delete},
+      validate: validateUnderstandingPayload,
+    ),
+    'daily_assignment': EntityRule(
+      merge: MergeRule.appendOnly,
+      ops: {EventOp.create, EventOp.delete},
+      validate: validateDailyAssignmentPayload,
+    ),
+    'daily_pin': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update, EventOp.delete},
+      validate: validateDailyPinPayload,
+    ),
+    'own_question': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update, EventOp.delete},
+      validate: validateOwnQuestionPayload,
+    ),
+    'shuffle_preset': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update, EventOp.delete},
+      validate: validateShufflePresetPayload,
+    ),
+    'quiz_session': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update},
+      validate: validateQuizSessionPayload,
+    ),
+    'category_block': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update},
+      validate: validateCategoryBlockPayload,
+    ),
+    'nikah_topic': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update},
+      validate: validateNikahTopicPayload,
+    ),
+    'intimacy_opt_in': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update},
+      validate: validateIntimacyOptInPayload,
+    ),
+    'pair_setting': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update},
+      validate: validatePairSettingPayload,
+    ),
+    'joke_reaction': EntityRule(
+      merge: MergeRule.lastWriterWins,
+      ops: {EventOp.create, EventOp.update},
+      validate: validateJokeReactionPayload,
     ),
   });
 

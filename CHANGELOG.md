@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- Question entity types and their payload rules (PROTOCOL.md section 10 "Question payloads", issue #68, decided by the app project): `answer_lock`, `answer` (append-only, `create` only), `daily_assignment` (append-only + tombstone), `reveal_mark`, `topic_thread`, `understanding`, `daily_pin`, `own_question`, `shuffle_preset`, `quiz_session`, `category_block`, `nikah_topic`, `intimacy_opt_in`, `pair_setting` and `joke_reaction` (LWW per field) in `EntityRegistry.v1`, with one `validate*Payload` function each, `isQuestionId`, `maxAnswerTextLength` and `maxOriginIdLength`. A `create` carries every required field; an `update` carries at least one field and none of the create-only key fields; unknown extra fields are ignored. `message` gets the optional `thread_id` (topic thread) and `content_ref` (a shared joke's question ID). A 0.1.0 release keeps the new types unapplied as `unknown_entity_type` and applies them after an update (tested). New vector case `apply: question payload rules` in `event.json` (33 valid and 33 invalid events), re-checked by an independent Python script. No wire change and no new protocol version; wake-ups for the new types come with #69.
+
 ## [0.1.0] - 2026-11-17
 
 First release with the protocol: pairing, the Double Ratchet, signed envelopes, events and sync, attachments, the relay and its Dart client. It gathers `0.1.0-dev.1` to `0.1.0-dev.3` and the changes made since; the wire format is the one the owner approved at the Phase 1 gate.
