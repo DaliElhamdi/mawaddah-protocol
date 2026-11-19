@@ -8,6 +8,7 @@ library;
 import '../attachment/attachment_cipher.dart';
 import '../relay_client.dart';
 import 'event.dart';
+import 'question_payloads.dart';
 
 /// The longest chat message, in UTF-16 code units (what a text field counts).
 const maxMessageLength = 4000;
@@ -44,8 +45,12 @@ final _hlcText = RegExp(r'^[0-9a-f]{16}$');
 /// checked here): `text`, a string of at most [maxMessageLength] units that
 /// is not blank unless the message carries an `attachment`; optionally
 /// `reply_to`, the entity ID of the message this one answers; optionally
-/// `attachment`, a photo or a voice note (see [isValidAttachmentPayload]).
-/// Other fields are ignored, so a later release can add some.
+/// `attachment`, a photo or a voice note (see [isValidAttachmentPayload]);
+/// optionally `thread_id`, the `entity_id` of the topic thread the message
+/// belongs to (none: the general chat); optionally `content_ref`, the
+/// question ID of a joke shared in the sender's language ([isQuestionId]).
+/// Null counts as absent for the optional fields. Other fields are ignored,
+/// so a later release can add some.
 bool validateMessagePayload(String op, JsonMap payload) {
   final text = payload['text'];
   if (text is! String || text.length > maxMessageLength) return false;
@@ -56,7 +61,16 @@ bool validateMessagePayload(String op, JsonMap payload) {
     return false;
   }
   final replyTo = payload['reply_to'];
-  return replyTo == null || (replyTo is String && _entityId.hasMatch(replyTo));
+  if (replyTo != null && (replyTo is! String || !_entityId.hasMatch(replyTo))) {
+    return false;
+  }
+  final threadId = payload['thread_id'];
+  if (threadId != null &&
+      (threadId is! String || !_entityId.hasMatch(threadId))) {
+    return false;
+  }
+  final contentRef = payload['content_ref'];
+  return contentRef == null || isQuestionId(contentRef);
 }
 
 /// Whether [value] is a well-formed `attachment` of a `message`: an object

@@ -15,6 +15,7 @@ export 'src/event/chat_payloads.dart';
 export 'src/event/compactor.dart';
 export 'src/event/event.dart';
 export 'src/event/event_store.dart';
+export 'src/event/question_payloads.dart';
 export 'src/event/registry.dart';
 export 'src/event/uuid7.dart';
 export 'src/fakes/fake_clock.dart';

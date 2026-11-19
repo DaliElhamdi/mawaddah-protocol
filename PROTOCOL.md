@@ -286,16 +286,58 @@ Registry (v1). Each feature issue adds its types here, with the payload fields, 
 | `message` | `create`, `delete` | append-only + tombstone. Payload of `create`: see "Chat payloads" below. A `delete` has `{}` | protocol #16 (rule), #53 (payload) |
 | `reaction` | `update` | LWW per field; one entity per (message, author). Payload: see below | #53 |
 | `receipt` | `update` | LWW per field, values only go up. Payload: see below | #53 |
+| `answer_lock`, `answer` | `create` | append-only, no tombstone (answers are final). Payload: see "Question payloads" | #68 |
+| `daily_assignment` | `create`, `delete` | append-only + tombstone | #68 |
+| `reveal_mark`, `topic_thread`, `quiz_session`, `category_block`, `nikah_topic`, `intimacy_opt_in`, `pair_setting`, `joke_reaction` | `create`, `update` | LWW per field | #68 |
+| `understanding`, `daily_pin`, `own_question`, `shuffle_preset` | `create`, `update`, `delete` | LWW per field + tombstone | #68 |
 
 **Chat payloads** (issue #53; the checks are in `EntityRegistry.v1`). An event whose payload fails its check is kept unapplied as `invalid_payload` (section 11) like any other. "Unit" means a UTF-16 code unit, which is what a text field counts. "White space" means the characters Dart's `String.trim()` removes and its `\s` matches (the reference implementation is the package); an ID is "UUID-shaped": 8-4-4-4-12 lowercase hex digits, the version and variant digits are not checked.
 
 - `message` `create`:
   - `text` (required): a string of at most 4,000 units. It may not be empty or only white space unless the message has an `attachment`.
   - `reply_to` (optional): the `entity_id` of the message answered (UUID-shaped text). The quote is read from that message when shown, never copied into the payload.
+  - `thread_id` (optional, #68): the `entity_id` of the `topic_thread` the message belongs to (UUID-shaped). Without it the message is in the general chat.
+  - `content_ref` (optional, #68): a question ID (see "Question payloads"): a joke shared as a message, so the partner's app can show it in its own language. `text` still carries the joke in the sender's language.
+  - For these three, `null` counts as absent.
   - `attachment` (optional): an object with `kind` `photo` or `voice`, `blob_id` (the 22-character relay blob ID, section 12), `key` (the 32-byte file key, 43 characters of unpadded base64url whose last character is canonical) and `size` (an integer: the bytes of ciphertext on the relay, from the size of an empty file, 41 bytes, to 10,485,760). A `photo` may add `w` and `h` (integers from 1 to 20,000: pixel sizes, a hint for the layout). A `voice` needs `ms` (an integer from 1 to 185,000: the length, 3 minutes plus 5 seconds of encoder slack) and may add `wave` (1 to 64 integers from 0 to 255: loudness bars). The key travels inside the ratchet like the rest of the message; the blob rules are in section 12.
   - Unknown extra fields are ignored (a later release may add some), inside `attachment` too.
 - `reaction` `update`: any of `message_id` (the `entity_id` of the message reacted to) and `emoji` (at most 32 units, no white space or control characters; `""` means "removed"), at least one, no other field. The `entity_id` is one per (message, author), made by the reacting device; a change or a removal is an `update` of `emoji`.
 - `receipt` `update`: any of `delivered` and `read`, each 16 lowercase hex digits: the HLC (section 9) of the newest message of the other person that this person has received (`delivered`) or read (`read`). At least one, no other field. Senders only move a value up, so the last writer is also the highest; receivers do not check this. A receipt event does not wake the partner (`wake: 0`, section 17).
+
+**Question payloads** (issue #68, Phase 2; decided in the app's ADR 0014; the checks are in `EntityRegistry.v1`). These types were added in package 0.2.0 without a new protocol version: a 0.1.0 release keeps their events unapplied as `unknown_entity_type` and applies them after an update (section 11). An event that fails its check is kept unapplied as `invalid_payload`; an op the type does not list is `unknown_op`.
+
+Rules for every type below:
+- A `create` carries every required field. An `update` carries at least one field and none of the type's **create-only** fields (marked †). They name what the entity is about, so a last-writer-wins `update` can never move an entity to another key. (A second `create` of the same entity is a bug of its author, as in the merge rules above; receivers do not check it.)
+- Each listed field present must pass its check. Unknown extra fields are ignored, so a later release can add fields; an `update` holding only such fields passes.
+- Lengths count UTF-16 code units. A boolean is JSON `true`/`false`; an integer is written without a fraction (`5.0` is refused).
+- Formats:
+  - *uuid*: UUID-shaped (8-4-4-4-12 lowercase hex digits).
+  - *qid* (question ID): a content ID `[a-z][a-z0-9_]{0,63}`, or the *uuid* `entity_id` of an `own_question`.
+  - *key* (a category or topic): `[a-z][a-z0-9_]{0,31}`.
+  - *opt* (an answer option): `[a-z0-9_]{1,16}`.
+  - *date*: `YYYY-MM-DD`, a real day of the Gregorian calendar (`2026-02-29` is refused, `2028-02-29` passes).
+  - *round*: a *date* (the daily question of that day) or a *uuid* (the `entity_id` of a `quiz_session`).
+  - "distinct": no item repeated.
+
+| `entity_type` | Payload |
+|---|---|
+| `answer_lock` | `round`, `question_id` (*qid*), `skipped` (bool). Carries no answer; `skipped: true` is a skip |
+| `answer` | `round`, `question_id` (*qid*) and **exactly one** of: `choice` (1–12 distinct *opt*), `scale` (integer 1–10), `text` (1–1,000 units, not only white space as in "Chat payloads"), `order` (3–6 distinct *opt*), `gave_up` (`true` only) |
+| `reveal_mark` | `round`†, `question_id`† (*qid*), `mark` (`agree`, `discuss` or `none`) |
+| `topic_thread` | `origin`† (`question`, `nikah` or `manual`), `origin_id`† (0–128 units), `title` (1–100 units), `archived` (bool) |
+| `understanding` | `source`† (`quiz`, `sulh`, `nikah` or `manual`), `source_id`† (0–128 units), `text` (1–500 units); optional `followup_on` (*date*, or `null` for none) |
+| `daily_assignment` | `date` (*date*), `question_id` (*qid*), `source` (`pin`, `own` or `random`), `plan_version` and `content_version` (integers ≥ 1) |
+| `daily_pin` | `on` (*date*, or `--MM-DD` for every year; `--02-29` passes), `pin` (`question`, `category` or `own`), `target` (*qid*). When `pin` and `target` are in the same payload, `target` must suit `pin`: a *key* for `category`, a *uuid* for `own` |
+| `own_question` | `text`† (1–300 units), `type`† (`single_choice`, `multi_choice`, `yes_no`, `scale` or `free_text`), `options`† (for the two choice types only, and required for them: 2–6 objects, each with `id` (*opt*, distinct) and `text` (1–100 units); extra fields ignored), `pooled` (bool) |
+| `shuffle_preset` | `name` (1–40 units), `categories` (1–40 distinct *key*), `count` (5, 10 or 20), `depth` (`light`, `medium`, `deep` or `any`), `no_typing` (bool) |
+| `quiz_session` | `kind`† (`shuffle`, `category` or `nikah`), `question_ids`† (1–20 distinct *qid*), `status` (`open` or `closed`). The `create` is the invitation |
+| `category_block` | `category`† (*key*), `blocked` (bool) |
+| `nikah_topic` | `topic_id`† (*key*), `state` (`not_yet`, `talked` or `agreed`) |
+| `intimacy_opt_in` | `enabled` and `adult_married` (bools), **both in every event**, `create` or `update`; `enabled: true` needs `adult_married: true` |
+| `pair_setting` | `daily_timezone`: an IANA zone name, 1–64 characters `[A-Za-z0-9_+/-]` |
+| `joke_reaction` | `question_id`† (*qid*), `reaction` (😂, 😄, 🙂 or 😐, or `""` for removed) |
+
+What the package does **not** check, because it needs the app's state or content: which device may write an entity (the app counts an "own" entity's fields only when its creating device stamped them, as for `profile`), the winner among two first-wins entities (the daily assignment of a date: lowest `content_version`, then lowest `author_device`), duplicate entities for one key, that a `gave_up` answer is a riddle, that an option ID exists in the question, and the blind-reveal order (an `answer` is sent only after the partner's lock, without `skipped`, has been applied). These rules are in the app (ADR 0014) and its shared core package.
 
 ## 11. Versions and compatibility
 - `PROTOCOL_VERSION = 1` and `MIN_SUPPORTED_PROTOCOL = 1` are constants of each package release. The envelope `version` byte, the QR, bundle and reply formats are all `1` in protocol v1.
@@ -372,7 +414,7 @@ Committed in `packages/mawaddah_protocol/test/vectors/`, used by the package tes
 | `safety_number.json` | key pairs (both orders) → 20 digits |
 | `ratchet.json` | a scripted conversation from `SK`, `AD`, the initiator's `EKi` secret and each side's random bytes (32 per new ratchet key): each step's side, plaintext, envelope bytes 0..50, header, chain key, `mk`, AEAD key and nonce, ciphertext, and at each DH ratchet step the new ratchet key, root key and both chain keys; two cases: in order with turn changes and crossing messages, and out of order (keys skipped in the current chain and, through `pn`, in the previous one; messages opened later from stored keys), where receive steps also list the skipped keys they create and the number stored |
 | `envelope.json` | both identities (seeds), `SK`, `AD`, both ratchet keys, counter, HLC and plaintext → device IDs, padded plaintext, `mk`, AEAD key and nonce, bytes 0..50, ratchet header, ciphertext, signature and the whole envelope (the joiner's first message, three sizes); rejected cases built from the first one, each with the receiver's clock and replay window: tampered ciphertext, HLC and signature bytes, replayed counter, counter behind the window, time ahead and too old, wrong recipient, unknown sender, unknown version, short, counter 0, and re-signed but undecryptable, with the error name |
-| `event.json` | events → plaintext bytes; refused plaintexts (malformed, wrong author) with the error name; batches of events from both devices (LWW with clock skew and an HLC tie, append-only with a tombstone before its create and a second create, every unapplied reason, the chat payload rules with eight valid and 25 invalid payloads) → each entity's fields with the `event_id` that set them, `created` and `deleted`, the log with the purged payloads, and the unapplied events in order. Any order and repetition of the batches gives the same output |
+| `event.json` | events → plaintext bytes; refused plaintexts (malformed, wrong author) with the error name; batches of events from both devices (LWW with clock skew and an HLC tie, append-only with a tombstone before its create and a second create, every unapplied reason, the chat payload rules with eight valid and 25 invalid payloads, the question payload rules with 33 valid and 33 invalid events) → each entity's fields with the `event_id` that set them, `created` and `deleted`, the log with the purged payloads, and the unapplied events in order. Any order and repetition of the batches gives the same output |
 | `attachment.json` | a key and a patterned file (`byte i = (7i + 3) mod 256`) of 0, 5, 65,536 and 65,537 bytes → the recorded ciphertext (libsodium draws the stream header, so it is recorded, not derived); refused inputs built from the 65,537-byte one by a named change (drop or cut the final chunk, drop the first, swap the two, add a byte, flip a bit in the header, the first or the last chunk, header only, 23 bytes, nothing) and a wrong key |
 | `hlc.json`, `uuid7.json` | a start value and a list of sends and receives with the clock reading at each → each HLC value (clock going back, the four receive cases, a full counter); clock and 10 random bytes → UUID v7 |
 | `relay_signing.json` | method, path, body, timestamp, nonce, key seed → signing input and signature |
