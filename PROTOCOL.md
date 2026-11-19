@@ -304,7 +304,7 @@ Registry (v1). Each feature issue adds its types here, with the payload fields, 
 - `reaction` `update`: any of `message_id` (the `entity_id` of the message reacted to) and `emoji` (at most 32 units, no white space or control characters; `""` means "removed"), at least one, no other field. The `entity_id` is one per (message, author), made by the reacting device; a change or a removal is an `update` of `emoji`.
 - `receipt` `update`: any of `delivered` and `read`, each 16 lowercase hex digits: the HLC (section 9) of the newest message of the other person that this person has received (`delivered`) or read (`read`). At least one, no other field. Senders only move a value up, so the last writer is also the highest; receivers do not check this. A receipt event does not wake the partner (`wake: 0`, section 17).
 
-**Question payloads** (issue #68, Phase 2; decided in the app's ADR 0014; the checks are in `EntityRegistry.v1`). These types were added in package 0.2.0 without a new protocol version: a 0.1.0 release keeps their events unapplied as `unknown_entity_type` and applies them after an update (section 11). An event that fails its check is kept unapplied as `invalid_payload`; an op the type does not list is `unknown_op`.
+**Question payloads** (issue #68, Phase 2; decided by the app project; the checks are in `EntityRegistry.v1`). These types were added in package 0.2.0 without a new protocol version: a 0.1.0 release keeps their events unapplied as `unknown_entity_type` and applies them after an update (section 11). An event that fails its check is kept unapplied as `invalid_payload`; an op the type does not list is `unknown_op`.
 
 Rules for every type below:
 - A `create` carries every required field. An `update` carries at least one field and none of the type's **create-only** fields (marked †). They name what the entity is about, so a last-writer-wins `update` can never move an entity to another key. (A second `create` of the same entity is a bug of its author, as in the merge rules above; receivers do not check it.)
@@ -315,7 +315,7 @@ Rules for every type below:
   - *qid* (question ID): a content ID `[a-z][a-z0-9_]{0,63}`, or the *uuid* `entity_id` of an `own_question`.
   - *key* (a category or topic): `[a-z][a-z0-9_]{0,31}`.
   - *opt* (an answer option): `[a-z0-9_]{1,16}`.
-  - *date*: `YYYY-MM-DD`, a real day of the Gregorian calendar (`2026-02-29` is refused, `2028-02-29` passes).
+  - *date*: `YYYY-MM-DD`, a real day of the proleptic Gregorian calendar, year `0000` included (`2026-02-29` is refused, `2028-02-29` passes).
   - *round*: a *date* (the daily question of that day) or a *uuid* (the `entity_id` of a `quiz_session`).
   - "distinct": no item repeated.
 
@@ -337,7 +337,7 @@ Rules for every type below:
 | `pair_setting` | `daily_timezone`: an IANA zone name, 1–64 characters `[A-Za-z0-9_+/-]` |
 | `joke_reaction` | `question_id`† (*qid*), `reaction` (😂, 😄, 🙂 or 😐, or `""` for removed) |
 
-What the package does **not** check, because it needs the app's state or content: which device may write an entity (the app counts an "own" entity's fields only when its creating device stamped them, as for `profile`), the winner among two first-wins entities (the daily assignment of a date: lowest `content_version`, then lowest `author_device`), duplicate entities for one key, that a `gave_up` answer is a riddle, that an option ID exists in the question, and the blind-reveal order (an `answer` is sent only after the partner's lock, without `skipped`, has been applied). These rules are in the app (ADR 0014) and its shared core package.
+What the package does **not** check, because it needs the app's state or content: which device may write an entity (the app counts an "own" entity's fields only when its creating device stamped them, as for `profile`), the winner among two first-wins entities (the daily assignment of a date: lowest `content_version`, then lowest `author_device`), duplicate entities for one key, that a `gave_up` answer is a riddle, that an option ID exists in the question, and the blind-reveal order (an `answer` is sent only after the partner's lock, without `skipped`, has been applied). These rules belong to each app or tool built on the package; a reader that skips them still merges the same state.
 
 ## 11. Versions and compatibility
 - `PROTOCOL_VERSION = 1` and `MIN_SUPPORTED_PROTOCOL = 1` are constants of each package release. The envelope `version` byte, the QR, bundle and reply formats are all `1` in protocol v1.
