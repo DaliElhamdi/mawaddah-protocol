@@ -31,6 +31,7 @@ Future<void> main() async {
   _write('event', await _eventCases());
   _write('relay_signing', _relaySigningCases(crypto));
   _write('attachment', await _attachmentCases(crypto));
+  _write('wake', _wakeCases());
 }
 
 void _write(String file, List<Map<String, Object?>> cases) {
@@ -2231,4 +2232,58 @@ Future<List<Map<String, Object?>>> _attachmentCases(Crypto crypto) async {
         'output': {'verdict': 'refused'},
       },
   ];
+}
+
+// --- wake.json -------------------------------------------------------------------
+
+/// The wake-up flag (PROTOCOL.md section 17): for every entity type of
+/// [EntityRegistry.v1] and one unknown type, whether each op wakes the
+/// partner; then a few envelopes of several events.
+List<Map<String, Object?>> _wakeCases() {
+  final m = _EventMaker(0x0f, 700, 1762862400000);
+  bool wakes(String type, String op) =>
+      WakePolicy.v1.wakes(m.make(type, m.newId(), op));
+  const ops = [EventOp.create, EventOp.update, EventOp.delete];
+  final types = [...EntityRegistry.v1.rules.keys]..sort();
+  final cases = <Map<String, Object?>>[
+    for (final type in [...types, 'unknown_type'])
+      {
+        'name': 'type: $type',
+        'input': {'entity_type': type},
+        'output': {for (final op in ops) op: wakes(type, op)},
+      },
+  ];
+  Map<String, Object?> envelope(String name, List<(String, String)> events) => {
+    'name': 'envelope: $name',
+    'input': {
+      'events': [
+        for (final (type, op) in events) {'entity_type': type, 'op': op},
+      ],
+    },
+    'output': {
+      'wake': WakePolicy.v1.wakesAny([
+        for (final (type, op) in events) m.make(type, m.newId(), op),
+      ]),
+    },
+  };
+  cases.addAll([
+    envelope('a receipt and a message', [
+      ('receipt', EventOp.update),
+      ('message', EventOp.create),
+    ]),
+    envelope('a reveal mark and a setting', [
+      ('reveal_mark', EventOp.create),
+      ('pair_setting', EventOp.update),
+    ]),
+    envelope('an understanding and an answer', [
+      ('understanding', EventOp.create),
+      ('answer', EventOp.create),
+    ]),
+    envelope('edits of a thread and a session', [
+      ('topic_thread', EventOp.update),
+      ('quiz_session', EventOp.update),
+    ]),
+    envelope('a lock alone', [('answer_lock', EventOp.create)]),
+  ]);
+  return cases;
 }

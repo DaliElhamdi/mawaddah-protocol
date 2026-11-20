@@ -269,6 +269,36 @@ void main() {
         expect(relay.inner.wakesFor(bob.inbox), [true, false, true, false]);
       },
     );
+
+    test('a lock and an answer wake the partner; a reveal mark does not, '
+        'and the partner applies all three', () async {
+      final (:alice, :bob, :relay) = await couple(crypto);
+      const key = {'round': '2026-11-20', 'question_id': 'kn_001'};
+      Future<void> send(String type, JsonMap payload) async {
+        await alice.engine.commitLocal([
+          alice.factory.make(
+            entityType: type,
+            entityId: alice.factory.newEntityId(),
+            op: EventOp.create,
+            payload: payload,
+          ),
+        ]);
+        await alice.sync();
+      }
+
+      await send('answer_lock', {...key, 'skipped': false});
+      await send('answer', {...key, 'scale': 7});
+      await send('reveal_mark', {...key, 'mark': 'agree'});
+      expect(relay.inner.wakesFor(bob.inbox), [true, true, false]);
+
+      final got = await bob.sync();
+      expect(got.eventsApplied, 3);
+      expect(await bob.events.unapplied(), isEmpty);
+      expect(
+        bob.events.entities.map((s) => s.entityType).toSet(),
+        containsAll(['answer_lock', 'answer', 'reveal_mark']),
+      );
+    });
   });
 
   group('offline', () {
