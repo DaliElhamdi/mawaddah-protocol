@@ -7,9 +7,10 @@ library;
 import '../event/event.dart';
 
 /// Whether an envelope asks the relay to send a content-free wake-up
-/// (`wake: 1`). The sender decides: events that deserve a notification
-/// (chat messages, invitations, reveal-ready, partner updates) wake the
-/// partner's phone; read receipts, settings sync and similar do not.
+/// (`wake: 1`). The sender decides: chat messages, a partner's answer lock
+/// (the partner may need to send its answer), reveal-ready, quiz invitations
+/// and new topic threads wake the partner's phone; read receipts, settings
+/// sync and other partner updates do not (the app bundles those).
 /// An envelope that carries several events wakes when any one of them does.
 ///
 /// One table by `entity_type`, then `op`. A type or op not in the table does

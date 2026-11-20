@@ -2240,7 +2240,7 @@ Future<List<Map<String, Object?>>> _attachmentCases(Crypto crypto) async {
 /// [EntityRegistry.v1] and one unknown type, whether each op wakes the
 /// partner; then a few envelopes of several events.
 List<Map<String, Object?>> _wakeCases() {
-  final m = _EventMaker(0x0c, 700, 1762862400000);
+  final m = _EventMaker(0x0f, 700, 1762862400000);
   bool wakes(String type, String op) =>
       WakePolicy.v1.wakes(m.make(type, m.newId(), op));
   const ops = [EventOp.create, EventOp.update, EventOp.delete];

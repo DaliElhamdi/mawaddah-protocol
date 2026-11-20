@@ -116,12 +116,13 @@ void main() {
     test('file header and one case per entity type', () {
       expect(file['file'], 'wake');
       expect(file['protocol_version'], 1);
-      final types = {
+      final types = [
         for (final c in cases)
           if ('${c['name']}'.startsWith('type: '))
             (c['input']! as JsonMap)['entity_type'],
-      };
-      expect(types, {...EntityRegistry.v1.rules.keys, 'unknown_type'});
+      ];
+      expect(types.toSet(), {...EntityRegistry.v1.rules.keys, 'unknown_type'});
+      expect(types, hasLength(types.toSet().length), reason: 'no duplicates');
     });
 
     for (final c in cases) {
