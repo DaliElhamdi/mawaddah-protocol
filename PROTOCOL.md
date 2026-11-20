@@ -418,6 +418,7 @@ Committed in `packages/mawaddah_protocol/test/vectors/`, used by the package tes
 | `attachment.json` | a key and a patterned file (`byte i = (7i + 3) mod 256`) of 0, 5, 65,536 and 65,537 bytes → the recorded ciphertext (libsodium draws the stream header, so it is recorded, not derived); refused inputs built from the 65,537-byte one by a named change (drop or cut the final chunk, drop the first, swap the two, add a byte, flip a bit in the header, the first or the last chunk, header only, 23 bytes, nothing) and a wrong key |
 | `hlc.json`, `uuid7.json` | a start value and a list of sends and receives with the clock reading at each → each HLC value (clock going back, the four receive cases, a full counter); clock and 10 random bytes → UUID v7 |
 | `relay_signing.json` | method, path, body, timestamp, nonce, key seed → signing input and signature |
+| `wake.json` | each entity type of the registry and one unknown type → whether its `create`, `update` and `delete` wake the partner (section 17); envelopes of several events → whether the envelope wakes |
 
 Format of every file:
 ```json
@@ -445,7 +446,7 @@ Stated plainly, so nobody relies on more than this gives:
 - **No post-quantum protection.** Recorded traffic could be decrypted by a future large quantum computer.
 - **A phone that is unlocked and compromised** exposes what is on it; the ratchet only limits what an attacker learns before and after (forward secrecy and post-compromise recovery).
 - **Clock trust:** HLC order depends on the phones' clocks within the windows above; a phone with a badly wrong clock delays its own envelopes until fixed.
-- **Push metadata:** the relay learns which deposits asked for a wake-up (section 17), so it can tell a chat message from a receipt by its timing and flag, though not its content.
+- **Push metadata:** the relay learns which deposits asked for a wake-up (section 17), so it can tell an event that wakes (a chat message, a question lock or answer, a quiz invitation, a new topic thread) from one that does not (a receipt, a setting) by its timing and flag, though not which of them it is or its content.
 - **Inbox quota:** one inbox holds at most 100 MiB of waiting envelopes. If the receiving phone stays away long enough for its partner to fill that, further deposits wait in the partner's outbox until the receiver fetches and acknowledges. Blobs have their own 100 MiB per inbox, reserved at each blob's first chunk, so an upload that was never finished or deleted holds its share until its 30 days pass.
 - **30 days on the relay, then gone:** an envelope or attachment that the receiving phone has not fetched within 30 days is deleted from the relay (Cloudflare's own 30-day storage recovery aside, which holds only ciphertext). A phone away longer than that misses it, and the relay cannot say what was lost. An attachment whose blob was deleted shows as unavailable; the sender can send it again.
 - **Registration limit per network:** the relay allows 5 new inboxes per IP address (IPv6: per /64) per hour. Phones behind one carrier-grade NAT address share that limit, so a busy mobile network could make a pairing attempt wait up to an hour.
@@ -488,7 +489,11 @@ How a phone sends and fetches envelopes (spec 4.6 and 8.7). It adds no wire form
 
 | `entity_type` | Ops that wake |
 |---|---|
-| `message` | `create` |
-| `device`, `profile`, `reaction`, `receipt` | none |
+| `message` | `create` (a chat message) |
+| `answer_lock` | `create` (the partner may now send its answer, so its phone must run a sync) |
+| `answer` | `create` (the reveal is ready) |
+| `quiz_session` | `create` (an invitation) |
+| `topic_thread` | `create` (a new topic to talk about) |
+| `device`, `profile`, `reaction`, `receipt`, `reveal_mark`, `understanding`, `daily_assignment`, `daily_pin`, `own_question`, `shuffle_preset`, `category_block`, `nikah_topic`, `intimacy_opt_in`, `pair_setting`, `joke_reaction` | none |
 
-Each feature that adds an entity type adds its row here and in `WakePolicy`, in the same pull request (invitations and reveal-ready wake; settings do not).
+Every type of the registry (section 10) has a row, and `wake.json` (section 15) lists the table. The question rows came with package 0.2.0; a 0.1.0 phone never sends those types, so it never needs them. A wake-up is not a notification: the receiving app decides what to show, and bundles partner updates (the app's spec 8.4). Each feature that adds an entity type adds its row here and in `WakePolicy`, in the same pull request (invitations and reveal-ready wake; settings do not).

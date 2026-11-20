@@ -1,0 +1,324 @@
+{
+  "file": "wake",
+  "protocol_version": 1,
+  "generated_by": "packages/mawaddah_protocol/tool/gen_vectors.dart",
+  "cases": [
+    {
+      "name": "type: answer",
+      "input": {
+        "entity_type": "answer"
+      },
+      "output": {
+        "create": true,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: answer_lock",
+      "input": {
+        "entity_type": "answer_lock"
+      },
+      "output": {
+        "create": true,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: category_block",
+      "input": {
+        "entity_type": "category_block"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: daily_assignment",
+      "input": {
+        "entity_type": "daily_assignment"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: daily_pin",
+      "input": {
+        "entity_type": "daily_pin"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: device",
+      "input": {
+        "entity_type": "device"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: intimacy_opt_in",
+      "input": {
+        "entity_type": "intimacy_opt_in"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: joke_reaction",
+      "input": {
+        "entity_type": "joke_reaction"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: message",
+      "input": {
+        "entity_type": "message"
+      },
+      "output": {
+        "create": true,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: nikah_topic",
+      "input": {
+        "entity_type": "nikah_topic"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: own_question",
+      "input": {
+        "entity_type": "own_question"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: pair_setting",
+      "input": {
+        "entity_type": "pair_setting"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: profile",
+      "input": {
+        "entity_type": "profile"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: quiz_session",
+      "input": {
+        "entity_type": "quiz_session"
+      },
+      "output": {
+        "create": true,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: reaction",
+      "input": {
+        "entity_type": "reaction"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: receipt",
+      "input": {
+        "entity_type": "receipt"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: reveal_mark",
+      "input": {
+        "entity_type": "reveal_mark"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: shuffle_preset",
+      "input": {
+        "entity_type": "shuffle_preset"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: topic_thread",
+      "input": {
+        "entity_type": "topic_thread"
+      },
+      "output": {
+        "create": true,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: understanding",
+      "input": {
+        "entity_type": "understanding"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "type: unknown_type",
+      "input": {
+        "entity_type": "unknown_type"
+      },
+      "output": {
+        "create": false,
+        "update": false,
+        "delete": false
+      }
+    },
+    {
+      "name": "envelope: a receipt and a message",
+      "input": {
+        "events": [
+          {
+            "entity_type": "receipt",
+            "op": "update"
+          },
+          {
+            "entity_type": "message",
+            "op": "create"
+          }
+        ]
+      },
+      "output": {
+        "wake": true
+      }
+    },
+    {
+      "name": "envelope: a reveal mark and a setting",
+      "input": {
+        "events": [
+          {
+            "entity_type": "reveal_mark",
+            "op": "create"
+          },
+          {
+            "entity_type": "pair_setting",
+            "op": "update"
+          }
+        ]
+      },
+      "output": {
+        "wake": false
+      }
+    },
+    {
+      "name": "envelope: an understanding and an answer",
+      "input": {
+        "events": [
+          {
+            "entity_type": "understanding",
+            "op": "create"
+          },
+          {
+            "entity_type": "answer",
+            "op": "create"
+          }
+        ]
+      },
+      "output": {
+        "wake": true
+      }
+    },
+    {
+      "name": "envelope: edits of a thread and a session",
+      "input": {
+        "events": [
+          {
+            "entity_type": "topic_thread",
+            "op": "update"
+          },
+          {
+            "entity_type": "quiz_session",
+            "op": "update"
+          }
+        ]
+      },
+      "output": {
+        "wake": false
+      }
+    },
+    {
+      "name": "envelope: a lock alone",
+      "input": {
+        "events": [
+          {
+            "entity_type": "answer_lock",
+            "op": "create"
+          }
+        ]
+      },
+      "output": {
+        "wake": true
+      }
+    }
+  ]
+}
