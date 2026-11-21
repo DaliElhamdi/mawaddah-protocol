@@ -217,6 +217,27 @@ void main() {
       expect(answer({'gave_up': null}), isFalse);
     });
 
+    test('an optional note of 1 to 140 units goes with any form', () {
+      expect(answer({'scale': 3, 'note': 'x'}), isTrue);
+      expect(
+        answer({
+          'choice': ['a'],
+          'note': 'x' * 140,
+        }),
+        isTrue,
+      );
+      expect(answer({'text': 'hi', 'note': '😊' * 70}), isTrue);
+      expect(answer({'gave_up': true, 'note': 'x'}), isTrue);
+      expect(answer({'scale': 3, 'note': 'x' * 141}), isFalse);
+      expect(answer({'scale': 3, 'note': '😊' * 71}), isFalse);
+      expect(answer({'scale': 3, 'note': ''}), isFalse);
+      expect(answer({'scale': 3, 'note': ' \n'}), isFalse);
+      expect(answer({'scale': 3, 'note': 5}), isFalse);
+      expect(answer({'scale': 3, 'note': null}), isFalse);
+      // A note alone is not an answer.
+      expect(answer({'note': 'x'}), isFalse);
+    });
+
     test('the registry allows no update or delete', () {
       expect(EntityRegistry.v1['answer']!.ops, {EventOp.create});
       expect(EntityRegistry.v1['answer_lock']!.ops, {EventOp.create});

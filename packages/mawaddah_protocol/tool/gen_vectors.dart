@@ -1915,6 +1915,18 @@ Future<List<Map<String, Object?>>> _eventCases() async {
       'order': ['x', 'y', 'z'],
     }),
     qNew('answer', {'round': day, 'question_id': 'rd_1', 'gave_up': true}),
+    qNew('answer', {
+      'round': day,
+      'question_id': 'sc_1',
+      'scale': 4,
+      'note': '😊' * 70,
+    }),
+    qNew('answer', {
+      'round': day,
+      'question_id': 'ft_1',
+      'text': 'x',
+      'note': 'x' * 140,
+    }),
     q('reveal_mark', reveal, EventOp.create, {
       'round': session,
       'question_id': 'kn_001',
@@ -2022,6 +2034,15 @@ Future<List<Map<String, Object?>>> _eventCases() async {
     qNew('answer', {'round': day, 'question_id': 'q', 'gave_up': false}),
     qNew('answer', {'round': day, 'question_id': 'Q1', 'scale': 1}),
     q('answer', qm.newId(), EventOp.update, {'scale': 2}),
+    qNew('answer', {'round': day, 'question_id': 'q', 'note': 'x'}),
+    qNew('answer', {
+      'round': day,
+      'question_id': 'q',
+      'scale': 3,
+      'note': 'x' * 141,
+    }),
+    qNew('answer', {'round': day, 'question_id': 'q', 'scale': 3, 'note': ' '}),
+    qNew('answer', {'round': day, 'question_id': 'q', 'scale': 3, 'note': 5}),
     q('reveal_mark', reveal, EventOp.update, {'round': day, 'mark': 'agree'}),
     q('topic_thread', thread, EventOp.update, {'origin_id': 'elsewhere'}),
     qNew('topic_thread', {

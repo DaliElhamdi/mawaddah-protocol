@@ -21,6 +21,9 @@ import 'event.dart';
 /// The longest free-text answer, in UTF-16 code units.
 const maxAnswerTextLength = 1000;
 
+/// The longest optional `note` of an answer, in UTF-16 code units.
+const maxAnswerNoteLength = 140;
+
 /// The longest `origin_id` of a topic thread or `source_id` of an
 /// understanding.
 const maxOriginIdLength = 128;
@@ -130,7 +133,9 @@ const _answerForms = {'choice', 'scale', 'text', 'order', 'gave_up'};
 /// (1 to 12 distinct option IDs), `scale` (an integer from 1 to 10), `text`
 /// (1 to [maxAnswerTextLength] units, not only white space), `order` (3 to 6
 /// distinct option IDs) or `gave_up` (`true`; a riddle only, which the app
-/// checks).
+/// checks). Any form may carry an optional `note` (1 to
+/// [maxAnswerNoteLength] units, not only white space): a sentence for the
+/// spouse, revealed with the answer.
 bool validateAnswerPayload(String op, JsonMap payload) {
   if (_answerForms.where(payload.containsKey).length != 1) return false;
   return _check(
@@ -145,6 +150,8 @@ bool validateAnswerPayload(String op, JsonMap payload) {
           _text(1, maxAnswerTextLength)(v) && (v as String).trim().isNotEmpty,
       'order': _distinct(3, 6, _isOpt),
       'gave_up': (v) => v == true,
+      'note': (v) =>
+          _text(1, maxAnswerNoteLength)(v) && (v as String).trim().isNotEmpty,
     },
     required: {'round', 'question_id'},
   );
