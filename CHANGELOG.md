@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.2.0-dev.2] - 2026-11-21
+
+Pre-release for the app's answer screens (private #164): adds the optional `note` of an `answer` (issue #74). No wire change and no new protocol version since `0.1.0`.
+
 ### Added
 - Optional `note` on the `answer` payload (issue #74, decided by the app project): 1 to 140 UTF-16 units, not only white space, allowed with any answer form (PROTOCOL.md section 10); the app's answer screen offers it as a sentence for the spouse. New constant `maxAnswerNoteLength`. A release without the field ignores it (unknown fields are ignored), so there is no wire change and no new protocol version. The vector case `apply: question payload rules` has 2 more valid and 4 more invalid events.
 
