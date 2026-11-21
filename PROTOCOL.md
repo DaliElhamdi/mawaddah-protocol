@@ -322,7 +322,7 @@ Rules for every type below:
 | `entity_type` | Payload |
 |---|---|
 | `answer_lock` | `round`, `question_id` (*qid*), `skipped` (bool). Carries no answer; `skipped: true` is a skip |
-| `answer` | `round`, `question_id` (*qid*) and **exactly one** of: `choice` (1–12 distinct *opt*), `scale` (integer 1–10), `text` (1–1,000 units, not only white space as in "Chat payloads"), `order` (3–6 distinct *opt*), `gave_up` (`true` only) |
+| `answer` | `round`, `question_id` (*qid*) and **exactly one** of: `choice` (1–12 distinct *opt*), `scale` (integer 1–10), `text` (1–1,000 units, not only white space as in "Chat payloads"), `order` (3–6 distinct *opt*), `gave_up` (`true` only); any form may also carry an optional `note` (1–140 units, not only white space): a sentence for the spouse, sent and revealed with the answer |
 | `reveal_mark` | `round`†, `question_id`† (*qid*), `mark` (`agree`, `discuss` or `none`) |
 | `topic_thread` | `origin`† (`question`, `nikah` or `manual`), `origin_id`† (0–128 units), `title` (1–100 units), `archived` (bool) |
 | `understanding` | `source`† (`quiz`, `sulh`, `nikah` or `manual`), `source_id`† (0–128 units), `text` (1–500 units); optional `followup_on` (*date*, or `null` for none) |

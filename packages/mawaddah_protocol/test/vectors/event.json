@@ -1577,7 +1577,39 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7fa7-b905-0cbce3c8e44f",
+                "event_id": "019a72c9-a528-7057-98d3-448788c19f78",
+                "entity_type": "answer",
+                "entity_id": "019a72c9-a528-7fa7-b905-0cbce3c8e44f",
+                "op": "create",
+                "payload": {
+                  "round": "2026-11-19",
+                  "question_id": "sc_1",
+                  "scale": 4,
+                  "note": "😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊"
+                },
+                "hlc": "019a72c9a5280008",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-75f2-905b-5a78cf22eabd",
+                "entity_type": "answer",
+                "entity_id": "019a72c9-a528-7f2f-97e7-6d6a3133006e",
+                "op": "create",
+                "payload": {
+                  "round": "2026-11-19",
+                  "question_id": "ft_1",
+                  "text": "x",
+                  "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                },
+                "hlc": "019a72c9a5280009",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-755f-a9a1-4161b7629502",
                 "entity_type": "reveal_mark",
                 "entity_id": "019a72c9-a528-74f6-8589-e7f71bd69179",
                 "op": "create",
@@ -1586,26 +1618,26 @@
                   "question_id": "kn_001",
                   "mark": "none"
                 },
-                "hlc": "019a72c9a5280008",
+                "hlc": "019a72c9a528000a",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7057-98d3-448788c19f78",
+                "event_id": "019a72c9-a528-7751-bbbd-c5709c0f633e",
                 "entity_type": "reveal_mark",
                 "entity_id": "019a72c9-a528-74f6-8589-e7f71bd69179",
                 "op": "update",
                 "payload": {
                   "mark": "discuss"
                 },
-                "hlc": "019a72c9a5280009",
+                "hlc": "019a72c9a528000b",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7f2f-97e7-6d6a3133006e",
+                "event_id": "019a72c9-a528-734e-9b0e-515bc579d8ea",
                 "entity_type": "topic_thread",
                 "entity_id": "019a72c9-a528-7d9e-bdee-d2685a69ac21",
                 "op": "create",
@@ -1615,26 +1647,26 @@
                   "title": "Sleep",
                   "archived": false
                 },
-                "hlc": "019a72c9a528000a",
+                "hlc": "019a72c9a528000c",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-75f2-905b-5a78cf22eabd",
+                "event_id": "019a72c9-a528-7748-8c4c-42369b61cda8",
                 "entity_type": "topic_thread",
                 "entity_id": "019a72c9-a528-7d9e-bdee-d2685a69ac21",
                 "op": "update",
                 "payload": {
                   "archived": true
                 },
-                "hlc": "019a72c9a528000b",
+                "hlc": "019a72c9a528000d",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-755f-a9a1-4161b7629502",
+                "event_id": "019a72c9-a528-7e1e-bf49-7f7564567fd1",
                 "entity_type": "understanding",
                 "entity_id": "019a72c9-a528-77ac-a20a-d7a6c8a3bf1e",
                 "op": "create",
@@ -1644,26 +1676,26 @@
                   "text": "Lights off at eleven",
                   "followup_on": "2027-02-28"
                 },
-                "hlc": "019a72c9a528000c",
+                "hlc": "019a72c9a528000e",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7751-bbbd-c5709c0f633e",
+                "event_id": "019a72c9-a528-79bf-86c8-de826764e23d",
                 "entity_type": "understanding",
                 "entity_id": "019a72c9-a528-77ac-a20a-d7a6c8a3bf1e",
                 "op": "update",
                 "payload": {
                   "followup_on": null
                 },
-                "hlc": "019a72c9a528000d",
+                "hlc": "019a72c9a528000f",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-734e-9b0e-515bc579d8ea",
+                "event_id": "019a72c9-a528-7a1c-be03-c35ccea70ce8",
                 "entity_type": "daily_assignment",
                 "entity_id": "019a72c9-a528-7d1c-b122-4d1df5df5b3d",
                 "op": "create",
@@ -1674,24 +1706,24 @@
                   "plan_version": 1,
                   "content_version": 1
                 },
-                "hlc": "019a72c9a528000e",
+                "hlc": "019a72c9a5280010",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7748-8c4c-42369b61cda8",
+                "event_id": "019a72c9-a528-7e2b-a493-6b4caf9a6b49",
                 "entity_type": "daily_assignment",
                 "entity_id": "019a72c9-a528-7d1c-b122-4d1df5df5b3d",
                 "op": "delete",
                 "payload": {},
-                "hlc": "019a72c9a528000f",
+                "hlc": "019a72c9a5280011",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7e1e-bf49-7f7564567fd1",
+                "event_id": "019a72c9-a528-7850-8807-b7e5711acbd9",
                 "entity_type": "daily_pin",
                 "entity_id": "019a72c9-a528-78a0-8050-ef8f7820865b",
                 "op": "create",
@@ -1700,13 +1732,13 @@
                   "pin": "category",
                   "target": "faith"
                 },
-                "hlc": "019a72c9a5280010",
+                "hlc": "019a72c9a5280012",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-79bf-86c8-de826764e23d",
+                "event_id": "019a72c9-a528-7ac8-93c0-6305c7fbcd5e",
                 "entity_type": "daily_pin",
                 "entity_id": "019a72c9-a528-78a0-8050-ef8f7820865b",
                 "op": "update",
@@ -1714,13 +1746,13 @@
                   "pin": "own",
                   "target": "019a72c9-a528-7ce6-8438-2eec5895c0b9"
                 },
-                "hlc": "019a72c9a5280011",
+                "hlc": "019a72c9a5280013",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7a1c-be03-c35ccea70ce8",
+                "event_id": "019a72c9-a528-7dfd-8ffe-f6a0a18995c3",
                 "entity_type": "own_question",
                 "entity_id": "019a72c9-a528-78c5-90fd-54a72ef92a63",
                 "op": "create",
@@ -1739,41 +1771,41 @@
                   ],
                   "pooled": true
                 },
-                "hlc": "019a72c9a5280012",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
-                "event_id": "019a72c9-a528-7e2b-a493-6b4caf9a6b49",
-                "entity_type": "own_question",
-                "entity_id": "019a72c9-a528-78c5-90fd-54a72ef92a63",
-                "op": "update",
-                "payload": {
-                  "pooled": false
-                },
-                "hlc": "019a72c9a5280013",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
-                "event_id": "019a72c9-a528-7ac8-93c0-6305c7fbcd5e",
-                "entity_type": "own_question",
-                "entity_id": "019a72c9-a528-7850-8807-b7e5711acbd9",
-                "op": "create",
-                "payload": {
-                  "text": "Fajr?",
-                  "type": "yes_no",
-                  "pooled": true
-                },
                 "hlc": "019a72c9a5280014",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7dfd-8ffe-f6a0a18995c3",
+                "event_id": "019a72c9-a528-7b91-9f6b-16dac527feff",
+                "entity_type": "own_question",
+                "entity_id": "019a72c9-a528-78c5-90fd-54a72ef92a63",
+                "op": "update",
+                "payload": {
+                  "pooled": false
+                },
+                "hlc": "019a72c9a5280015",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-7263-91ee-13fc329ad88f",
+                "entity_type": "own_question",
+                "entity_id": "019a72c9-a528-790d-8a85-25d676a8d844",
+                "op": "create",
+                "payload": {
+                  "text": "Fajr?",
+                  "type": "yes_no",
+                  "pooled": true
+                },
+                "hlc": "019a72c9a5280016",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-780d-92c8-de30fb962d1a",
                 "entity_type": "shuffle_preset",
                 "entity_id": "019a72c9-a528-719b-9eb2-9e36e0941410",
                 "op": "create",
@@ -1787,45 +1819,18 @@
                   "depth": "any",
                   "no_typing": true
                 },
-                "hlc": "019a72c9a5280015",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
-                "event_id": "019a72c9-a528-7b91-9f6b-16dac527feff",
-                "entity_type": "shuffle_preset",
-                "entity_id": "019a72c9-a528-719b-9eb2-9e36e0941410",
-                "op": "update",
-                "payload": {
-                  "count": 20
-                },
-                "hlc": "019a72c9a5280016",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
-                "event_id": "019a72c9-a528-790d-8a85-25d676a8d844",
-                "entity_type": "category_block",
-                "entity_id": "019a72c9-a528-7c5e-853d-4d6a6795f581",
-                "op": "create",
-                "payload": {
-                  "category": "intimacy",
-                  "blocked": true
-                },
                 "hlc": "019a72c9a5280017",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7263-91ee-13fc329ad88f",
-                "entity_type": "category_block",
-                "entity_id": "019a72c9-a528-7c5e-853d-4d6a6795f581",
+                "event_id": "019a72c9-a528-7d49-b661-ec0aa23cc04f",
+                "entity_type": "shuffle_preset",
+                "entity_id": "019a72c9-a528-719b-9eb2-9e36e0941410",
                 "op": "update",
                 "payload": {
-                  "blocked": false
+                  "count": 20
                 },
                 "hlc": "019a72c9a5280018",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -1833,13 +1838,13 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-780d-92c8-de30fb962d1a",
-                "entity_type": "nikah_topic",
-                "entity_id": "019a72c9-a528-737a-8085-0b94ea2368d5",
+                "event_id": "019a72c9-a528-7b83-b165-62bc14de0255",
+                "entity_type": "category_block",
+                "entity_id": "019a72c9-a528-7c5e-853d-4d6a6795f581",
                 "op": "create",
                 "payload": {
-                  "topic_id": "mahr",
-                  "state": "not_yet"
+                  "category": "intimacy",
+                  "blocked": true
                 },
                 "hlc": "019a72c9a5280019",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -1847,12 +1852,12 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7d49-b661-ec0aa23cc04f",
-                "entity_type": "nikah_topic",
-                "entity_id": "019a72c9-a528-737a-8085-0b94ea2368d5",
+                "event_id": "019a72c9-a528-73e6-b360-4e2881a9c205",
+                "entity_type": "category_block",
+                "entity_id": "019a72c9-a528-7c5e-853d-4d6a6795f581",
                 "op": "update",
                 "payload": {
-                  "state": "agreed"
+                  "blocked": false
                 },
                 "hlc": "019a72c9a528001a",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -1860,13 +1865,13 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7b83-b165-62bc14de0255",
-                "entity_type": "intimacy_opt_in",
-                "entity_id": "019a72c9-a528-70c4-9584-1bf40dcec8e7",
+                "event_id": "019a72c9-a528-7163-9909-7ead80a25c92",
+                "entity_type": "nikah_topic",
+                "entity_id": "019a72c9-a528-737a-8085-0b94ea2368d5",
                 "op": "create",
                 "payload": {
-                  "enabled": false,
-                  "adult_married": false
+                  "topic_id": "mahr",
+                  "state": "not_yet"
                 },
                 "hlc": "019a72c9a528001b",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -1874,13 +1879,12 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-73e6-b360-4e2881a9c205",
-                "entity_type": "intimacy_opt_in",
-                "entity_id": "019a72c9-a528-70c4-9584-1bf40dcec8e7",
+                "event_id": "019a72c9-a528-7e79-998d-c660adc3c376",
+                "entity_type": "nikah_topic",
+                "entity_id": "019a72c9-a528-737a-8085-0b94ea2368d5",
                 "op": "update",
                 "payload": {
-                  "enabled": true,
-                  "adult_married": true
+                  "state": "agreed"
                 },
                 "hlc": "019a72c9a528001c",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -1888,12 +1892,13 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7163-9909-7ead80a25c92",
-                "entity_type": "pair_setting",
-                "entity_id": "019a72c9-a528-7ec2-ba4e-305743669c05",
+                "event_id": "019a72c9-a528-740f-b3cd-c8a005b81c76",
+                "entity_type": "intimacy_opt_in",
+                "entity_id": "019a72c9-a528-70c4-9584-1bf40dcec8e7",
                 "op": "create",
                 "payload": {
-                  "daily_timezone": "Africa/Tunis"
+                  "enabled": false,
+                  "adult_married": false
                 },
                 "hlc": "019a72c9a528001d",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -1901,13 +1906,13 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7e79-998d-c660adc3c376",
-                "entity_type": "joke_reaction",
-                "entity_id": "019a72c9-a528-7360-b85e-326b01afdb88",
-                "op": "create",
+                "event_id": "019a72c9-a528-763d-8936-ff755a635a61",
+                "entity_type": "intimacy_opt_in",
+                "entity_id": "019a72c9-a528-70c4-9584-1bf40dcec8e7",
+                "op": "update",
                 "payload": {
-                  "question_id": "jk_001",
-                  "reaction": "😂"
+                  "enabled": true,
+                  "adult_married": true
                 },
                 "hlc": "019a72c9a528001e",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -1915,13 +1920,12 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-740f-b3cd-c8a005b81c76",
-                "entity_type": "joke_reaction",
-                "entity_id": "019a72c9-a528-7360-b85e-326b01afdb88",
-                "op": "update",
+                "event_id": "019a72c9-a528-758d-a877-735e09479dad",
+                "entity_type": "pair_setting",
+                "entity_id": "019a72c9-a528-7ec2-ba4e-305743669c05",
+                "op": "create",
                 "payload": {
-                  "reaction": "",
-                  "later": 1
+                  "daily_timezone": "Africa/Tunis"
                 },
                 "hlc": "019a72c9a528001f",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -1929,16 +1933,44 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-758d-a877-735e09479dad",
+                "event_id": "019a72c9-a528-7107-b02d-34fe66de3679",
+                "entity_type": "joke_reaction",
+                "entity_id": "019a72c9-a528-7360-b85e-326b01afdb88",
+                "op": "create",
+                "payload": {
+                  "question_id": "jk_001",
+                  "reaction": "😂"
+                },
+                "hlc": "019a72c9a5280020",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-7445-aa9a-477c5a2c844b",
+                "entity_type": "joke_reaction",
+                "entity_id": "019a72c9-a528-7360-b85e-326b01afdb88",
+                "op": "update",
+                "payload": {
+                  "reaction": "",
+                  "later": 1
+                },
+                "hlc": "019a72c9a5280021",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-7dff-8399-b9e3cf3dfdc2",
                 "entity_type": "message",
-                "entity_id": "019a72c9-a528-763d-8936-ff755a635a61",
+                "entity_id": "019a72c9-a528-7478-b444-60f2c0769cc9",
                 "op": "create",
                 "payload": {
                   "text": "about sleep",
                   "thread_id": "019a72c9-a528-7d9e-bdee-d2685a69ac21",
                   "content_ref": "jk_001"
                 },
-                "hlc": "019a72c9a5280020",
+                "hlc": "019a72c9a5280022",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
@@ -1949,37 +1981,8 @@
             "sender": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
             "events": [
               {
-                "event_id": "019a72c9-a528-7445-aa9a-477c5a2c844b",
-                "entity_type": "answer_lock",
-                "entity_id": "019a72c9-a528-7107-b02d-34fe66de3679",
-                "op": "create",
-                "payload": {
-                  "round": "2026-11-19",
-                  "question_id": "q"
-                },
-                "hlc": "019a72c9a5280021",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
-                "event_id": "019a72c9-a528-7dff-8399-b9e3cf3dfdc2",
-                "entity_type": "answer_lock",
-                "entity_id": "019a72c9-a528-7478-b444-60f2c0769cc9",
-                "op": "create",
-                "payload": {
-                  "round": "2026-02-29",
-                  "question_id": "q",
-                  "skipped": false
-                },
-                "hlc": "019a72c9a5280022",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
                 "event_id": "019a72c9-a528-7de9-a950-72112652d137",
-                "entity_type": "answer",
+                "entity_type": "answer_lock",
                 "entity_id": "019a72c9-a528-7c50-83ce-5df92bbb7565",
                 "op": "create",
                 "payload": {
@@ -1993,14 +1996,13 @@
               },
               {
                 "event_id": "019a72c9-a528-75f2-a75c-ee136d8140ae",
-                "entity_type": "answer",
+                "entity_type": "answer_lock",
                 "entity_id": "019a72c9-a528-72c1-9581-3608be2ec5ff",
                 "op": "create",
                 "payload": {
-                  "round": "2026-11-19",
+                  "round": "2026-02-29",
                   "question_id": "q",
-                  "scale": 3,
-                  "text": "x"
+                  "skipped": false
                 },
                 "hlc": "019a72c9a5280024",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2014,11 +2016,7 @@
                 "op": "create",
                 "payload": {
                   "round": "2026-11-19",
-                  "question_id": "q",
-                  "choice": [
-                    "a",
-                    "a"
-                  ]
+                  "question_id": "q"
                 },
                 "hlc": "019a72c9a5280025",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2033,7 +2031,8 @@
                 "payload": {
                   "round": "2026-11-19",
                   "question_id": "q",
-                  "scale": 11
+                  "scale": 3,
+                  "text": "x"
                 },
                 "hlc": "019a72c9a5280026",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2048,7 +2047,10 @@
                 "payload": {
                   "round": "2026-11-19",
                   "question_id": "q",
-                  "text": " "
+                  "choice": [
+                    "a",
+                    "a"
+                  ]
                 },
                 "hlc": "019a72c9a5280027",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2063,7 +2065,7 @@
                 "payload": {
                   "round": "2026-11-19",
                   "question_id": "q",
-                  "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  "scale": 11
                 },
                 "hlc": "019a72c9a5280028",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2078,10 +2080,7 @@
                 "payload": {
                   "round": "2026-11-19",
                   "question_id": "q",
-                  "order": [
-                    "a",
-                    "b"
-                  ]
+                  "text": " "
                 },
                 "hlc": "019a72c9a5280029",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2096,7 +2095,7 @@
                 "payload": {
                   "round": "2026-11-19",
                   "question_id": "q",
-                  "gave_up": false
+                  "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                 },
                 "hlc": "019a72c9a528002a",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2110,8 +2109,11 @@
                 "op": "create",
                 "payload": {
                   "round": "2026-11-19",
-                  "question_id": "Q1",
-                  "scale": 1
+                  "question_id": "q",
+                  "order": [
+                    "a",
+                    "b"
+                  ]
                 },
                 "hlc": "019a72c9a528002b",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2122,9 +2124,11 @@
                 "event_id": "019a72c9-a528-7e26-880d-6fd72ee34d63",
                 "entity_type": "answer",
                 "entity_id": "019a72c9-a528-7159-9e0c-3609579e3616",
-                "op": "update",
+                "op": "create",
                 "payload": {
-                  "scale": 2
+                  "round": "2026-11-19",
+                  "question_id": "q",
+                  "gave_up": false
                 },
                 "hlc": "019a72c9a528002c",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2132,13 +2136,14 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7687-b9ca-4963d6b9749b",
-                "entity_type": "reveal_mark",
-                "entity_id": "019a72c9-a528-74f6-8589-e7f71bd69179",
-                "op": "update",
+                "event_id": "019a72c9-a528-7bb4-ada3-006e881af5bb",
+                "entity_type": "answer",
+                "entity_id": "019a72c9-a528-7687-b9ca-4963d6b9749b",
+                "op": "create",
                 "payload": {
                   "round": "2026-11-19",
-                  "mark": "agree"
+                  "question_id": "Q1",
+                  "scale": 1
                 },
                 "hlc": "019a72c9a528002d",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2146,12 +2151,12 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7bb4-ada3-006e881af5bb",
-                "entity_type": "topic_thread",
-                "entity_id": "019a72c9-a528-7d9e-bdee-d2685a69ac21",
+                "event_id": "019a72c9-a528-74ec-8914-9d031d2e2ac5",
+                "entity_type": "answer",
+                "entity_id": "019a72c9-a528-77b4-84c2-f8ad46464a54",
                 "op": "update",
                 "payload": {
-                  "origin_id": "elsewhere"
+                  "scale": 2
                 },
                 "hlc": "019a72c9a528002e",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2159,15 +2164,14 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-74ec-8914-9d031d2e2ac5",
-                "entity_type": "topic_thread",
-                "entity_id": "019a72c9-a528-77b4-84c2-f8ad46464a54",
+                "event_id": "019a72c9-a528-7ded-befd-16716c2dc7c1",
+                "entity_type": "answer",
+                "entity_id": "019a72c9-a528-7031-bac5-2595e70b7bc6",
                 "op": "create",
                 "payload": {
-                  "origin": "manual",
-                  "origin_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-                  "title": "t",
-                  "archived": false
+                  "round": "2026-11-19",
+                  "question_id": "q",
+                  "note": "x"
                 },
                 "hlc": "019a72c9a528002f",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2175,12 +2179,15 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7031-bac5-2595e70b7bc6",
-                "entity_type": "understanding",
-                "entity_id": "019a72c9-a528-77ac-a20a-d7a6c8a3bf1e",
-                "op": "update",
+                "event_id": "019a72c9-a528-7990-841d-fef961a667c4",
+                "entity_type": "answer",
+                "entity_id": "019a72c9-a528-7445-bbac-7d8ce505bf83",
+                "op": "create",
                 "payload": {
-                  "text": ""
+                  "round": "2026-11-19",
+                  "question_id": "q",
+                  "scale": 3,
+                  "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                 },
                 "hlc": "019a72c9a5280030",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2188,9 +2195,97 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7445-bbac-7d8ce505bf83",
+                "event_id": "019a72c9-a528-75d9-bfee-e4a1f3f6120d",
+                "entity_type": "answer",
+                "entity_id": "019a72c9-a528-764c-91f8-afbe29cc21bf",
+                "op": "create",
+                "payload": {
+                  "round": "2026-11-19",
+                  "question_id": "q",
+                  "scale": 3,
+                  "note": " "
+                },
+                "hlc": "019a72c9a5280031",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-73a8-821b-8ea1641b42da",
+                "entity_type": "answer",
+                "entity_id": "019a72c9-a528-776e-9dd7-cef0102b99c4",
+                "op": "create",
+                "payload": {
+                  "round": "2026-11-19",
+                  "question_id": "q",
+                  "scale": 3,
+                  "note": 5
+                },
+                "hlc": "019a72c9a5280032",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-7f75-9146-c1b40caf3ed7",
+                "entity_type": "reveal_mark",
+                "entity_id": "019a72c9-a528-74f6-8589-e7f71bd69179",
+                "op": "update",
+                "payload": {
+                  "round": "2026-11-19",
+                  "mark": "agree"
+                },
+                "hlc": "019a72c9a5280033",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-751f-a53a-2de769083af9",
+                "entity_type": "topic_thread",
+                "entity_id": "019a72c9-a528-7d9e-bdee-d2685a69ac21",
+                "op": "update",
+                "payload": {
+                  "origin_id": "elsewhere"
+                },
+                "hlc": "019a72c9a5280034",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-70ac-a287-55025ad2f8a6",
+                "entity_type": "topic_thread",
+                "entity_id": "019a72c9-a528-71ed-aaa6-68a80b9bd6ec",
+                "op": "create",
+                "payload": {
+                  "origin": "manual",
+                  "origin_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                  "title": "t",
+                  "archived": false
+                },
+                "hlc": "019a72c9a5280035",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-7603-9406-da5a1a37c917",
+                "entity_type": "understanding",
+                "entity_id": "019a72c9-a528-77ac-a20a-d7a6c8a3bf1e",
+                "op": "update",
+                "payload": {
+                  "text": ""
+                },
+                "hlc": "019a72c9a5280036",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-7a12-94e5-7d94e21e70cb",
                 "entity_type": "daily_assignment",
-                "entity_id": "019a72c9-a528-7ded-befd-16716c2dc7c1",
+                "entity_id": "019a72c9-a528-707e-a39b-86ed4ec3f0de",
                 "op": "create",
                 "payload": {
                   "date": "2026-11-19",
@@ -2199,13 +2294,13 @@
                   "plan_version": 0,
                   "content_version": 1
                 },
-                "hlc": "019a72c9a5280031",
+                "hlc": "019a72c9a5280037",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7990-841d-fef961a667c4",
+                "event_id": "019a72c9-a528-751d-b50c-63658529c996",
                 "entity_type": "daily_pin",
                 "entity_id": "019a72c9-a528-78a0-8050-ef8f7820865b",
                 "op": "update",
@@ -2213,15 +2308,15 @@
                   "pin": "category",
                   "target": "019a72c9-a528-7ce6-8438-2eec5895c0b9"
                 },
-                "hlc": "019a72c9a5280032",
+                "hlc": "019a72c9a5280038",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-75d9-bfee-e4a1f3f6120d",
+                "event_id": "019a72c9-a528-77d6-b25f-d5a4e9b13832",
                 "entity_type": "own_question",
-                "entity_id": "019a72c9-a528-764c-91f8-afbe29cc21bf",
+                "entity_id": "019a72c9-a528-76ac-b982-13401e305450",
                 "op": "create",
                 "payload": {
                   "text": "t",
@@ -2238,69 +2333,69 @@
                   ],
                   "pooled": true
                 },
-                "hlc": "019a72c9a5280033",
+                "hlc": "019a72c9a5280039",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-73a8-821b-8ea1641b42da",
+                "event_id": "019a72c9-a528-77d9-b2e9-43d86c3cb9ed",
                 "entity_type": "own_question",
-                "entity_id": "019a72c9-a528-776e-9dd7-cef0102b99c4",
+                "entity_id": "019a72c9-a528-7c1f-9b64-52cad4dd8c22",
                 "op": "create",
                 "payload": {
                   "text": "t",
                   "type": "multi_choice",
                   "pooled": true
                 },
-                "hlc": "019a72c9a5280034",
+                "hlc": "019a72c9a528003a",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7f75-9146-c1b40caf3ed7",
+                "event_id": "019a72c9-a528-7931-bb6b-8a71a135ed60",
                 "entity_type": "own_question",
                 "entity_id": "019a72c9-a528-78c5-90fd-54a72ef92a63",
                 "op": "update",
                 "payload": {
                   "type": "yes_no"
                 },
-                "hlc": "019a72c9a5280035",
+                "hlc": "019a72c9a528003b",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-751f-a53a-2de769083af9",
+                "event_id": "019a72c9-a528-74e9-a1dd-057a18704180",
                 "entity_type": "shuffle_preset",
                 "entity_id": "019a72c9-a528-719b-9eb2-9e36e0941410",
                 "op": "update",
                 "payload": {
                   "count": 5.0
                 },
-                "hlc": "019a72c9a5280036",
+                "hlc": "019a72c9a528003c",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-71ed-aaa6-68a80b9bd6ec",
+                "event_id": "019a72c9-a528-7f81-b85c-e9a506d6303a",
                 "entity_type": "shuffle_preset",
                 "entity_id": "019a72c9-a528-719b-9eb2-9e36e0941410",
                 "op": "update",
                 "payload": {
                   "categories": []
                 },
-                "hlc": "019a72c9a5280037",
+                "hlc": "019a72c9a528003d",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-7603-9406-da5a1a37c917",
+                "event_id": "019a72c9-a528-7a4d-80ab-27d5a4c63a5b",
                 "entity_type": "quiz_session",
-                "entity_id": "019a72c9-a528-70ac-a287-55025ad2f8a6",
+                "entity_id": "019a72c9-a528-73fe-af31-509fa1b87f41",
                 "op": "create",
                 "payload": {
                   "kind": "shuffle",
@@ -2329,107 +2424,29 @@
                   ],
                   "status": "open"
                 },
-                "hlc": "019a72c9a5280038",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
-                "event_id": "019a72c9-a528-707e-a39b-86ed4ec3f0de",
-                "entity_type": "quiz_session",
-                "entity_id": "019a72c9-a528-76f5-85c4-8fbe108279ca",
-                "op": "delete",
-                "payload": {},
-                "hlc": "019a72c9a5280039",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
-                "event_id": "019a72c9-a528-7a12-94e5-7d94e21e70cb",
-                "entity_type": "category_block",
-                "entity_id": "019a72c9-a528-7c5e-853d-4d6a6795f581",
-                "op": "update",
-                "payload": {
-                  "category": "fun"
-                },
-                "hlc": "019a72c9a528003a",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
-                "event_id": "019a72c9-a528-751d-b50c-63658529c996",
-                "entity_type": "nikah_topic",
-                "entity_id": "019a72c9-a528-737a-8085-0b94ea2368d5",
-                "op": "update",
-                "payload": {},
-                "hlc": "019a72c9a528003b",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
-                "event_id": "019a72c9-a528-76ac-b982-13401e305450",
-                "entity_type": "intimacy_opt_in",
-                "entity_id": "019a72c9-a528-70c4-9584-1bf40dcec8e7",
-                "op": "update",
-                "payload": {
-                  "enabled": false
-                },
-                "hlc": "019a72c9a528003c",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
-                "event_id": "019a72c9-a528-77d6-b25f-d5a4e9b13832",
-                "entity_type": "intimacy_opt_in",
-                "entity_id": "019a72c9-a528-70c4-9584-1bf40dcec8e7",
-                "op": "update",
-                "payload": {
-                  "enabled": true,
-                  "adult_married": false
-                },
-                "hlc": "019a72c9a528003d",
-                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
-                "protocol_version": 1,
-                "schema_version": 1
-              },
-              {
-                "event_id": "019a72c9-a528-7c1f-9b64-52cad4dd8c22",
-                "entity_type": "pair_setting",
-                "entity_id": "019a72c9-a528-7ec2-ba4e-305743669c05",
-                "op": "update",
-                "payload": {
-                  "daily_timezone": "Africa/ Tunis"
-                },
                 "hlc": "019a72c9a528003e",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-77d9-b2e9-43d86c3cb9ed",
-                "entity_type": "joke_reaction",
-                "entity_id": "019a72c9-a528-7360-b85e-326b01afdb88",
-                "op": "update",
-                "payload": {
-                  "reaction": "👍"
-                },
+                "event_id": "019a72c9-a528-7f86-ae4f-97893e788161",
+                "entity_type": "quiz_session",
+                "entity_id": "019a72c9-a528-76f5-85c4-8fbe108279ca",
+                "op": "delete",
+                "payload": {},
                 "hlc": "019a72c9a528003f",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-74e9-a1dd-057a18704180",
-                "entity_type": "message",
-                "entity_id": "019a72c9-a528-7931-bb6b-8a71a135ed60",
-                "op": "create",
+                "event_id": "019a72c9-a528-75a0-9b88-e2314a28d305",
+                "entity_type": "category_block",
+                "entity_id": "019a72c9-a528-7c5e-853d-4d6a6795f581",
+                "op": "update",
                 "payload": {
-                  "text": "x",
-                  "thread_id": "general"
+                  "category": "fun"
                 },
                 "hlc": "019a72c9a5280040",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
@@ -2437,15 +2454,93 @@
                 "schema_version": 1
               },
               {
-                "event_id": "019a72c9-a528-73fe-af31-509fa1b87f41",
+                "event_id": "019a72c9-a528-721a-ab6a-e8b08da68e01",
+                "entity_type": "nikah_topic",
+                "entity_id": "019a72c9-a528-737a-8085-0b94ea2368d5",
+                "op": "update",
+                "payload": {},
+                "hlc": "019a72c9a5280041",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-76c0-bb6d-e441b660ae19",
+                "entity_type": "intimacy_opt_in",
+                "entity_id": "019a72c9-a528-70c4-9584-1bf40dcec8e7",
+                "op": "update",
+                "payload": {
+                  "enabled": false
+                },
+                "hlc": "019a72c9a5280042",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-750c-aa4b-a68a9065c68b",
+                "entity_type": "intimacy_opt_in",
+                "entity_id": "019a72c9-a528-70c4-9584-1bf40dcec8e7",
+                "op": "update",
+                "payload": {
+                  "enabled": true,
+                  "adult_married": false
+                },
+                "hlc": "019a72c9a5280043",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-7bce-8f82-5b2bb427cc62",
+                "entity_type": "pair_setting",
+                "entity_id": "019a72c9-a528-7ec2-ba4e-305743669c05",
+                "op": "update",
+                "payload": {
+                  "daily_timezone": "Africa/ Tunis"
+                },
+                "hlc": "019a72c9a5280044",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-7c1d-971c-70e425d9688b",
+                "entity_type": "joke_reaction",
+                "entity_id": "019a72c9-a528-7360-b85e-326b01afdb88",
+                "op": "update",
+                "payload": {
+                  "reaction": "👍"
+                },
+                "hlc": "019a72c9a5280045",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-7bf5-84a6-e583482ced8b",
                 "entity_type": "message",
-                "entity_id": "019a72c9-a528-7f81-b85c-e9a506d6303a",
+                "entity_id": "019a72c9-a528-71ca-9f67-adf7575d8937",
+                "op": "create",
+                "payload": {
+                  "text": "x",
+                  "thread_id": "general"
+                },
+                "hlc": "019a72c9a5280046",
+                "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
+                "protocol_version": 1,
+                "schema_version": 1
+              },
+              {
+                "event_id": "019a72c9-a528-7ffe-81a0-4d27f74fe0ed",
+                "entity_type": "message",
+                "entity_id": "019a72c9-a528-7aca-825f-efc321dbc431",
                 "op": "create",
                 "payload": {
                   "text": "x",
                   "content_ref": "Joke-1"
                 },
-                "hlc": "019a72c9a5280041",
+                "hlc": "019a72c9a5280047",
                 "author_device": "Dg4ODg4ODg4ODg4ODg4ODg",
                 "protocol_version": 1,
                 "schema_version": 1
@@ -2564,6 +2659,54 @@
             "deleted": null
           },
           {
+            "entity_type": "answer",
+            "entity_id": "019a72c9-a528-7f2f-97e7-6d6a3133006e",
+            "fields": {
+              "note": {
+                "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "event_id": "019a72c9-a528-75f2-905b-5a78cf22eabd"
+              },
+              "question_id": {
+                "value": "ft_1",
+                "event_id": "019a72c9-a528-75f2-905b-5a78cf22eabd"
+              },
+              "round": {
+                "value": "2026-11-19",
+                "event_id": "019a72c9-a528-75f2-905b-5a78cf22eabd"
+              },
+              "text": {
+                "value": "x",
+                "event_id": "019a72c9-a528-75f2-905b-5a78cf22eabd"
+              }
+            },
+            "created": "019a72c9-a528-75f2-905b-5a78cf22eabd",
+            "deleted": null
+          },
+          {
+            "entity_type": "answer",
+            "entity_id": "019a72c9-a528-7fa7-b905-0cbce3c8e44f",
+            "fields": {
+              "note": {
+                "value": "😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊😊",
+                "event_id": "019a72c9-a528-7057-98d3-448788c19f78"
+              },
+              "question_id": {
+                "value": "sc_1",
+                "event_id": "019a72c9-a528-7057-98d3-448788c19f78"
+              },
+              "round": {
+                "value": "2026-11-19",
+                "event_id": "019a72c9-a528-7057-98d3-448788c19f78"
+              },
+              "scale": {
+                "value": 4,
+                "event_id": "019a72c9-a528-7057-98d3-448788c19f78"
+              }
+            },
+            "created": "019a72c9-a528-7057-98d3-448788c19f78",
+            "deleted": null
+          },
+          {
             "entity_type": "answer_lock",
             "entity_id": "019a72c9-a528-71f0-841e-e58f7e1f7e25",
             "fields": {
@@ -2609,11 +2752,11 @@
             "fields": {
               "blocked": {
                 "value": false,
-                "event_id": "019a72c9-a528-7263-91ee-13fc329ad88f"
+                "event_id": "019a72c9-a528-73e6-b360-4e2881a9c205"
               },
               "category": {
                 "value": "intimacy",
-                "event_id": "019a72c9-a528-790d-8a85-25d676a8d844"
+                "event_id": "019a72c9-a528-7b83-b165-62bc14de0255"
               }
             },
             "created": null,
@@ -2624,7 +2767,7 @@
             "entity_id": "019a72c9-a528-7d1c-b122-4d1df5df5b3d",
             "fields": {},
             "created": null,
-            "deleted": "019a72c9-a528-7748-8c4c-42369b61cda8"
+            "deleted": "019a72c9-a528-7e2b-a493-6b4caf9a6b49"
           },
           {
             "entity_type": "daily_pin",
@@ -2632,15 +2775,15 @@
             "fields": {
               "on": {
                 "value": "--02-29",
-                "event_id": "019a72c9-a528-7e1e-bf49-7f7564567fd1"
+                "event_id": "019a72c9-a528-7850-8807-b7e5711acbd9"
               },
               "pin": {
                 "value": "own",
-                "event_id": "019a72c9-a528-79bf-86c8-de826764e23d"
+                "event_id": "019a72c9-a528-7ac8-93c0-6305c7fbcd5e"
               },
               "target": {
                 "value": "019a72c9-a528-7ce6-8438-2eec5895c0b9",
-                "event_id": "019a72c9-a528-79bf-86c8-de826764e23d"
+                "event_id": "019a72c9-a528-7ac8-93c0-6305c7fbcd5e"
               }
             },
             "created": null,
@@ -2652,11 +2795,11 @@
             "fields": {
               "adult_married": {
                 "value": true,
-                "event_id": "019a72c9-a528-73e6-b360-4e2881a9c205"
+                "event_id": "019a72c9-a528-763d-8936-ff755a635a61"
               },
               "enabled": {
                 "value": true,
-                "event_id": "019a72c9-a528-73e6-b360-4e2881a9c205"
+                "event_id": "019a72c9-a528-763d-8936-ff755a635a61"
               }
             },
             "created": null,
@@ -2668,15 +2811,15 @@
             "fields": {
               "later": {
                 "value": 1,
-                "event_id": "019a72c9-a528-740f-b3cd-c8a005b81c76"
+                "event_id": "019a72c9-a528-7445-aa9a-477c5a2c844b"
               },
               "question_id": {
                 "value": "jk_001",
-                "event_id": "019a72c9-a528-7e79-998d-c660adc3c376"
+                "event_id": "019a72c9-a528-7107-b02d-34fe66de3679"
               },
               "reaction": {
                 "value": "",
-                "event_id": "019a72c9-a528-740f-b3cd-c8a005b81c76"
+                "event_id": "019a72c9-a528-7445-aa9a-477c5a2c844b"
               }
             },
             "created": null,
@@ -2684,22 +2827,22 @@
           },
           {
             "entity_type": "message",
-            "entity_id": "019a72c9-a528-763d-8936-ff755a635a61",
+            "entity_id": "019a72c9-a528-7478-b444-60f2c0769cc9",
             "fields": {
               "content_ref": {
                 "value": "jk_001",
-                "event_id": "019a72c9-a528-758d-a877-735e09479dad"
+                "event_id": "019a72c9-a528-7dff-8399-b9e3cf3dfdc2"
               },
               "text": {
                 "value": "about sleep",
-                "event_id": "019a72c9-a528-758d-a877-735e09479dad"
+                "event_id": "019a72c9-a528-7dff-8399-b9e3cf3dfdc2"
               },
               "thread_id": {
                 "value": "019a72c9-a528-7d9e-bdee-d2685a69ac21",
-                "event_id": "019a72c9-a528-758d-a877-735e09479dad"
+                "event_id": "019a72c9-a528-7dff-8399-b9e3cf3dfdc2"
               }
             },
-            "created": "019a72c9-a528-758d-a877-735e09479dad",
+            "created": "019a72c9-a528-7dff-8399-b9e3cf3dfdc2",
             "deleted": null
           },
           {
@@ -2708,31 +2851,11 @@
             "fields": {
               "state": {
                 "value": "agreed",
-                "event_id": "019a72c9-a528-7d49-b661-ec0aa23cc04f"
+                "event_id": "019a72c9-a528-7e79-998d-c660adc3c376"
               },
               "topic_id": {
                 "value": "mahr",
-                "event_id": "019a72c9-a528-780d-92c8-de30fb962d1a"
-              }
-            },
-            "created": null,
-            "deleted": null
-          },
-          {
-            "entity_type": "own_question",
-            "entity_id": "019a72c9-a528-7850-8807-b7e5711acbd9",
-            "fields": {
-              "pooled": {
-                "value": true,
-                "event_id": "019a72c9-a528-7ac8-93c0-6305c7fbcd5e"
-              },
-              "text": {
-                "value": "Fajr?",
-                "event_id": "019a72c9-a528-7ac8-93c0-6305c7fbcd5e"
-              },
-              "type": {
-                "value": "yes_no",
-                "event_id": "019a72c9-a528-7ac8-93c0-6305c7fbcd5e"
+                "event_id": "019a72c9-a528-7163-9909-7ead80a25c92"
               }
             },
             "created": null,
@@ -2753,19 +2876,39 @@
                     "text": "Coffee"
                   }
                 ],
-                "event_id": "019a72c9-a528-7a1c-be03-c35ccea70ce8"
+                "event_id": "019a72c9-a528-7dfd-8ffe-f6a0a18995c3"
               },
               "pooled": {
                 "value": false,
-                "event_id": "019a72c9-a528-7e2b-a493-6b4caf9a6b49"
+                "event_id": "019a72c9-a528-7b91-9f6b-16dac527feff"
               },
               "text": {
                 "value": "Tea or coffee?",
-                "event_id": "019a72c9-a528-7a1c-be03-c35ccea70ce8"
+                "event_id": "019a72c9-a528-7dfd-8ffe-f6a0a18995c3"
               },
               "type": {
                 "value": "single_choice",
-                "event_id": "019a72c9-a528-7a1c-be03-c35ccea70ce8"
+                "event_id": "019a72c9-a528-7dfd-8ffe-f6a0a18995c3"
+              }
+            },
+            "created": null,
+            "deleted": null
+          },
+          {
+            "entity_type": "own_question",
+            "entity_id": "019a72c9-a528-790d-8a85-25d676a8d844",
+            "fields": {
+              "pooled": {
+                "value": true,
+                "event_id": "019a72c9-a528-7263-91ee-13fc329ad88f"
+              },
+              "text": {
+                "value": "Fajr?",
+                "event_id": "019a72c9-a528-7263-91ee-13fc329ad88f"
+              },
+              "type": {
+                "value": "yes_no",
+                "event_id": "019a72c9-a528-7263-91ee-13fc329ad88f"
               }
             },
             "created": null,
@@ -2777,7 +2920,7 @@
             "fields": {
               "daily_timezone": {
                 "value": "Africa/Tunis",
-                "event_id": "019a72c9-a528-7163-9909-7ead80a25c92"
+                "event_id": "019a72c9-a528-758d-a877-735e09479dad"
               }
             },
             "created": null,
@@ -2812,15 +2955,15 @@
             "fields": {
               "mark": {
                 "value": "discuss",
-                "event_id": "019a72c9-a528-7057-98d3-448788c19f78"
+                "event_id": "019a72c9-a528-7751-bbbd-c5709c0f633e"
               },
               "question_id": {
                 "value": "kn_001",
-                "event_id": "019a72c9-a528-7fa7-b905-0cbce3c8e44f"
+                "event_id": "019a72c9-a528-755f-a9a1-4161b7629502"
               },
               "round": {
                 "value": "019a72c9-a528-76f5-85c4-8fbe108279ca",
-                "event_id": "019a72c9-a528-7fa7-b905-0cbce3c8e44f"
+                "event_id": "019a72c9-a528-755f-a9a1-4161b7629502"
               }
             },
             "created": null,
@@ -2835,23 +2978,23 @@
                   "fun",
                   "faith"
                 ],
-                "event_id": "019a72c9-a528-7dfd-8ffe-f6a0a18995c3"
+                "event_id": "019a72c9-a528-780d-92c8-de30fb962d1a"
               },
               "count": {
                 "value": 20,
-                "event_id": "019a72c9-a528-7b91-9f6b-16dac527feff"
+                "event_id": "019a72c9-a528-7d49-b661-ec0aa23cc04f"
               },
               "depth": {
                 "value": "any",
-                "event_id": "019a72c9-a528-7dfd-8ffe-f6a0a18995c3"
+                "event_id": "019a72c9-a528-780d-92c8-de30fb962d1a"
               },
               "name": {
                 "value": "Evening",
-                "event_id": "019a72c9-a528-7dfd-8ffe-f6a0a18995c3"
+                "event_id": "019a72c9-a528-780d-92c8-de30fb962d1a"
               },
               "no_typing": {
                 "value": true,
-                "event_id": "019a72c9-a528-7dfd-8ffe-f6a0a18995c3"
+                "event_id": "019a72c9-a528-780d-92c8-de30fb962d1a"
               }
             },
             "created": null,
@@ -2863,19 +3006,19 @@
             "fields": {
               "archived": {
                 "value": true,
-                "event_id": "019a72c9-a528-75f2-905b-5a78cf22eabd"
+                "event_id": "019a72c9-a528-7748-8c4c-42369b61cda8"
               },
               "origin": {
                 "value": "question",
-                "event_id": "019a72c9-a528-7f2f-97e7-6d6a3133006e"
+                "event_id": "019a72c9-a528-734e-9b0e-515bc579d8ea"
               },
               "origin_id": {
                 "value": "019a72c9-a528-76f5-85c4-8fbe108279ca/kn_001",
-                "event_id": "019a72c9-a528-7f2f-97e7-6d6a3133006e"
+                "event_id": "019a72c9-a528-734e-9b0e-515bc579d8ea"
               },
               "title": {
                 "value": "Sleep",
-                "event_id": "019a72c9-a528-7f2f-97e7-6d6a3133006e"
+                "event_id": "019a72c9-a528-734e-9b0e-515bc579d8ea"
               }
             },
             "created": null,
@@ -2887,19 +3030,19 @@
             "fields": {
               "followup_on": {
                 "value": null,
-                "event_id": "019a72c9-a528-7751-bbbd-c5709c0f633e"
+                "event_id": "019a72c9-a528-79bf-86c8-de826764e23d"
               },
               "source": {
                 "value": "quiz",
-                "event_id": "019a72c9-a528-755f-a9a1-4161b7629502"
+                "event_id": "019a72c9-a528-7e1e-bf49-7f7564567fd1"
               },
               "source_id": {
                 "value": "019a72c9-a528-76f5-85c4-8fbe108279ca/kn_001",
-                "event_id": "019a72c9-a528-755f-a9a1-4161b7629502"
+                "event_id": "019a72c9-a528-7e1e-bf49-7f7564567fd1"
               },
               "text": {
                 "value": "Lights off at eleven",
-                "event_id": "019a72c9-a528-755f-a9a1-4161b7629502"
+                "event_id": "019a72c9-a528-7e1e-bf49-7f7564567fd1"
               }
             },
             "created": null,
@@ -2913,6 +3056,10 @@
           },
           {
             "event_id": "019a72c9-a528-70ac-9242-8f64a84d647c",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-a528-7107-b02d-34fe66de3679",
             "payload_purged": false
           },
           {
@@ -2937,7 +3084,7 @@
           },
           {
             "event_id": "019a72c9-a528-734e-9b0e-515bc579d8ea",
-            "payload_purged": true
+            "payload_purged": false
           },
           {
             "event_id": "019a72c9-a528-73e6-b360-4e2881a9c205",
@@ -2945,6 +3092,10 @@
           },
           {
             "event_id": "019a72c9-a528-740f-b3cd-c8a005b81c76",
+            "payload_purged": false
+          },
+          {
+            "event_id": "019a72c9-a528-7445-aa9a-477c5a2c844b",
             "payload_purged": false
           },
           {
@@ -2964,6 +3115,10 @@
             "payload_purged": false
           },
           {
+            "event_id": "019a72c9-a528-763d-8936-ff755a635a61",
+            "payload_purged": false
+          },
+          {
             "event_id": "019a72c9-a528-7748-8c4c-42369b61cda8",
             "payload_purged": false
           },
@@ -2980,7 +3135,7 @@
             "payload_purged": false
           },
           {
-            "event_id": "019a72c9-a528-790d-8a85-25d676a8d844",
+            "event_id": "019a72c9-a528-7850-8807-b7e5711acbd9",
             "payload_purged": false
           },
           {
@@ -2989,7 +3144,7 @@
           },
           {
             "event_id": "019a72c9-a528-7a1c-be03-c35ccea70ce8",
-            "payload_purged": false
+            "payload_purged": true
           },
           {
             "event_id": "019a72c9-a528-7ac8-93c0-6305c7fbcd5e",
@@ -3016,6 +3171,10 @@
             "payload_purged": false
           },
           {
+            "event_id": "019a72c9-a528-7dff-8399-b9e3cf3dfdc2",
+            "payload_purged": false
+          },
+          {
             "event_id": "019a72c9-a528-7e1e-bf49-7f7564567fd1",
             "payload_purged": false
           },
@@ -3030,25 +3189,9 @@
           {
             "event_id": "019a72c9-a528-7f2b-961a-395116d6a8d1",
             "payload_purged": false
-          },
-          {
-            "event_id": "019a72c9-a528-7f2f-97e7-6d6a3133006e",
-            "payload_purged": false
-          },
-          {
-            "event_id": "019a72c9-a528-7fa7-b905-0cbce3c8e44f",
-            "payload_purged": false
           }
         ],
         "unapplied": [
-          {
-            "event_id": "019a72c9-a528-7445-aa9a-477c5a2c844b",
-            "reason": "invalid_payload"
-          },
-          {
-            "event_id": "019a72c9-a528-7dff-8399-b9e3cf3dfdc2",
-            "reason": "invalid_payload"
-          },
           {
             "event_id": "019a72c9-a528-7de9-a950-72112652d137",
             "reason": "invalid_payload"
@@ -3087,10 +3230,6 @@
           },
           {
             "event_id": "019a72c9-a528-7e26-880d-6fd72ee34d63",
-            "reason": "unknown_op"
-          },
-          {
-            "event_id": "019a72c9-a528-7687-b9ca-4963d6b9749b",
             "reason": "invalid_payload"
           },
           {
@@ -3099,14 +3238,10 @@
           },
           {
             "event_id": "019a72c9-a528-74ec-8914-9d031d2e2ac5",
-            "reason": "invalid_payload"
+            "reason": "unknown_op"
           },
           {
-            "event_id": "019a72c9-a528-7031-bac5-2595e70b7bc6",
-            "reason": "invalid_payload"
-          },
-          {
-            "event_id": "019a72c9-a528-7445-bbac-7d8ce505bf83",
+            "event_id": "019a72c9-a528-7ded-befd-16716c2dc7c1",
             "reason": "invalid_payload"
           },
           {
@@ -3130,16 +3265,12 @@
             "reason": "invalid_payload"
           },
           {
-            "event_id": "019a72c9-a528-71ed-aaa6-68a80b9bd6ec",
+            "event_id": "019a72c9-a528-70ac-a287-55025ad2f8a6",
             "reason": "invalid_payload"
           },
           {
             "event_id": "019a72c9-a528-7603-9406-da5a1a37c917",
             "reason": "invalid_payload"
-          },
-          {
-            "event_id": "019a72c9-a528-707e-a39b-86ed4ec3f0de",
-            "reason": "unknown_op"
           },
           {
             "event_id": "019a72c9-a528-7a12-94e5-7d94e21e70cb",
@@ -3150,15 +3281,7 @@
             "reason": "invalid_payload"
           },
           {
-            "event_id": "019a72c9-a528-76ac-b982-13401e305450",
-            "reason": "invalid_payload"
-          },
-          {
             "event_id": "019a72c9-a528-77d6-b25f-d5a4e9b13832",
-            "reason": "invalid_payload"
-          },
-          {
-            "event_id": "019a72c9-a528-7c1f-9b64-52cad4dd8c22",
             "reason": "invalid_payload"
           },
           {
@@ -3166,11 +3289,55 @@
             "reason": "invalid_payload"
           },
           {
+            "event_id": "019a72c9-a528-7931-bb6b-8a71a135ed60",
+            "reason": "invalid_payload"
+          },
+          {
             "event_id": "019a72c9-a528-74e9-a1dd-057a18704180",
             "reason": "invalid_payload"
           },
           {
-            "event_id": "019a72c9-a528-73fe-af31-509fa1b87f41",
+            "event_id": "019a72c9-a528-7f81-b85c-e9a506d6303a",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-a528-7a4d-80ab-27d5a4c63a5b",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-a528-7f86-ae4f-97893e788161",
+            "reason": "unknown_op"
+          },
+          {
+            "event_id": "019a72c9-a528-75a0-9b88-e2314a28d305",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-a528-721a-ab6a-e8b08da68e01",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-a528-76c0-bb6d-e441b660ae19",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-a528-750c-aa4b-a68a9065c68b",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-a528-7bce-8f82-5b2bb427cc62",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-a528-7c1d-971c-70e425d9688b",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-a528-7bf5-84a6-e583482ced8b",
+            "reason": "invalid_payload"
+          },
+          {
+            "event_id": "019a72c9-a528-7ffe-81a0-4d27f74fe0ed",
             "reason": "invalid_payload"
           }
         ]
