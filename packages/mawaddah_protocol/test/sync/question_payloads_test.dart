@@ -219,7 +219,13 @@ void main() {
 
     test('an optional note of 1 to 140 units goes with any form', () {
       expect(answer({'scale': 3, 'note': 'x'}), isTrue);
-      expect(answer({'choice': ['a'], 'note': 'x' * 140}), isTrue);
+      expect(
+        answer({
+          'choice': ['a'],
+          'note': 'x' * 140,
+        }),
+        isTrue,
+      );
       expect(answer({'text': 'hi', 'note': '😊' * 70}), isTrue);
       expect(answer({'gave_up': true, 'note': 'x'}), isTrue);
       expect(answer({'scale': 3, 'note': 'x' * 141}), isFalse);
