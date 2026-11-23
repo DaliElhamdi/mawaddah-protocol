@@ -25,6 +25,6 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.2",
     "vitest": "5.1.0",
-    "wrangler": "4.159.0"
+    "wrangler": "4.165.0"
   }
 }
